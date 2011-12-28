@@ -1,4 +1,4 @@
-module ulisp(input clk);
+module lisp(input clk);
 	parameter 				MEM_SIZE = 4096;
 	parameter 				WORD_SIZE = 20;
 
