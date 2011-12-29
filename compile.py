@@ -771,11 +771,11 @@ def foldConstants(expr):
 			if not isinstance(expr[0], list) and expr[0] in FOLDABLE_BINOPS \
 				and len(expr) == 3 and not isinstance(optimizedParams[0], list) \
 				and isinstance(optimizedParams[0], int) and not isinstance(optimizedParams[1], list) and isinstance(optimizedParams[1], int):
-				return str(FOLDABLE_BINOPS[expr[0]](optimizedParams[0], optimizedParams[1]))
+				return FOLDABLE_BINOPS[expr[0]](optimizedParams[0], optimizedParams[1])
 			if not isinstance(expr[0], list) and expr[0] in FOLDABLE_UOPS \
 				and len(expr) == 2 and not isinstance(optimizedParams[0], list) \
 				and isinstance(optimizedParams[0], int):
-				return str(FOLDABLE_UOPS[expr[0]](optimizedParams[0]))
+				return FOLDABLE_UOPS[expr[0]](optimizedParams[0])
 			else:
 				return [ expr[0] ] + optimizedParams
 	else:
