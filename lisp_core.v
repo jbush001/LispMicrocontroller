@@ -1,4 +1,4 @@
-module lisp(
+module lisp_core(
 	input 					clk,
 	output [6:0]			register_index,
 	output					register_read,

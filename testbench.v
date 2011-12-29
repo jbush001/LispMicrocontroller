@@ -13,7 +13,7 @@ module testbench;
 	wire[15:0]			register_write_value;
 	reg[15:0]			register_read_value = 0;
 	
-	lisp l(
+	lisp_core l(
 		.clk(clk),
 		.register_index(register_index),
 		.register_read(register_read),
