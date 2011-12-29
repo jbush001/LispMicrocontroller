@@ -28,7 +28,7 @@ module testbench;
 		$dumpfile("trace.vcd");
 		$dumpvars(100, l);
 		
-		for (i = 0; i < 500000; i = i + 1)
+		for (i = 0; i < 27000000; i = i + 1)
 		begin
 			#5 clk = ~clk;
 
@@ -42,6 +42,9 @@ module testbench;
 	begin
 		if (register_write && register_index == 0)
 			$write("%c", register_write_value);
+		
+		if (register_write && register_index == 1)
+			$display("set leds %b", register_write_value);
 	end
 
 	task dumpstate;
