@@ -7,7 +7,7 @@ module lisp_core(
 	input [15:0]			register_read_value);
 	
 	
-	parameter 				MEM_SIZE = 32640;	// 32k - 128 bytes for hardware regs
+	parameter 				MEM_SIZE = 8192;	
 	parameter 				WORD_SIZE = 20;
 
 	parameter				STATE_IADDR_ISSUE = 0;
@@ -70,7 +70,6 @@ module lisp_core(
 	reg[WORD_SIZE - 1:0]	mem_write_value = 0;
 	reg						mem_write_enable = 0;
 	reg[15:0]				alu_result = 0;
-	reg						enable_memory_access = 0;
 	reg						last_was_register_access = 0;
 
 	wire is_hardware_register_access = mem_addr[15:7] == 16'b111111111;
@@ -146,6 +145,7 @@ module lisp_core(
 			OP_XOR: alu_result = alu_op0 ^ alu_op1;
 			OP_LSHIFT: alu_result = alu_op0 << alu_op1;
 			OP_RSHIFT: alu_result = alu_op0 >> alu_op1;
+			default: alu_result = 0;
 		endcase
 	end
 
@@ -165,7 +165,6 @@ module lisp_core(
 		mem_write_enable = 0;
 		mem_write_value = 0;
 		mem_addr = 0;
-		enable_memory_access = 0;
 		stack_pointer_next = stack_pointer;
 		top_of_stack_next = top_of_stack;
 		state_next = state;
@@ -177,7 +176,6 @@ module lisp_core(
 			begin
 				// Fetch next instruction
 				instruction_pointer_next = next_instruction;
-				enable_memory_access = 1;
 				mem_addr = instruction_pointer_next[WORD_SIZE + 1:2];
 				state_next = STATE_DECODE;
 			end			
@@ -194,9 +192,7 @@ module lisp_core(
 						// and stash the return value in TOS
 						instruction_pointer_next =  { top_of_stack[15:0], 2'b00 };
 						stack_pointer_next = stack_pointer - 1;
-						enable_memory_access = 1;
 						mem_addr = stack_pointer_next;
-						mem_write_enable = 1;
 						mem_write_value = base_pointer;
 						base_pointer_next = stack_pointer_next;
 						top_of_stack_next = { instruction_pointer[WORD_SIZE + 1:2], 2'b00 } + 4;
@@ -338,6 +334,7 @@ module lisp_core(
 							instruction_pointer_next = next_instruction;
 						end
 						
+						stack_pointer_next = stack_pointer + 1;
 						state_next = STATE_LOAD_TOS1;	// Restore TOS
 					end
 					
@@ -503,7 +500,7 @@ module memory
 	input[WORD_SIZE - 1:0] 		addr_i,
 	input[WORD_SIZE - 1:0] 		value_i,
 	input 						write_i,
-	output [WORD_SIZE - 1:0] 	value_o);
+	output reg[WORD_SIZE - 1:0] 	value_o);
 
 	reg[15:0]					latched_addr = 0;
 	reg[19:0]					data[0:MEM_SIZE];
@@ -522,8 +519,6 @@ module memory
 		if (write_i)
 			data[addr_i] <= value_i;
 
-		latched_addr <= addr_i;
+		value_o <= data[addr_i];
 	end
-		
-	assign value_o = data[latched_addr];
 endmodule

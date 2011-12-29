@@ -67,10 +67,8 @@
 ; by the compiler.  Wilderness is memory that has never been allocated and
 ; that we can simply slice off from.
 (assign $wilderness-start $heapstart)
-
-(assign $$hack$$ 16383) ; Hack to work around fixed range of (signed) immediates
-(assign $max-heap (+ $$hack$$ 12161)) 	; stack top - 4096 entries
-(assign $stacktop (+ $$hack$$ 16257))	; memtop - register window size (128 bytes)
+(assign $stacktop 8192)
+(assign $max-heap (- $stacktop 1024)) 	
 (assign $freelist 0)
 
 (function $mark-recursive (ptr)
