@@ -47,6 +47,7 @@ OP_OR = 17
 OP_XOR = 18
 OP_LSHIFT = 19
 OP_RSHIFT = 20
+OP_GETBP = 21
 OP_RESERVE = 24		# High bits indicates this has a parameter
 OP_PUSH = 25
 OP_GOTO = 26
@@ -409,8 +410,8 @@ class Compiler:
 			self.compileQuote(expr[1])
 		elif functionName == 'let':
 			self.compileLet(expr)
-		elif functionName == '$bp':
-			self.compileBasePointer(expr)
+		elif functionName == 'getbp':
+			self.currentFunction.emitInstruction(OP_GETBP)
 		else:
 			# Anything that isn't a built in form falls through to here.
 			self.compileFunctionCall(expr)
@@ -806,7 +807,8 @@ disasmTable = {
 	OP_OR			: ('or', False),
 	OP_XOR			: ('xor', False),
 	OP_LSHIFT		: ('lshift', False),
-	OP_RSHIFT		: ('rshift', False)
+	OP_RSHIFT		: ('rshift', False),
+	OP_GETBP		: ('getbp', False)
 }
 def disassemble(outfile, instructions, baseAddress):
 	for pc, word in enumerate(instructions):

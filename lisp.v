@@ -28,6 +28,12 @@ module lisp(input clk);
 	parameter				OP_DUP = 13;
 	parameter				OP_GETTAG = 14;
 	parameter				OP_SETTAG = 15;
+	parameter				OP_AND = 16;
+	parameter				OP_OR = 17;
+	parameter				OP_XOR = 18;
+	parameter				OP_LSHIFT = 19;
+	parameter				OP_RSHIFT = 20;
+	parameter				OP_GETBP = 21;
 	parameter				OP_RESERVE = 24;	
 	parameter				OP_PUSH = 25;
 	parameter				OP_GOTO = 26;
@@ -35,11 +41,6 @@ module lisp(input clk);
 	parameter				OP_GETLOCAL = 29;
 	parameter				OP_SETLOCAL = 30;
 	parameter				OP_CLEANUP = 31;
-	parameter				OP_AND = 16;
-	parameter				OP_OR = 17;
-	parameter				OP_XOR = 18;
-	parameter				OP_LSHIFT = 19;
-	parameter				OP_RSHIFT = 20;
 
 	reg[3:0]				state = STATE_IADDR_ISSUE;
 	reg[3:0]				state_next = STATE_IADDR_ISSUE;
@@ -201,6 +202,16 @@ module lisp(input clk);
 					OP_GETTAG:
 					begin
 						top_of_stack_next = top_of_stack[19:16];
+
+						// Fetch next instruction
+						instruction_pointer_next = next_instruction;
+						mem_addr = instruction_pointer_next[WORD_SIZE + 1:2];
+						state_next = STATE_DECODE;
+					end
+					
+					OP_GETBP:
+					begin
+						top_of_stack_next = base_pointer;
 
 						// Fetch next instruction
 						instruction_pointer_next = next_instruction;

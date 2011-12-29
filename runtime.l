@@ -108,10 +108,8 @@
 		)
 
 		; Walk stack
-		(for ptr ($bp) $stacktop 1
-			(begin
-				($mark-recursive (load ptr))		
-			)
+		(for ptr (getbp) $stacktop 1
+			($mark-recursive (load ptr))		
 		)
 		
 		; Sweep
