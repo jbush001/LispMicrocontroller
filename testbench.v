@@ -41,7 +41,7 @@ module testbench;
 			l.OP_STORE: 	$write("store");
 			l.OP_ADD: 		$write("add");
 			l.OP_SUB: 		$write("sub");
-			l.OP_CDR: 		$write("cdr");
+			l.OP_REST: 		$write("rest");
 			l.OP_GTR: 		$write("gtr");
 			l.OP_GTE: 		$write("gte");
 			l.OP_EQ: 		$write("eq");

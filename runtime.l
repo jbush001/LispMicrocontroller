@@ -35,7 +35,7 @@
 )
 
 (defmacro printchar (x)
-	`(store 16383 ,x)
+	`(store -127 ,x)
 )
 
 (function printstr (x)

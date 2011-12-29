@@ -214,6 +214,9 @@ class Parser:
 	
 	def parseExpr(self):
 		token = self.lexer.get_token()
+		if token == '':
+			return ''
+		
 		if token == '\'':
 			return [ 'quote', self.parseExpr() ]
 		elif token == '`':
@@ -222,6 +225,8 @@ class Parser:
 			return [ 'unquote', self.parseExpr() ]
 		elif token == '(':
 			return self.parseParenList()
+		elif token.isdigit() or (token[0] == '-' and len(token) > 1):
+			return int(token)
 		else:
 			return token
 			
@@ -352,14 +357,15 @@ class Compiler:
 	# Compiles an arbitrary lisp expression. 
 	#
 	def compileExpression(self, expr):
-		if len(expr) == 0:	# Empty expression()
-			self.currentFunction.emitInstructionWithParam(OP_PUSH, 0)
-		elif isinstance(expr, list):
-			if expr[0] == 'lambda':
+		if isinstance(expr, list):
+			if len(expr) == 0:
+				# Empty expression
+				self.currentFunction.emitInstructionWithParam(OP_PUSH, 0)
+			elif expr[0] == 'lambda':
 				self.compileLambda(expr)
 			else:
 				self.compileCombination(expr)
-		elif expr.isdigit():
+		elif isinstance(expr, int):
 			self.compileConstant(expr)
 		elif expr[0] == '"':
 			self.compileString(expr[1:-1])
@@ -368,7 +374,7 @@ class Compiler:
 			self.compileAtom(expr)
 
 	def compileConstant(self, expr):
-		self.currentFunction.emitInstructionWithParam(OP_PUSH, int(expr))
+		self.currentFunction.emitInstructionWithParam(OP_PUSH, expr)
 
 	# 
 	# compile atom reference (which will look up the variable in the current
@@ -426,7 +432,7 @@ class Compiler:
 	def compileQuote(self, expr):
 		if isinstance(expr, list):
 			self.compileQuotedList(expr)
-		elif expr.isdigit():
+		elif isinstance(expr, int):
 			self.compileConstant(expr)
 		else:
 			self.compileString(expr)
@@ -764,12 +770,12 @@ def foldConstants(expr):
 			optimizedParams = [ foldConstants(sub) for sub in expr[1:] ]
 			if not isinstance(expr[0], list) and expr[0] in FOLDABLE_BINOPS \
 				and len(expr) == 3 and not isinstance(optimizedParams[0], list) \
-				and optimizedParams[0].isdigit() and not isinstance(optimizedParams[1], list) and optimizedParams[1].isdigit():
-				return str(FOLDABLE_BINOPS[expr[0]](int(optimizedParams[0]), int(optimizedParams[1])))
+				and isinstance(optimizedParams[0], int) and not isinstance(optimizedParams[1], list) and isinstance(optimizedParams[1], int):
+				return str(FOLDABLE_BINOPS[expr[0]](optimizedParams[0], optimizedParams[1]))
 			if not isinstance(expr[0], list) and expr[0] in FOLDABLE_UOPS \
 				and len(expr) == 2 and not isinstance(optimizedParams[0], list) \
-				and optimizedParams[0].isdigit():
-				return str(FOLDABLE_UOPS[expr[0]](int(optimizedParams[0])))
+				and isinstance(optimizedParams[0], int):
+				return str(FOLDABLE_UOPS[expr[0]](optimizedParams[0]))
 			else:
 				return [ expr[0] ] + optimizedParams
 	else:
@@ -914,7 +920,7 @@ class MacroProcessor:
 					env[name] = value
 
 				return self.eval(func[1], env)
-		elif expr.isdigit():
+		elif isinstance(expr, int):
 			return expr	
 		else:
 			return env[expr]

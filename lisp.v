@@ -1,5 +1,5 @@
 module lisp(input clk);
-	parameter 				MEM_SIZE = 4096;
+	parameter 				MEM_SIZE = 32640;	// 32k - 128 bytes for hardware regs
 	parameter 				WORD_SIZE = 20;
 
 	parameter				STATE_IADDR_ISSUE = 0;
@@ -20,7 +20,7 @@ module lisp(input clk);
 	parameter				OP_STORE = 5;
 	parameter				OP_ADD = 6;
 	parameter				OP_SUB = 7;
-	parameter				OP_CDR = 8;
+	parameter				OP_REST = 8;
 	parameter				OP_GTR = 9;
 	parameter				OP_GTE = 10;
 	parameter				OP_EQ = 11;
@@ -63,7 +63,7 @@ module lisp(input clk);
 	reg						mem_write_enable = 0;
 	reg[15:0]				alu_result = 0;
 
-	memory mem(
+	memory #(MEM_SIZE, WORD_SIZE) mem(
 		.clk(clk),
 		.addr_i(mem_addr),
 		.value_i(mem_write_value),
@@ -247,7 +247,7 @@ module lisp(input clk);
 						state_next = STATE_GOT_NOS;	
 					end
 					
-					OP_CDR:	// Just a load with an extra offset
+					OP_REST:	// Just a load with an extra offset
 					begin
 						mem_addr = top_of_stack[15:0] + 1;
 						state_next = STATE_PUSH_MEM_RESULT;
@@ -497,7 +497,7 @@ module memory
 	begin
 		if (write_i)
 		begin
-			if (addr_i == 'h3fff)		// Special output device lives here.
+			if (addr_i == 'hff81)		// Special output device lives here.
 				$write("%c", value_i[7:0]);
 			else
 				data[addr_i] <= value_i;
