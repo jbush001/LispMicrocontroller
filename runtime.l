@@ -34,8 +34,16 @@
 	)
 )
 
-(defmacro printchar (x)
-	`(store -128 ,x)
+(defmacro write-register (index value)
+	`(store (- ,index 128) ,value)
+)
+
+(defmacro read-register (index)
+	`(load (- ,index 128))
+)
+
+(function printchar (x)
+	(write-register 0 x)
 )
 
 (function printstr (x)

@@ -20,7 +20,7 @@
 #  ...
 #
 
-import sys, shlex
+import sys, shlex, copy
 
 TAG_INTEGER = 0		# Make this zero because types default to this when pushed
 TAG_CONS = 1
