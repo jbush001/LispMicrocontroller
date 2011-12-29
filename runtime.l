@@ -55,9 +55,14 @@
 	)
 )
 
-(assign $heapend $heapstart)
-(assign $max-heap 512)
-(assign $stacktop 4096)
+; Note that $globalstart and $heapstart are variables created automatically
+; by the compiler.  Wilderness is memory that has never been allocated and
+; that we can simply slice off from.
+(assign $wilderness-start $heapstart)
+
+(assign $$hack$$ 16383) ; Hack to work around fixed range of (signed) immediates
+(assign $max-heap (+ $$hack$$ 12161)) 	; stack top - 4096 entries
+(assign $stacktop (+ $$hack$$ 16257))	; memtop - register window size (128 bytes)
 (assign $freelist 0)
 
 (function $mark-recursive (ptr)
@@ -86,7 +91,7 @@
 )
 
 (function $clear-flags ()
-	(for ptr $heapstart $heapend 2
+	(for ptr $heapstart $wilderness-start 2
 		(let ((val (load ptr)) (tag (gettag val)))
 			(store ptr (settag val (and tag 7)))
 		)
@@ -114,7 +119,7 @@
 		
 		; Sweep
 		(assign $freelist 0)	; First clear the freelist so we don't double-add
-		(for ptr $heapstart $max-heap 2
+		(for ptr $heapstart $wilderness-start 2
 			(if (and (gettag (load ptr)) 16)
 				()	; do nothing, this is in-use
 				(begin
@@ -145,15 +150,15 @@
 			)
 			(begin
 				; Nothing on freelist, try to expand frontier
-				(if (>= $heapend $max-heap)
+				(if (>= $wilderness-start $max-heap)
 					($gc)	; No room, try to gc
 					()
 				)
 	
 				; XXX could fail here if OOM.  Now just goes into weeds.
 	
-				(assign ptr $heapend)
-				(assign $heapend (+ $heapend 2))
+				(assign ptr $wilderness-start)
+				(assign $wilderness-start (+ $wilderness-start 2))
 			)
 		)
 
