@@ -28,7 +28,7 @@ module testbench;
 		$dumpfile("trace.vcd");
 		$dumpvars(100, l);
 		
-		for (i = 0; i < 27000000; i = i + 1)
+		for (i = 0; i < 100000; i = i + 1)
 		begin
 			#5 clk = ~clk;
 
@@ -49,65 +49,70 @@ module testbench;
 
 	task dumpstate;
 	begin
-		$write("%d ", l.instruction_pointer / 4);
-
-		case (l.opcode)
-			l.OP_NOP: 		$write("nop");
-			l.OP_CALL: 		$write("call");
-			l.OP_RETURN: 	$write("return");
-			l.OP_POP: 		$write("pop");
-			l.OP_LOAD: 		$write("load");
-			l.OP_STORE: 	$write("store");
-			l.OP_ADD: 		$write("add");
-			l.OP_SUB: 		$write("sub");
-			l.OP_REST: 		$write("rest");
-			l.OP_GTR: 		$write("gtr");
-			l.OP_GTE: 		$write("gte");
-			l.OP_EQ: 		$write("eq");
-			l.OP_NEQ: 		$write("new");
-			l.OP_DUP: 		$write("dup");
-			l.OP_GETTAG: 	$write("gettag");
-			l.OP_SETTAG: 	$write("settag");
-			l.OP_RESERVE:	$write("reserve");
-			l.OP_PUSH: 		$write("push");
-			l.OP_GOTO: 		$write("goto");
-			l.OP_BFALSE: 	$write("bfalse");
-			l.OP_GETLOCAL: 	$write("getlocal");
-			l.OP_SETLOCAL: 	$write("setlocal");
-			l.OP_CLEANUP: 	$write("cleanup");
-			l.OP_AND: 		$write("and");
-			l.OP_OR: 		$write("or");
-			l.OP_XOR: 		$write("xor");
-			l.OP_LSHIFT: 	$write("lshift");
-			l.OP_RSHIFT: 	$write("rshift");
-		endcase
-
-		if (l.opcode[4:3] == 2'b11)
-			$write(" %d", l.param);
-
-		$write("\t");
-
-		case (l.state)
-			l.STATE_IADDR_ISSUE: 		$write("IADDR_ISSUE");
-			l.STATE_DECODE: 			$write("DECODE");
-			l.STATE_GOT_NOS: 			$write("GOT_NOS");
-			l.STATE_LOAD_TOS1: 			$write("LOAD_TOS1");
-			l.STATE_PUSH_MEM_RESULT: 	$write("PUSH_MEM_RESULT");
-			l.STATE_GETLOCAL2: 			$write("GETLOCAL2");
-			l.STATE_RETURN2: 			$write("RETURN2");
-			l.STATE_CALL2: 				$write("CALL2");
-			l.STATE_RETURN3: 			$write("RETURN3");
-		endcase
+		if (l.opcode != 0)
+		begin
+			$write("%d ", l.instruction_pointer / 4);
 	
-		$write("\tstack(%d) ", l.stack_pointer);
-		$write(" %d", l.top_of_stack);
-		for (j = 0; j < 5; j = j + 1)
-			$write(" %d", l.mem.data[l.stack_pointer + j]);
+			case (l.opcode)
+				l.OP_NOP: 		$write("nop");
+				l.OP_CALL: 		$write("call");
+				l.OP_RETURN: 	$write("return");
+				l.OP_POP: 		$write("pop");
+				l.OP_LOAD: 		$write("load");
+				l.OP_STORE: 	$write("store");
+				l.OP_ADD: 		$write("add");
+				l.OP_SUB: 		$write("sub");
+				l.OP_REST: 		$write("rest");
+				l.OP_GTR: 		$write("gtr");
+				l.OP_GTE: 		$write("gte");
+				l.OP_EQ: 		$write("eq");
+				l.OP_NEQ: 		$write("new");
+				l.OP_DUP: 		$write("dup");
+				l.OP_GETTAG: 	$write("gettag");
+				l.OP_SETTAG: 	$write("settag");
+				l.OP_RESERVE:	$write("reserve");
+				l.OP_PUSH: 		$write("push");
+				l.OP_GOTO: 		$write("goto");
+				l.OP_BFALSE: 	$write("bfalse");
+				l.OP_GETLOCAL: 	$write("getlocal");
+				l.OP_SETLOCAL: 	$write("setlocal");
+				l.OP_CLEANUP: 	$write("cleanup");
+				l.OP_AND: 		$write("and");
+				l.OP_OR: 		$write("or");
+				l.OP_XOR: 		$write("xor");
+				l.OP_LSHIFT: 	$write("lshift");
+				l.OP_RSHIFT: 	$write("rshift");
+			endcase
 	
-		$write("\n");
-		if (l.mem_write_enable)
-			$display(" mem %d <= %d", l.mem_addr, l.mem_write_value);
-
+			if (l.opcode[4:3] == 2'b11)
+				$write(" %d", l.param);
+	
+			$write(" ");
+	
+			case (l.state)
+				l.STATE_IADDR_ISSUE: 		$write("IADDR_ISSUE");
+				l.STATE_DECODE: 			$write("DECODE");
+				l.STATE_GOT_NOS: 			$write("GOT_NOS");
+				l.STATE_LOAD_TOS1: 			$write("LOAD_TOS1");
+				l.STATE_PUSH_MEM_RESULT: 	$write("PUSH_MEM_RESULT");
+				l.STATE_GETLOCAL2: 			$write("GETLOCAL2");
+				l.STATE_RETURN2: 			$write("RETURN2");
+				l.STATE_CALL2: 				$write("CALL2");
+				l.STATE_RETURN3: 			$write("RETURN3");
+			endcase
+		
+			$write(" stack(%d) ", l.stack_pointer);
+			$write(" %d", l.top_of_stack);
+			for (j = 0; j < 5; j = j + 1)
+				$write(" %d", l.mem.data[l.stack_pointer + j]);
+		
+			$write("\n");
+			if (l.instruction_pointer_next != l.instruction_pointer)
+				$write("\n");
+			
+//			if (l.mem_write_enable)
+//				$display(" mem %d <= %d", l.mem_addr, l.mem_write_value);
+		end
 	end
 	endtask
 
