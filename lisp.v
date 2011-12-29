@@ -435,6 +435,7 @@ module lisp(input clk);
 				// Got the instruction pointer, now fetch old base pointer
 				instruction_pointer_next = mem_read_value;
 				mem_addr = base_pointer;
+				stack_pointer_next = base_pointer + 1;
 				state_next = STATE_RETURN3;
 			end
 			
