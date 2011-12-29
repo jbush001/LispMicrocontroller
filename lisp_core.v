@@ -194,6 +194,7 @@ module lisp_core(
 						stack_pointer_next = stack_pointer - 1;
 						mem_addr = stack_pointer_next;
 						mem_write_value = base_pointer;
+						mem_write_enable = 1;
 						base_pointer_next = stack_pointer_next;
 						top_of_stack_next = { instruction_pointer[WORD_SIZE + 1:2], 2'b00 } + 4;
 						state_next = STATE_CALL2;
@@ -334,8 +335,10 @@ module lisp_core(
 							instruction_pointer_next = next_instruction;
 						end
 						
+						// Read the next value from the stack
 						stack_pointer_next = stack_pointer + 1;
-						state_next = STATE_LOAD_TOS1;	// Restore TOS
+						mem_addr = stack_pointer;
+						state_next = STATE_PUSH_MEM_RESULT;
 					end
 					
 					OP_GETLOCAL:
@@ -386,8 +389,8 @@ module lisp_core(
 			begin
 				if (opcode == OP_SETTAG)
 				begin
+					// This modifies in-place
 					top_of_stack_next = { alu_op1[3:0], top_of_stack[15:0] };
-					stack_pointer_next = stack_pointer + 1;
 
 					// Fetch next instruction
 					instruction_pointer_next = next_instruction;
@@ -401,7 +404,7 @@ module lisp_core(
 					mem_addr = top_of_stack[15:0];
 					mem_write_enable = 1;
 					mem_write_value = mem_read_value;	// next on stack
-					stack_pointer_next = stack_pointer + 2;
+					stack_pointer_next = stack_pointer + 1;
 					
 					// Load top of stack
 					state_next = STATE_LOAD_TOS1;
@@ -422,6 +425,7 @@ module lisp_core(
 			STATE_LOAD_TOS1:
 			begin
 				mem_addr = stack_pointer;
+				stack_pointer_next = stack_pointer + 1;
 				state_next = STATE_PUSH_MEM_RESULT;
 			end
 
