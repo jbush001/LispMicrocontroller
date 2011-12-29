@@ -307,8 +307,7 @@ class Compiler:
 		self.lookupSymbol('$globalstart').initialized = True
 		self.lookupSymbol('$heapstart').initialized = True
 
-		for sub in expr:
-			self.compileExpression(sub)
+		self.compileSequence(expr)
 
 		# Put an infinite loop at the end 
 		forever = self.currentFunction.generateLabel()
