@@ -4,12 +4,22 @@
 
 module testbench;
 
-	reg clk;
-	integer i;
-	integer j;
+	reg 				clk;
+	integer 			i;
+	integer 			j;
+	wire[6:0]			register_index;
+	wire				register_read;
+	wire				register_write;
+	wire[15:0]			register_write_value;
+	reg[15:0]			register_read_value = 0;
 	
 	lisp l(
-		.clk(clk));
+		.clk(clk),
+		.register_index(register_index),
+		.register_read(register_read),
+		.register_write(register_write),
+		.register_write_value(register_write_value),
+		.register_read_value(register_read_value));
 	
 	initial
 	begin
@@ -26,6 +36,12 @@ module testbench;
 			if (clk) dumpstate;
 `endif
 		end
+	end
+	
+	always @(posedge clk)
+	begin
+		if (register_write && register_index == 0)
+			$write("%c", register_write_value);
 	end
 
 	task dumpstate;

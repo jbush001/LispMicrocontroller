@@ -1,4 +1,12 @@
-module lisp(input clk);
+module lisp(
+	input 					clk,
+	output [6:0]			register_index,
+	output					register_read,
+	output					register_write,
+	output [15:0]			register_write_value,
+	input [15:0]			register_read_value);
+	
+	
 	parameter 				MEM_SIZE = 32640;	// 32k - 128 bytes for hardware regs
 	parameter 				WORD_SIZE = 20;
 
@@ -62,12 +70,20 @@ module lisp(input clk);
 	reg[WORD_SIZE - 1:0]	mem_write_value = 0;
 	reg						mem_write_enable = 0;
 	reg[15:0]				alu_result = 0;
+	reg						enable_memory_access = 0;
+	reg						last_was_register_access = 0;
+
+	wire is_hardware_register_access = mem_addr[15:7] == 16'b111111111;
+	assign register_index = mem_addr[6:0];
+	assign register_write_value = mem_write_value;
+	assign register_write = is_hardware_register_access && mem_write_enable;
+	assign register_read = is_hardware_register_access;
 
 	memory #(MEM_SIZE, WORD_SIZE) mem(
 		.clk(clk),
 		.addr_i(mem_addr),
 		.value_i(mem_write_value),
-		.write_i(mem_write_enable),
+		.write_i(mem_write_enable && !is_hardware_register_access),
 		.value_o(mem_read_value));
 
 	//
@@ -149,6 +165,7 @@ module lisp(input clk);
 		mem_write_enable = 0;
 		mem_write_value = 0;
 		mem_addr = 0;
+		enable_memory_access = 0;
 		stack_pointer_next = stack_pointer;
 		top_of_stack_next = top_of_stack;
 		state_next = state;
@@ -160,6 +177,7 @@ module lisp(input clk);
 			begin
 				// Fetch next instruction
 				instruction_pointer_next = next_instruction;
+				enable_memory_access = 1;
 				mem_addr = instruction_pointer_next[WORD_SIZE + 1:2];
 				state_next = STATE_DECODE;
 			end			
@@ -176,6 +194,7 @@ module lisp(input clk);
 						// and stash the return value in TOS
 						instruction_pointer_next =  { top_of_stack[15:0], 2'b00 };
 						stack_pointer_next = stack_pointer - 1;
+						enable_memory_access = 1;
 						mem_addr = stack_pointer_next;
 						mem_write_enable = 1;
 						mem_write_value = base_pointer;
@@ -418,7 +437,10 @@ module lisp(input clk);
 			
 			STATE_PUSH_MEM_RESULT:
 			begin
-				top_of_stack_next = mem_read_value;
+				if (last_was_register_access)
+					top_of_stack_next = register_read_value;
+				else
+					top_of_stack_next = mem_read_value;
 
 				// Fetch next instruction
 				// If we're finishing a branch, don't increment again
@@ -467,6 +489,7 @@ module lisp(input clk);
 		top_of_stack <= top_of_stack_next;
 		stack_pointer <= stack_pointer_next;
 		base_pointer <= base_pointer_next;
+		last_was_register_access <= is_hardware_register_access;
 		if (state == STATE_DECODE)
 			latched_instruction <= mem_read_value;
 	end
@@ -497,12 +520,7 @@ module memory
 	always @(posedge clk)
 	begin
 		if (write_i)
-		begin
-			if (addr_i == 'hff81)		// Special output device lives here.
-				$write("%c", value_i[7:0]);
-			else
-				data[addr_i] <= value_i;
-		end
+			data[addr_i] <= value_i;
 
 		latched_addr <= addr_i;
 	end
