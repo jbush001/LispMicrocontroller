@@ -512,9 +512,11 @@ module memory
 
 	initial
 	begin
+		// synthesis translate_off
 		for (i = 0; i < MEM_SIZE; i = i + 1)
 			data[i] = 0;
-
+		// synthesis translate_on
+		
 		$readmemh("ram.hex", data);
 	end
 
