@@ -50,5 +50,14 @@
 (printhex (map-lookup map 4))		; Bad key, should return zero
 (printchar 10)
 
+; Expected output:
+; 0001 0007
+; 0002 0008
+; 0003 0005
+; 0007
+; 0008
+; 0005
+; 0000
+
 
 
