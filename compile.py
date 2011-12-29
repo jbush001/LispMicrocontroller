@@ -627,8 +627,8 @@ class Compiler:
 		self.compileAtom(expr[0])
 		
 		self.currentFunction.emitInstruction(OP_CALL)
+		self.currentFunction.align()	# Return always comes back to word boundary
 		if len(expr) > 1:
-			self.currentFunction.align()
 			self.currentFunction.emitInstructionWithParam(OP_CLEANUP, len(expr) - 1)
 
 	#

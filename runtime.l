@@ -113,6 +113,7 @@
 		)
 		
 		; Sweep
+		(assign $freelist 0)	; First clear the freelist so we don't double-add
 		(for ptr $heapstart $max-heap 2
 			(if (and (gettag (load ptr)) 16)
 				()	; do nothing, this is in-use
