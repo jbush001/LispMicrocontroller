@@ -2,12 +2,6 @@
 ; Library of standard macros and runtime functions
 ;
 
-(defmacro function (x y z)
-	`(assign ,x (lambda ,y
-		,z
-	))
-)
-
 (defmacro if (a b c)
 	`(cond 
 		(,a ,b)

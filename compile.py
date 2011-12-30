@@ -59,11 +59,13 @@ OP_CLEANUP = 31
 class Symbol:
 	LOCAL_VARIABLE = 1
 	GLOBAL_VARIABLE = 2
+	FUNCTION = 3
 
 	def __init__(self, type):
 		self.type = type
 		self.index = -1
 		self.initialized = False	# For globals
+		self.function = None
 
 # Labels are only visible inside the functions they are defined in.
 class Label:
@@ -243,7 +245,7 @@ class Compiler:
 		self.environmentStack = [[{}]]
 		self.globals = {}
 		self.currentFunction = Function()
-		self.functionTable = [ 0 ]		# We reserve a spot for 'main'
+		self.functionList = [ 0 ]		# We reserve a spot for 'main'
 		self.loopStack = []	# Each entry is ( resultReg, exitLabel )
 
 		# Can be a fixup for:
@@ -299,7 +301,7 @@ class Compiler:
 	# Top level compile function.  All code not in lambda blocks will be 
 	# emitted into an implicitly created dummy function 'main'
 	#
-	def compile(self, expr):
+	def compile(self, program):
 		self.currentFunction = Function()
 
 		# create a built-in variable that indicates where the heap starts
@@ -307,7 +309,12 @@ class Compiler:
 		self.lookupSymbol('$globalstart').initialized = True
 		self.lookupSymbol('$heapstart').initialized = True
 
-		self.compileSequence(expr)
+		for expr in program:
+			if expr[0] == 'function':
+				self.compileFunction(expr)
+			else:
+				self.compileExpression(expr)
+				self.currentFunction.emitInstruction(OP_POP) # Clean up stack
 
 		# Put an infinite loop at the end 
 		forever = self.currentFunction.generateLabel()
@@ -316,10 +323,10 @@ class Compiler:
 		
 		# The top level code (which looks like a function) is the first code
 		# emitted, since that's where execution will start
-		self.functionTable[0] = self.currentFunction
+		self.functionList[0] = self.currentFunction
 
 		# Do fixups
-		for function in self.functionTable:
+		for function in self.functionList:
 			function.performLocalFixups()		# Replace labels with offsets
 
 		self.performGlobalFixups()			
@@ -330,12 +337,16 @@ class Compiler:
 		# Write out table of global variables
 		listfile.write('Globals:\n')
 		for var in self.globals:
-			listfile.write(' ' + var + ' ' + str(self.globals[var].index + self.codeLength) + '\n')
+			sym = self.globals[var]
+			if sym.type == Symbol.FUNCTION:
+				listfile.write(' ' + var + ' function@' + str(sym.function.baseAddress) + '\n')
+			else:
+				listfile.write(' ' + var + ' var@' + str(sym.index + self.codeLength) + '\n')
 
 		# Write out expanded expressions
-		writeExpr(listfile, expr, 0)
+		writeExpr(listfile, program, 0)
 
-		for func in self.functionTable:
+		for func in self.functionList:
 			listfile.write('\nfunction @' + str(func.baseAddress) + '\n')
 			disassemble(listfile, func.instructions, func.baseAddress)
 
@@ -343,13 +354,48 @@ class Compiler:
 		
 		# Now consolidate the functions
 		instructions = []
-		for func in self.functionTable:
+		for func in self.functionList:
 			instructions += func.instructions		
 				
 		# Write the values for __globalstart and __heapstart variables
 		instructions += [ self.codeLength, self.codeLength + len(self.globals) ]
 		
 		return instructions
+
+	#
+	# Compile function definition (function name (param param...) body)
+	#
+	def compileFunction(self, expr):
+		function = self.compileFunctionBody(expr[2], expr[3])
+		self.functionList += [ function ]
+	
+		if expr[1] in self.globals:
+			# There was a forward reference to this function and it was 
+			# assumed to be a global.  We're kind of stuck with that now,
+			# because code was generated that can't be easily fixed up.
+			# Emit code to stash it in the global table.
+			sym = self.globals[expr[1]]
+			if sym.initialized:
+				raise Exception('Global variable ' + expr[1] + ' redefined as function')
+
+			# Function address, to be fixed up
+			self.currentFunction.emitInstructionWithParam(OP_PUSH, 16383)
+			self.globalFixups += [ ( self.currentFunction,
+				self.currentFunction.getProgramAddress() - 1, function ) ]
+
+			# Global variable offset, to be fixed up
+			self.currentFunction.emitInstructionWithParam(OP_PUSH, 16383)
+			self.globalFixups += [ ( self.currentFunction,
+				self.currentFunction.getProgramAddress() - 1, sym ) ]
+			self.currentFunction.emitInstruction(OP_STORE);
+			sym.initialized = True
+		else:
+			sym = Symbol(Symbol.FUNCTION)
+			sym.initialized = True
+			sym.function = function
+
+
+		self.globals[expr[1]] = sym
 
 	#
 	# The mother compile function, from which all other things are compiled.
@@ -389,6 +435,10 @@ class Compiler:
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, variable ) ]
 			self.currentFunction.emitInstruction(OP_LOAD);
+		elif variable.type == Symbol.FUNCTION:
+			self.currentFunction.emitInstructionWithParam(OP_PUSH, 16383)
+			self.globalFixups += [ ( self.currentFunction,
+				self.currentFunction.getProgramAddress() - 1, variable ) ]
 		else:
 			raise Exception('internal error: symbol does not have a valid type', '')
 
@@ -490,6 +540,8 @@ class Compiler:
 				self.currentFunction.getProgramAddress() - 1, variable ) ]
 			self.currentFunction.emitInstruction(OP_STORE);
 			variable.initialized = True
+		elif variable.type == Symbol.FUNCTION:
+			raise Exception('Error: cannot assign function')
 		else:
 			raise Exception('Internal error: what kind of variable is ' + expr[1] + '?', '')
 
@@ -630,13 +682,35 @@ class Compiler:
 		for paramExpr in reversed(expr[1:]):
 			self.compileExpression(paramExpr)
 
-		# Push the address of the function
 		self.compileAtom(expr[0])
-		
 		self.currentFunction.emitInstruction(OP_CALL)
 		self.currentFunction.align()	# Return always comes back to word boundary
 		if len(expr) > 1:
 			self.currentFunction.emitInstructionWithParam(OP_CLEANUP, len(expr) - 1)
+
+	#
+	# Actual guts of the function body
+	# ((param param...) body)
+	#
+	def compileFunctionBody(self, params, body):
+		oldFunc = self.currentFunction
+		newFunction = Function()
+		self.currentFunction = newFunction
+		self.enterLambda()
+		
+		for index, paramName in enumerate(params):
+			var = self.createLocalVariable(paramName)
+			var.index = index + 1
+
+		self.currentFunction.numParams = len(params)
+	
+		# Compile top level expression.
+		self.compileExpression(body)
+		self.currentFunction.emitInstruction(OP_RETURN)
+		self.exitLambda()
+		self.currentFunction = oldFunc
+
+		return newFunction
 
 	#
 	# lambda expression will be of the form (lambda (param param...) (expr))
@@ -644,24 +718,7 @@ class Compiler:
 	# to that code in the current function.
 	#
 	def compileLambda(self, expr):
-		# We begin generating a totally new function
-		oldFunc = self.currentFunction
-		newFunction = Function()
-		self.currentFunction = newFunction
-		
-		self.enterLambda()
-		
-		for index, paramName in enumerate(expr[1]):
-			var = self.createLocalVariable(paramName)
-			var.index = index + 1
-
-		self.currentFunction.numParams = len(expr[1])
-	
-		# Compile top level expression.
-		self.compileExpression(expr[2])
-		self.currentFunction.emitInstruction(OP_RETURN)
-		self.exitLambda()
-		self.currentFunction = oldFunc
+		newFunction = self.compileFunctionBody(expr[1], expr[2])
 		
 		# Now compile code that references the lambda object we created.  We'll
 		# set the tag to indicate this is a function.
@@ -670,7 +727,7 @@ class Compiler:
 		self.currentFunction.emitInstruction(OP_SETTAG)
 		self.globalFixups += [ ( self.currentFunction,
 			self.currentFunction.getProgramAddress() - 1, newFunction ) ]
-		self.functionTable += [ newFunction ]
+		self.functionList += [ newFunction ]
 
 	#
 	# A block of expressions
@@ -716,15 +773,18 @@ class Compiler:
 		# Need to determine where functions are in memory and where global
 		# table starts
 		self.codeLength = 0
-		for func in self.functionTable:
+		for func in self.functionList:
 			func.baseAddress = self.codeLength
 			self.codeLength += len(func.instructions)
 
 		for function, functionOffset, target in self.globalFixups:
 			if isinstance(target, Function):
 				function.patch(functionOffset, target.baseAddress)
-			elif isinstance(target, Symbol) and target.type == Symbol.GLOBAL_VARIABLE:
-				function.patch(functionOffset, target.index + self.codeLength)
+			elif isinstance(target, Symbol):
+				if target.type == Symbol.GLOBAL_VARIABLE:
+					function.patch(functionOffset, target.index + self.codeLength)
+				elif target.type == Symbol.FUNCTION:
+					function.patch(functionOffset, target.function.baseAddress)
 			else:
 				raise Exception('unknown global fixup type')
 
