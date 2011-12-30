@@ -7,9 +7,6 @@ module top(input clk,
 	wire[15:0]			register_write_value;
 	reg[15:0]			register_read_value = 0;
 	
-	reg slowclk = 0;
-	reg[10:0] counter = 0;
-	
 	lisp_core l(
 		.clk(clk),
 		.register_index(register_index),
