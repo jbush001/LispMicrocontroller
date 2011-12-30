@@ -362,8 +362,6 @@ class Compiler:
 			if len(expr) == 0:
 				# Empty expression
 				self.currentFunction.emitInstructionWithParam(OP_PUSH, 0)
-			elif expr[0] == 'lambda':
-				self.compileLambda(expr)
 			else:
 				self.compileCombination(expr)
 		elif isinstance(expr, int):
@@ -403,6 +401,8 @@ class Compiler:
 		functionName = expr[0]
 		if functionName in self.ARITH_OPS:
 			self.compileArithmetic(expr)
+		elif functionName == 'lambda':
+			self.compileLambda(expr)
 		elif functionName == 'begin':
 			self.compileSequence(expr[1:])
 		elif functionName == 'while':
