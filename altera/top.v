@@ -4,13 +4,16 @@ module top(
 	output reg[6:0] 	digit3 = 0,
 	output reg[6:0] 	digit2 = 0,
 	output reg[6:0] 	digit1 = 0,
-	output reg[6:0] 	digit0 = 0);
+	output reg[6:0] 	digit0 = 0,
+	input [3:0]			buttons);
 
 	wire[6:0]			register_index;
 	wire				register_read;
 	wire				register_write;
 	wire[15:0]			register_write_value;
 	reg[15:0]			register_read_value = 0;
+	reg[3:0]				buttons_sync0 = 0;
+	reg[3:0]				buttons_sync1 = 0;
 	
 	lisp_core l(
 		.clk(clk),
@@ -32,6 +35,12 @@ module top(
 				5: digit3 <= register_write_value[6:0];
 			endcase
 		end
+
+		if (register_read && register_index == 6)
+			register_read_value <= {12'd0, buttons_sync1 };
+
+		buttons_sync0 <= buttons;
+		buttons_sync1 <= buttons_sync0;
 	end
 
 endmodule

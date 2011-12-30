@@ -1,3 +1,6 @@
+;
+; On Cyclone II dev board, make LEDs flash in sequence.
+;
 
 (assign a 1)
 (while 1
