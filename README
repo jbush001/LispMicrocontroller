@@ -1,0 +1,31 @@
+This is a simple microcontroller that runs a compiled LISP dialect.  
+
+Running in simulation
+
+This has been tested with Icarus Verilog (http://iverilog.icarus.com/), although other tool flows are probably similar.  Tests can be run as follows:
+  1. Compile the verilog model. This only needs to be recompiled the first time simulation is run or if the verilog sources have changed.
+    
+     iverilog -o core.vvp testbench.v lisp_core.v
+
+  2. Compile the LISP sources.  This will produce two files: ram.hex, which has the raw program machine code and is loaded by the simulator, and program.lst, which is informational and shows details of the generated code.  For example:
+
+    ./compile.py tests/test1.l
+
+Note that any writes to register index 0 will be printed to standard out by the simulation test harness, which is how most simulation tests work.
+
+  3. Run simulation
+
+    vvp core.vvp
+
+
+Running in hardware
+
+This has only been tested under Quartus/Altera with the Cyclone II starter kit.  The project file is located at altera/LispMicrocontroller.qpf.
+
+ 1. Compile the sources, as above
+
+ 2. Synthesize the design.  Note that the synthesis tools will read ram.hex to create the initial values of memory.  If the source files are changed, the design must be re-synthesized.
+
+ 3. Run.  Currently, only the red LEDs on the Cyclone II board are hooked up.  Writing to register 1 will set the values of 8 of the LEDs (one bit per LED)
+
+

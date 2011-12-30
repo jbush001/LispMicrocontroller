@@ -348,12 +348,12 @@ class Compiler:
 			else:
 				listfile.write(' ' + var + ' var@' + str(sym.index + self.codeLength) + '\n')
 
-		# Write out expanded expressions
-		writeExpr(listfile, program, 0)
-
 		for func in self.functionList:
 			listfile.write('\nfunction @' + str(func.baseAddress) + '\n')
 			disassemble(listfile, func.instructions, func.baseAddress)
+
+		# Write out expanded expressions
+		writeExpr(listfile, program, 0)
 
 		listfile.close()
 		
