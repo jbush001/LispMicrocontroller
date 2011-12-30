@@ -613,8 +613,7 @@ class Compiler:
 		self.currentFunction.emitLabel(topOfLoop)
 		self.compileExpression(expr[1])
 		self.currentFunction.emitBranchInstruction(OP_BFALSE, exitLoop)
-
-		result = self.compileSequence(expr[2:])
+		self.compileSequence(expr[2:])
 		self.currentFunction.emitInstruction(OP_POP) # Clean up stack
 		self.currentFunction.emitBranchInstruction(OP_GOTO, topOfLoop)
 		self.currentFunction.emitLabel(exitLoop)
@@ -623,10 +622,11 @@ class Compiler:
 		self.currentFunction.emitInstructionWithParam(OP_PUSH, 0)
 
 	# break out of a loop 
-	# (break [value])		
+	# (break [value])
+	# XXX value currently ignored
 	def compileBreak(self, expr):
-		outValue, label = self.loopStack[-1]
-		self.compileExpression(expr[1], outValue)	# Push value on stack
+		label = self.loopStack[-1]
+		# self.compileExpression(expr[1])	# Push value on stack
 		self.currentFunction.emitInstruction(OP_GOTO, label)
 
  	ARITH_OPS = {
