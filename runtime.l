@@ -61,7 +61,7 @@
 ; by the compiler.  Wilderness is memory that has never been allocated and
 ; that we can simply slice off from.
 (assign $wilderness-start $heapstart)
-(assign $stacktop 8192)
+(assign $stacktop (getbp))	; This is called from top level main, so BP will be top of stack
 (assign $max-heap (- $stacktop 1024)) 	
 (assign $freelist 0)
 
