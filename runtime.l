@@ -280,14 +280,20 @@
 )
 
 (function printdec (num)
-	(let ((str 0))
-		(while num
-			(assign str (cons (% num 10) str))
-			(assign num (/ num 10))
+	(if num
+		; Not zero
+		(let ((str 0))
+			(while num
+				(assign str (cons (% num 10) str))
+				(assign num (/ num 10))
+			)
+	
+			(foreach ch str
+				(printchar (+48 ch))
+			)
 		)
 
-		(foreach ch str
-			(printchar (+48 ch))
-		)
+		; Is zero
+		(printchar 48)
 	)
 )
