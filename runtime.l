@@ -279,6 +279,7 @@
 	)
 )
 
+; Print a number in decimal format
 (function printdec (num)
 	(if num
 		; Not zero
@@ -295,5 +296,19 @@
 
 		; Is zero
 		(printchar 48)
+	)
+)
+
+(function nth (list index)
+	(begin
+		(while (and (> index 0) (<> list 0))
+			(assign list (rest list))
+			(assign index (- index 1))
+		)
+	
+		(if list
+			(first list)
+			0
+		)
 	)
 )
