@@ -235,11 +235,13 @@ class Parser:
 
 class Compiler:
 	def __init__(self):
-		# This is a stack of lambdas, which is a stack of scopes, which is a 
-		# dictionary of symbols.  Because closures are not currently
-		# supported, we cannot access variables from the outer function.
+		# The environment is a stack of lambdas, each of which is a stack of 
+		# scopes, each of which is a  dictionary of symbols.  Because closures 
+		# are not currently supported, we cannot access variables from the outer 
+		# function, but implementing them would simply be a matter of walking up
+		# to the next lambda context.
+		self.environmentStack = [[{}]]
 		self.globals = {}
-		self.environmentStack = [[{ 'T' : 1 }]]
 		self.currentFunction = Function()
 		self.functionTable = [ 0 ]		# We reserve a spot for 'main'
 		self.loopStack = []	# Each entry is ( resultReg, exitLabel )
@@ -247,7 +249,7 @@ class Compiler:
 		# Can be a fixup for:
 		#   - A global variable 
 		#   - A function pointer
-		# Each stores ( type, function, functionOffset, value )
+		# Each stores ( function, functionOffset, target )
 		self.globalFixups = []	
 
 	def enterScope(self):
@@ -257,8 +259,6 @@ class Compiler:
 		self.environmentStack[-1].pop()
 
 	def enterLambda(self):
-		# XXX could support closures here by tagging variables, but currently
-		# not implemented.
 		self.environmentStack += [[{}]]
 		self.enterScope()
 
@@ -278,8 +278,8 @@ class Compiler:
 		if name in self.globals:
 			return self.globals[name]
 
-		# XXX technically we could walk back up the environment stack to find closures,
-		# but that is currently not supported.
+		# Here is where we could walk back up the environment stack to find 
+		# closures if they were supported...
 
 		sym = Symbol(Symbol.GLOBAL_VARIABLE)
 		sym.index = len(self.globals)		# Allocate a storage slot for this
@@ -353,7 +353,9 @@ class Compiler:
 
 	#
 	# The mother compile function, from which all other things are compiled.
-	# Compiles an arbitrary lisp expression. 
+	# Compiles an arbitrary lisp expression.  Each expression must consume
+	# all parameters, which will be pushed onto the stack from right to left,
+	# and leave a value on the stack.  All expressions have values in LISP.
 	#
 	def compileExpression(self, expr):
 		if isinstance(expr, list):
@@ -452,8 +454,8 @@ class Compiler:
 		self.currentFunction.emitInstructionWithParam(OP_CLEANUP, 2)
 
 	#
-	# Strings just compile down to lists of characters, since the VM does not
-	# natively support strings.
+	# Strings just compile down to lists of characters, since there is not
+	# a native string type.
 	#
 	def compileString(self, string):
 		if len(string) == 1:
@@ -493,7 +495,7 @@ class Compiler:
 
 	#
 	# Note that this won't alter the stack.  It instead sets up branches to the appropriate
-	# targets
+	# targets, performing short circuit evaluation where possible.
 	#
 	def compileBooleanExpression(self, expr, falseTarget):
 		if isinstance(expr, list):
@@ -749,6 +751,9 @@ FOLDABLE_UOPS = {
 	'-' : (lambda x : -x)
 }
 
+#
+# Simple arithmetic constant folding on the S-Expression data structure.
+#
 def foldConstants(expr):
 	if isinstance(expr, list) and len(expr) > 0:
 		if expr[0] == 'quote':
