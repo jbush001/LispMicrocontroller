@@ -172,3 +172,75 @@
 		(settag ptr 1)	; Mark this as a cons cell and return
 	)
 )
+
+(function abs (x)
+	(if (< x 0)
+		(- 0 x)
+		x
+	)
+)
+
+(function $umul (multiplicand multiplier)
+	(let ((product 0))
+		(while multiplier
+			(if (and multiplier 1)
+				(assign product (+ product multiplicand))
+				()
+			)
+
+			(assign multiplier (rshift multiplier 1))
+			(assign multiplicand (lshift multiplicand 1))
+		)
+		
+		product
+	)
+)
+
+(function * (multiplicand multiplier)
+	(let ((uprod ($umul (abs multiplicand) (abs multiplier))))
+		(if (= (< multiplicand 0) (< multiplier 0))
+			uprod			; same sign
+			(- 0 uprod)		; different signs
+		)
+	)
+)
+
+(function $udiv (divisor dividend)
+	(if (<= divisor dividend)
+		0
+		(let ((quotient 0) (dnext dividend) (numbits 0))
+			; Align remainder and divisor
+			(while (<= dnext divisor)
+				(assign dividend dnext)
+				(assign numbits (+ numbits 1))
+				(assign dnext (lshift dnext 1))
+			)
+	
+			; Divide
+			(while numbits
+				(assign quotient (lshift quotient 1))
+				(if (>= divisor dividend)
+					(begin
+						(assign divisor (- divisor dividend))
+						(assign quotient (or quotient 1))
+					)
+					()
+				)
+			
+				(assign dividend (rshift dividend 1))
+				(assign numbits (- numbits 1))		
+			)
+	
+			quotient
+		)
+	)
+)
+
+(function / (divisor dividend)
+	(let ((uquotient ($udiv (abs divisor) (abs dividend))))
+		(if (= (< divisor 0) (< dividend 0))
+			uquotient			; same sign
+			(- 0 uquotient)		; different signs
+		)
+	)
+)
