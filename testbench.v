@@ -39,12 +39,14 @@ module testbench;
 	end
 	
 	always @(posedge clk)
-	begin
-		if (register_write && register_index == 0)
-			$write("%c", register_write_value);
-		
-		if (register_write && register_index == 1)
-			$display("set leds %b", register_write_value);
+	begin	
+		if (register_write)
+		begin
+			if (register_index == 0)
+				$write("%c", register_write_value);
+			else
+				$display("set register %d <= %d", register_index, register_write_value);
+		end
 	end
 
 	task dumpstate;
