@@ -1,5 +1,10 @@
-module top(input clk,
-	output reg[7:0] out = 0);
+module top(
+	input 				clk,
+	output reg[7:0]		r_led = 0,
+	output reg[6:0] 	digit3 = 0,
+	output reg[6:0] 	digit2 = 0,
+	output reg[6:0] 	digit1 = 0,
+	output reg[6:0] 	digit0 = 0);
 
 	wire[6:0]			register_index;
 	wire				register_read;
@@ -18,7 +23,15 @@ module top(input clk,
 	always @(posedge clk)
 	begin
 		if (register_write)
-			out <= register_write_value[7:0];
+		begin
+			case (register_index)
+				1: r_led <= register_write_value[7:0];
+				2: digit0 <= register_write_value[6:0];
+				3: digit1 <= register_write_value[6:0];
+				4: digit2 <= register_write_value[6:0];
+				5: digit3 <= register_write_value[6:0];
+			endcase
+		end
 	end
 
 endmodule
