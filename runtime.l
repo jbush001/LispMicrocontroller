@@ -21,7 +21,7 @@
 
 (defmacro for (var start end step expr)
 	`(let ((,var ,start))
-		(while (< ,var ,end) 
+		(while (<> ,var ,end) 
 			,expr
 			(assign ,var (+ ,var ,step))
 		)
