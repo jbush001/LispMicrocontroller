@@ -81,6 +81,7 @@ class Function:
 		self.currentInstruction = 0	# A word that is being packed
 		self.instructionOffset = 0	# Within word
 		self.instructions = []		# Each entry is a word
+		self.referenced = False		# Used to strip dead functions
 
 		# Save a spot for an initial 'reserve' instruction
 		self.emitInstructionWithParam(OP_RESERVE, 16383)
@@ -303,6 +304,7 @@ class Compiler:
 	#
 	def compile(self, program):
 		self.currentFunction = Function()
+		self.currentFunction.referenced = True
 
 		# create a built-in variable that indicates where the heap starts
 		# (will be patched at the end of compilation with the proper address)
@@ -324,6 +326,9 @@ class Compiler:
 		# The top level code (which looks like a function) is the first code
 		# emitted, since that's where execution will start
 		self.functionList[0] = self.currentFunction
+
+		# Strip out functions that aren't called
+		self.functionList = filter(lambda x: x.referenced, self.functionList)
 
 		# Do fixups
 		for function in self.functionList:
@@ -389,6 +394,7 @@ class Compiler:
 				self.currentFunction.getProgramAddress() - 1, sym ) ]
 			self.currentFunction.emitInstruction(OP_STORE);
 			sym.initialized = True
+			function.referenced = True
 		else:
 			sym = Symbol(Symbol.FUNCTION)
 			sym.initialized = True
@@ -436,6 +442,7 @@ class Compiler:
 				self.currentFunction.getProgramAddress() - 1, variable ) ]
 			self.currentFunction.emitInstruction(OP_LOAD);
 		elif variable.type == Symbol.FUNCTION:
+			variable.function.referenced = True
 			self.currentFunction.emitInstructionWithParam(OP_PUSH, 16383)
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, variable ) ]
@@ -719,6 +726,7 @@ class Compiler:
 	#
 	def compileLambda(self, expr):
 		newFunction = self.compileFunctionBody(expr[1], expr[2])
+		newFunction.referenced = True
 		
 		# Now compile code that references the lambda object we created.  We'll
 		# set the tag to indicate this is a function.
