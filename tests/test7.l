@@ -28,8 +28,19 @@
 (printhex (/ 0 a))			; zero identity
 (printchar 10)
 
+(printhex (% -2319 a))		; negative / positive
+(printchar 10)
+(printhex (% -2319 b))		; negative / negative
+(printchar 10)
+(printhex (% 2319 a))		; positive / positive
+(printchar 10)
+(printhex (% 2319 b))		; positive / negative
+(printchar 10)
+
+(printhex (sqrt 1902))
+(printchar 10)
+
 ; Expected output:
-; F9AF
 ; 0651
 ; 0651
 ; F9AF
@@ -41,3 +52,8 @@
 ; FEB5
 ; 0000
 ; 0000
+; 0002
+; FFFE
+; 0002
+; FFFE
+; 002B

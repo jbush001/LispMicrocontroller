@@ -36,27 +36,6 @@
 	`(load (- ,index 128))
 )
 
-(function printchar (x)
-	(write-register 0 x)
-)
-
-(function printstr (x)
-	(foreach ch x
-		(printchar ch)
-	)
-)
-
-(function printhex (num)
-	(for idx 0 16 4
-		(let ((digit (and (rshift num (- 12 idx)) 15)))
-			(if (< digit 10)
-				(printchar (+ digit 48))
-				(printchar (+ digit 55))	; - 10 + 'A'
-			)
-		)
-	)
-)
-
 ; Note that $globalstart and $heapstart are variables created automatically
 ; by the compiler.  Wilderness is memory that has never been allocated and
 ; that we can simply slice off from.
@@ -205,9 +184,20 @@
 	)
 )
 
-(function $udiv (divisor dividend)
-	(if (<= divisor dividend)
-		0
+;
+; Unsigned divide.  If getrem is 1, this will return the remainder.  Otherwise
+; it will return the quotient
+;
+(function $udiv (divisor dividend getrem)
+	(if (< divisor dividend)
+		; If the divisor is less than the divident, division result will
+		; be zero
+		(if getrem
+			divisor
+			0
+		)
+
+		; Need to do division
 		(let ((quotient 0) (dnext dividend) (numbits 0))
 			; Align remainder and divisor
 			(while (<= dnext divisor)
@@ -231,16 +221,73 @@
 				(assign numbits (- numbits 1))		
 			)
 	
-			quotient
+			(if getrem
+				divisor
+				quotient
+			)
 		)
 	)
 )
 
 (function / (divisor dividend)
-	(let ((uquotient ($udiv (abs divisor) (abs dividend))))
+	(let ((uquotient ($udiv (abs divisor) (abs dividend) 0)))
 		(if (= (< divisor 0) (< dividend 0))
 			uquotient			; same sign
 			(- 0 uquotient)		; different signs
+		)
+	)
+)
+
+(function % (divisor dividend)
+	(let ((uremainder ($udiv (abs divisor) (abs dividend) 1)))
+		(if (< dividend 0)
+			(- 0 uremainder)	
+			uremainder
+		)
+	)
+)
+
+(function sqrt (num)
+	(let ((guess num) (lastguess 0))
+		(while (<> lastguess guess)
+			(assign lastguess guess)
+			(assign guess (/ (+ guess (/ num guess)) 2))
+		)
+		
+		guess
+	)
+)
+
+(function printchar (x)
+	(write-register 0 x)
+)
+
+(function printstr (x)
+	(foreach ch x
+		(printchar ch)
+	)
+)
+
+(function printhex (num)
+	(for idx 0 16 4
+		(let ((digit (and (rshift num (- 12 idx)) 15)))
+			(if (< digit 10)
+				(printchar (+ digit 48))
+				(printchar (+ digit 55))	; - 10 + 'A'
+			)
+		)
+	)
+)
+
+(function printdec (num)
+	(let ((str 0))
+		(while num
+			(assign str (cons (% num 10) str))
+			(assign num (/ num 10))
+		)
+
+		(foreach ch str
+			(printchar (+48 ch))
 		)
 	)
 )
