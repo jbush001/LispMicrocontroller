@@ -36,6 +36,14 @@
 	`(load (- ,index 128))
 )
 
+(defmacro gclog (prefix address)
+	`(begin
+;		(printchar ,prefix)
+;		(printhex ,address)
+;		(printchar 10)
+	)
+)
+
 ; Note that $globalstart and $heapstart are variables created automatically
 ; by the compiler.  Wilderness is memory that has never been allocated and
 ; that we can simply slice off from.
@@ -46,25 +54,24 @@
 
 (function $mark-recursive (ptr)
 	(let ((tag (gettag ptr)))
-		(if (and tag (= (and tag 7) 1))	; Check if this is a cons and is not null
+		(while (and tag (= (and tag 7) 1))	; Check if this is a cons and is not null
 			(let ((firstword (load ptr)) (gcflag (gettag firstword)))
 				(if (= (rshift gcflag 3) 0)
 					(begin
 						; An unmarked cons cell, mark it and continue
-
-						; Debug: print cell that is being marked
-						; (printchar 77)		; 'M'
-						; (printhex ptr)
-						; (printchar 10)
-		
+						(gclog 77 ptr)	; M
 						(store ptr (settag firstword (or gcflag 8)))
+	
+						; Check if we need to mark the first pointer
 						($mark-recursive (first ptr))
-						($mark-recursive (rest ptr))
 					)
 					()
 				)
 			)
-			()
+
+			; Check next node
+			(assign ptr (rest ptr))
+			(assign tag (gettag ptr))
 		)
 	)
 )
@@ -79,9 +86,7 @@
 
 (function $gc ()
 	(begin
-		; Debug: print start of GC
-		; (printchar 71) ; 'G'
-		; (printchar 10)
+		(gclog 71 $wilderness-start)
 
 		; Mark phase: clear flags and recursively walk elements
 		($clear-flags)
@@ -102,11 +107,8 @@
 			(if (and (gettag (load ptr)) 16)
 				()	; do nothing, this is in-use
 				(begin
-					; Debug: print cell that is being freed
-					; (printchar 70) ; 'F'
-					; (printhex ptr)
-					; (printchar 10)
-					
+					(gclog 70 ptr) 	; 'F'
+
 					; This is not used, stick it back in the free list.
 					(store (+ 1 ptr) $freelist)
 					(assign $freelist ptr)
@@ -142,9 +144,7 @@
 		)
 
 		; Debug: print cell that has been allocated
-		; (printchar 65)	; 'A'
-		; (printhex ptr)
-		; (printchar 10)
+		(gclog 65 ptr) 	; 'A'
 
 		(store ptr first)
 		(store (+ ptr 1) rest)

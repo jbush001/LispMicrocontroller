@@ -1,34 +1,22 @@
 ;
-; Garbage collector test
+; Garbage collector test  
 ;
 
-(assign b (cons 1 2))	; Global holds a reference to this element
-
-(printhex b)
-(printchar 10)
+; Hold references to these in global variables
+(assign a '(1 2 (99 98 97 96) 4))	; Nested list, needs to recurse
+(assign b '(5 6 7 8))
 
 (function foo ()
-	(let ((a (cons 3 4)))	; Reference on the stack, won't be collected
-		(printhex a)
-		(printchar 10)
-
+	(let ((c '(9 10 11 12)) (d '(13 14 15 16)))	; Reference on the stack, won't be collected
 		($gc)
 	)
 )
 
 (foo)
-($gc)	; We should get element a back now
-(assign c (cons 5 6))	; This will take the space that a formerly took
+($gc)	; We should get element 'c' and 'd' back now
 
-(printhex c)
-(printchar 10)
 
-(assign d (cons 7 8))	; Allocate a new block from the wilderness
-(printhex d)
-(printchar 10)
+(assign e '(17 18 19 20 21 22 23 24))	; This will take the space that a formerly took
 
-; Expected output
-; 0184
-; 0186
-; 0186
-; 0188
+
+(assign f '(25 26 27 28))	; Allocate a new block from the wilderness
