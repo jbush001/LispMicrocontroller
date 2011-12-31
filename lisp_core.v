@@ -224,15 +224,15 @@ module lisp_core(
 						mem_addr = instruction_pointer_next[WORD_SIZE + 1:2];
 						state_next = STATE_DECODE;
 					end
-					
+
 					OP_GETBP:
 					begin
-						top_of_stack_next = base_pointer;
-
-						// Fetch next instruction
-						instruction_pointer_next = next_instruction;
-						mem_addr = instruction_pointer_next[WORD_SIZE + 1:2];
-						state_next = STATE_DECODE;
+						stack_pointer_next = stack_pointer - 1;
+						mem_addr = stack_pointer_next;
+						mem_write_enable = 1;
+						mem_write_value = top_of_stack;
+						top_of_stack_next = base_pointer;	
+						state_next = STATE_IADDR_ISSUE;
 					end
 
 					OP_LOAD:
@@ -309,7 +309,7 @@ module lisp_core(
 						mem_addr = stack_pointer_next;
 						mem_write_enable = 1;
 						mem_write_value = top_of_stack;
-						top_of_stack_next = param;	// XXX set tag
+						top_of_stack_next = param;
 						state_next = STATE_IADDR_ISSUE;
 					end
 
