@@ -84,6 +84,7 @@ module testbench;
 				l.OP_XOR: 		$write("xor");
 				l.OP_LSHIFT: 	$write("lshift");
 				l.OP_RSHIFT: 	$write("rshift");
+				l.OP_GETBP:		$write("getbp");
 			endcase
 	
 			if (l.opcode[4:3] == 2'b11)
