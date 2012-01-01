@@ -20,10 +20,25 @@
 )
 
 (defmacro for (var start end step expr)
-	`(let ((,var ,start))
-		(while (<> ,var ,end) 
-			,expr
-			(assign ,var (+ ,var ,step))
+	(cond
+		((< step 0)
+			; Decrementing
+			`(let ((,var ,start) (__endval ,end))
+				(while (> ,var __endval) 
+					,expr
+					(assign ,var (+ ,var ,step))
+				)
+			)
+		)
+		
+		(1 
+			; Incrementing
+			`(let ((,var ,start)(__endval ,end))
+				(while (< ,var __endval) 
+					,expr
+					(assign ,var (+ ,var ,step))
+				)
+			)
 		)
 	)
 )

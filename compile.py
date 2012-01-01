@@ -353,7 +353,7 @@ class Compiler:
 			disassemble(listfile, func.instructions, func.baseAddress)
 
 		# Write out expanded expressions
-		writeExpr(listfile, program, 0)
+		prettyPrintSExpr(listfile, program, 0)
 
 		listfile.close()
 		
@@ -796,7 +796,7 @@ class Compiler:
 			else:
 				raise Exception('unknown global fixup type')
 
-FOLDABLE_BINOPS = {
+BINOPS = {
 	'+' : (lambda x, y : x + y),
 	'-' : (lambda x, y : x - y),
 	'/' : (lambda x, y : x / y),
@@ -814,7 +814,7 @@ FOLDABLE_BINOPS = {
 	'<>' : (lambda x, y : 1 if x != y else 0)
 }
 
-FOLDABLE_UOPS = {
+UOPS = {
 	'~' : (lambda x : ~x),
 	'-' : (lambda x : -x)
 }
@@ -840,14 +840,14 @@ def foldConstants(expr):
 		else:
 			# Optimize this expression
 			optimizedParams = [ foldConstants(sub) for sub in expr[1:] ]
-			if not isinstance(expr[0], list) and expr[0] in FOLDABLE_BINOPS \
+			if not isinstance(expr[0], list) and expr[0] in BINOPS \
 				and len(expr) == 3 and not isinstance(optimizedParams[0], list) \
 				and isinstance(optimizedParams[0], int) and not isinstance(optimizedParams[1], list) and isinstance(optimizedParams[1], int):
-				return FOLDABLE_BINOPS[expr[0]](optimizedParams[0], optimizedParams[1])
-			if not isinstance(expr[0], list) and expr[0] in FOLDABLE_UOPS \
+				return BINOPS[expr[0]](optimizedParams[0], optimizedParams[1])
+			if not isinstance(expr[0], list) and expr[0] in UOPS \
 				and len(expr) == 2 and not isinstance(optimizedParams[0], list) \
 				and isinstance(optimizedParams[0], int):
-				return FOLDABLE_UOPS[expr[0]](optimizedParams[0])
+				return UOPS[expr[0]](optimizedParams[0])
 			else:
 				return [ expr[0] ] + optimizedParams
 	else:
@@ -912,8 +912,7 @@ def disassemble(outfile, instructions, baseAddress):
 			else:
 				outfile.write('\t' + name + '\n')
 
-# Pretty print an S-Expression
-def writeExpr(listfile, expr, indent):
+def prettyPrintSExpr(listfile, expr, indent = 0):
 	if isinstance(expr, list):
 		listfile.write('\n')
 		for x in range(indent):
@@ -924,7 +923,7 @@ def writeExpr(listfile, expr, indent):
 			if elem != expr[0]:
 				listfile.write(' ')
 
-			writeExpr(listfile, elem, indent + 1)
+			prettyPrintSExpr(listfile, elem, indent + 1)
 			
 		listfile.write(')\n')
 		for x in range(indent - 1):
@@ -952,29 +951,32 @@ class MacroProcessor:
 
 	def eval(self, expr, env):
 		if isinstance(expr, list):
-			if expr[0] == 'first':
-				return eval(expr[1])[0]
-			elif expr[0] == 'rest':
-				return eval(expr[1])[1]
-			elif expr[0] == 'cond':		# (cond (test prediate) (test predicate)...)
+			func = expr[0]
+			if func == 'first':
+				return self.eval(expr[1], env)[0]
+			elif func == 'rest':
+				return self.eval(expr[1], env)[1]
+			elif func == 'cond':		# (cond (test prediate) (test predicate)...)
 				result = 0
 				for pair in expr[1:]:
-					if eval(pair[0]):
-						result = eval(pair[1])
+					if self.eval(pair[0], env):
+						result = self.eval(pair[1], env)
 						break
 
 				return result
-			elif expr[0] == 'assign':	# (assign var value)
+			elif func == 'assign':	# (assign var value)
 				env[expr[1]] = self.eval(expr[2], env)
-			elif expr[0] == 'list':
-				return [ self.eval(element) for element in expr[1:] ]
-			elif expr[0] == 'quote':
+			elif func == 'list':
+				return [ self.eval(element, env) for element in expr[1:] ]
+			elif func == 'quote':
 				return expr[1]
-			elif expr[0] == 'backquote':
+			elif func == 'backquote':
 				return self.expandBackquote(expr[1], env)
-			elif expr[0] == 'cons':
-				return [ self.eval(expr[1]) ] + [ self.eval(expr[2]) ]
-			elif expr[0] in self.macroList:
+			elif func == 'cons':
+				return [ self.eval(expr[1], env) ] + [ self.eval(expr[2], env) ]
+			elif func in BINOPS:
+				return BINOPS[func](self.eval(expr[1], env), self.eval(expr[2], env) )
+			elif func in self.macroList:
 				# Invoke a sub-macro
 				newEnv = copy.copy(env)
 				argList, body = self.macroList[expr[0]]		
@@ -989,7 +991,7 @@ class MacroProcessor:
 				if func == None or not isinstance(func, list) or func[0] != 'lambda':
 					raise Exception('bad function call during macro expansion', '')
 				for name, value in zip(func[0], expr[1:]):
-					env[name] = value
+					env[name] = self.eval(value, env)
 
 				return self.eval(func[1], env)
 		elif isinstance(expr, int):
@@ -1037,6 +1039,7 @@ for filename in sys.argv[1:]:
 
 macro = MacroProcessor()
 expanded = macro.macroPreProcess(parser.getProgram())
+
 optimized = [ foldConstants(sub) for sub in expanded ]
 
 compiler = Compiler()
