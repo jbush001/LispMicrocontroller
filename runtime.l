@@ -38,9 +38,9 @@
 
 (defmacro gclog (prefix address)
 	`(begin
-;		(printchar ,prefix)
-;		(printhex ,address)
-;		(printchar 10)
+		(printchar ,prefix)
+		(printhex ,address)
+		(printchar 10)
 	)
 )
 
@@ -118,28 +118,53 @@
 	)
 )
 
+(function $oom ()
+	(begin
+		(printchar 79)
+		(printchar 79)
+		(printchar 77)
+		(printchar 10)
+		(while 1 ())
+	)
+)
+
 ;
 ; Allocate a new cell and return a pointer to it
 ;
 (function cons (first rest)
 	(let ((ptr 0))
 		(if $freelist
+
+			; There are nodes on freelist, grab one.
 			(begin
-				; There are nodes on freelist, grab one.
 				(assign ptr $freelist)
 				(assign $freelist (rest ptr))
 			)
+
+			; Nothing on freelist, try to expand frontier
 			(begin
-				; Nothing on freelist, try to expand frontier
-				(if (>= $wilderness-start $max-heap)
-					($gc)	; No room, try to gc
-					()
+				(if (< $wilderness-start $max-heap)
+					; Space is available in frontier, snag from there.
+					(begin
+						(assign ptr $wilderness-start)
+						(assign $wilderness-start (+ $wilderness-start 2))
+					)
+
+					; No more space available, need to GC
+					(begin
+						($gc)	; No room, try to gc
+						(if (= $freelist 0)
+							; GC gave us nothing, give up.
+							($oom)
+						
+							; Got a block, assign it
+							(begin
+								(assign ptr $freelist)
+								(assign $freelist (rest ptr))
+							)
+						)
+					)
 				)
-	
-				; XXX could fail here if OOM.  Now just goes into weeds.
-	
-				(assign ptr $wilderness-start)
-				(assign $wilderness-start (+ $wilderness-start 2))
 			)
 		)
 
