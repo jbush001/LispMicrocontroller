@@ -38,9 +38,9 @@
 
 (defmacro gclog (prefix address)
 	`(begin
-		(printchar ,prefix)
-		(printhex ,address)
-		(printchar 10)
+;		(printchar ,prefix)
+;		(printhex ,address)
+;		(printchar 10)
 	)
 )
 

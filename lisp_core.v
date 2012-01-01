@@ -390,7 +390,8 @@ module lisp_core(
 				if (opcode == OP_SETTAG)
 				begin
 					// This modifies in-place
-					top_of_stack_next = { alu_op1[3:0], top_of_stack[15:0] };
+					top_of_stack_next = { mem_read_value[3:0], top_of_stack[15:0] };
+					stack_pointer_next = stack_pointer + 1;
 
 					// Fetch next instruction
 					instruction_pointer_next = next_instruction;

@@ -732,9 +732,9 @@ class Compiler:
 		# set the tag to indicate this is a function.
 		self.currentFunction.emitInstructionWithParam(OP_PUSH, TAG_FUNCTION)
 		self.currentFunction.emitInstructionWithParam(OP_PUSH, 16383)
-		self.currentFunction.emitInstruction(OP_SETTAG)
 		self.globalFixups += [ ( self.currentFunction,
 			self.currentFunction.getProgramAddress() - 1, newFunction ) ]
+		self.currentFunction.emitInstruction(OP_SETTAG)
 		self.functionList += [ newFunction ]
 
 	#
