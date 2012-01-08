@@ -167,7 +167,7 @@ class Function:
 		if self.instructionOffset != 0:
 			self.instructions += [ self.currentInstruction ]
 	
-		self.instructions[0] = (OP_RESERVE << 15) | self.numLocals
+		self.instructions[0] = (OP_RESERVE << 15) | (self.numLocals + 1)
 		for ip, label in self.localFixups:
 			if not label.defined:
 				raise Exception('undefined label')
