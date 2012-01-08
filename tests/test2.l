@@ -2,8 +2,6 @@
 ; Recursive function call with conditional
 ;
 
-(printhex 1234)
-
 (function fib (n)
 	(if (< n 2)
 		n

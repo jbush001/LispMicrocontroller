@@ -41,6 +41,7 @@
 (printchar 10)
 
 ; Expected output:
+; F9AF
 ; 0651
 ; 0651
 ; F9AF

@@ -303,14 +303,34 @@ module lisp_core(
 	end
 	
 	//
-	// Next instruction mux
+	// Instruction pointer next mux
 	//
+	parameter IP_CURRENT = 0;
+	parameter IP_NEXT = 1;
+	parameter IP_BRANCH_TARGET = 2;
+	parameter IP_MEM_READ_VALUE = 3;
+	parameter IP_STACK_TARGET = 4;
+	
+	reg[2:0] ip_select = IP_CURRENT;
+	
 	always @*
 	begin
-		if (opcode[4:3] == 2'b11)	// Does this have a param?  If so, skip to next word
-			next_instruction = { instruction_pointer[WORD_SIZE + 1:2], 2'b00 } + 4;
-		else
-			next_instruction = instruction_pointer + 1;
+		case (ip_select)
+			IP_CURRENT: instruction_pointer_next = instruction_pointer;
+			IP_NEXT:			
+			begin
+				if (opcode[4:3] == 2'b11)	// Does this have a param?  If so, skip to next word
+					instruction_pointer_next = { instruction_pointer[WORD_SIZE + 1:2], 2'b00 } + 4;
+				else
+					instruction_pointer_next = instruction_pointer + 1;
+			end
+
+			IP_BRANCH_TARGET: instruction_pointer_next = { instruction_pointer[WORD_SIZE + 1:2], 2'b00 } 
+				+ { param, 2'b00 };
+			IP_MEM_READ_VALUE: instruction_pointer_next = mem_read_value;
+			IP_STACK_TARGET: instruction_pointer_next =  { top_of_stack[15:0], 2'b00 };		
+			default: instruction_pointer_next = instruction_pointer;
+		endcase
 	end
 
 	//
@@ -328,13 +348,13 @@ module lisp_core(
 		alu_op1_select = OP1_MEM_READ_VALUE;
 		alu_op = opcode;
 		ma_select = MA_INSTRUCTION_POINTER;
-		instruction_pointer_next = instruction_pointer;
+		ip_select = IP_CURRENT;
 	
 		case (state)
 			STATE_IADDR_ISSUE:
 			begin
 				// Fetch next instruction
-				instruction_pointer_next = next_instruction;
+				ip_select = IP_NEXT;
 				ma_select = MA_INSTRUCTION_POINTER;
 				state_next = STATE_DECODE;
 			end			
@@ -349,15 +369,14 @@ module lisp_core(
 						// it.
 						// Need to push the old base pointer on the stack
 						// and stash the return value in TOS
-						instruction_pointer_next =  { top_of_stack[15:0], 2'b00 };
+						ip_select = IP_STACK_TARGET;
 						stack_pointer_select = SP_DECREMENT;
 						ma_select = MA_ALU;
 						alu_op0_select = OP0_STACK_POINTER;
 						alu_op1_select = OP1_ONE;
 						alu_op = OP_SUB;
-						
-						mw_select = MW_BASE_POINTER;
 						mem_write_enable = 1;
+						mw_select = MW_BASE_POINTER;
 						bp_select = BP_ALU;
 						tos_select = TOS_RETURN_ADDR;
 						state_next = STATE_CALL2;
@@ -386,7 +405,7 @@ module lisp_core(
 						tos_select = TOS_TAG;
 
 						// Fetch next instruction
-						instruction_pointer_next = next_instruction;
+						ip_select = IP_NEXT;
 						ma_select = MA_INSTRUCTION_POINTER;
 						state_next = STATE_DECODE;
 					end
@@ -398,7 +417,6 @@ module lisp_core(
 						alu_op0_select = OP0_STACK_POINTER;
 						alu_op1_select = OP1_ONE;
 						alu_op = OP_SUB;
-
 						mem_write_enable = 1;
 						mw_select = MW_TOP_OF_STACK;
 						tos_select = TOS_BASE_POINTER;
@@ -449,7 +467,6 @@ module lisp_core(
 						alu_op0_select = OP0_STACK_POINTER;
 						alu_op1_select = OP1_ONE;
 						alu_op = OP_SUB;
-
 						mem_write_enable = 1;
 						mw_select = MW_TOP_OF_STACK;
 						state_next = STATE_IADDR_ISSUE;
@@ -460,8 +477,7 @@ module lisp_core(
 						if (param == 0)
 						begin
 							// Not reserving anything, jump to next instruction
-							instruction_pointer_next = next_instruction;
-
+							ip_select = IP_NEXT;
 							ma_select = MA_INSTRUCTION_POINTER;
 							state_next = STATE_DECODE;
 						end
@@ -473,7 +489,6 @@ module lisp_core(
 							ma_select = MA_STACK_POINTER_MINUS_ONE;
 							mem_write_enable = 1;
 							mw_select = MW_TOP_OF_STACK;
-							
 							stack_pointer_select = SP_ALU;
 							alu_op = OP_SUB;
 							alu_op0_select = OP0_STACK_POINTER;
@@ -491,7 +506,6 @@ module lisp_core(
 						alu_op0_select = OP0_STACK_POINTER;
 						alu_op1_select = OP1_ONE;
 						alu_op = OP_SUB;
-
 						mem_write_enable = 1;
 						mw_select = MW_TOP_OF_STACK;
 						tos_select = TOS_PARAM;
@@ -500,8 +514,7 @@ module lisp_core(
 
 					OP_GOTO:
 					begin
-						instruction_pointer_next = { instruction_pointer[WORD_SIZE + 1:2], 2'b00 } 
-							+ { param, 2'b00 };
+						ip_select = IP_BRANCH_TARGET;
 						ma_select = MA_INSTRUCTION_POINTER;
 						state_next = STATE_DECODE;
 					end
@@ -510,15 +523,9 @@ module lisp_core(
 					begin
 						// Branch if top of stack is 0
 						if (top_of_stack[15:0] == 0)
-						begin
-							instruction_pointer_next = { instruction_pointer[WORD_SIZE + 1:2], 2'b00 } 
-							+ { param, 2'b00 };
-						end
+							ip_select = IP_BRANCH_TARGET;
 						else
-						begin
-							// Just go to next instruction
-							instruction_pointer_next = next_instruction;
-						end
+							ip_select = IP_NEXT;
 						
 						// Read the next value from the stack
 						stack_pointer_select = SP_INCREMENT;
@@ -534,7 +541,6 @@ module lisp_core(
 						alu_op0_select = OP0_STACK_POINTER;
 						alu_op1_select = OP1_ONE;
 						alu_op = OP_SUB;
-
 						mem_write_enable = 1;
 						mw_select = MW_TOP_OF_STACK;
 						state_next = STATE_GETLOCAL2;
@@ -548,7 +554,6 @@ module lisp_core(
 						alu_op0_select = OP0_BASE_POINTER;
 						alu_op1_select = OP1_PARAM;
 						alu_op = OP_ADD;
-
 						mem_write_enable = 1;
 						mw_select = MW_TOP_OF_STACK;
 						state_next = STATE_LOAD_TOS1;
@@ -564,7 +569,7 @@ module lisp_core(
 						alu_op1_select = OP1_PARAM;
 
 						// Fetch next instruction
-						instruction_pointer_next = next_instruction;
+						ip_select = IP_NEXT;
 						ma_select = MA_INSTRUCTION_POINTER;
 						state_next = STATE_DECODE;
 					end
@@ -572,7 +577,7 @@ module lisp_core(
 					default:	// NOP or any other unknown op
 					begin
 						// Fetch next instruction
-						instruction_pointer_next = next_instruction;
+						ip_select = IP_NEXT;
 						ma_select = MA_INSTRUCTION_POINTER;
 						state_next = STATE_DECODE;
 					end
@@ -590,7 +595,7 @@ module lisp_core(
 					stack_pointer_select = SP_INCREMENT;
 
 					// Fetch next instruction
-					instruction_pointer_next = next_instruction;
+					ip_select = IP_NEXT;
 					ma_select = MA_INSTRUCTION_POINTER;
 					state_next = STATE_DECODE;
 				end
@@ -616,7 +621,7 @@ module lisp_core(
 					stack_pointer_select = SP_INCREMENT;
 
 					// Fetch next instruction
-					instruction_pointer_next = next_instruction;
+					ip_select = IP_NEXT;
 					ma_select = MA_INSTRUCTION_POINTER;
 					state_next = STATE_DECODE;
 				end
@@ -636,7 +641,6 @@ module lisp_core(
 				alu_op0_select = OP0_BASE_POINTER;
 				alu_op1_select = OP1_PARAM;
 				alu_op = OP_ADD;
-
 				state_next = STATE_PUSH_MEM_RESULT;
 			end
 			
@@ -651,7 +655,7 @@ module lisp_core(
 				// If we're finishing a branch, don't increment again
 				// because we've already reloaded the new destination.
 				if (opcode != OP_BFALSE)
-					instruction_pointer_next = next_instruction;
+					ip_select = IP_NEXT;
 
 				ma_select = MA_INSTRUCTION_POINTER;
 				state_next = STATE_DECODE;
@@ -660,14 +664,12 @@ module lisp_core(
 			STATE_RETURN2:
 			begin
 				// Got the instruction pointer, now fetch old base pointer
-				instruction_pointer_next = mem_read_value;
+				ip_select = IP_MEM_READ_VALUE;
 				ma_select = MA_BASE_POINTER;
-				
 				stack_pointer_select = SP_ALU;
 				alu_op = OP_ADD;
 				alu_op0_select = OP0_BASE_POINTER;
 				alu_op1_select = OP1_ONE;
-
 				state_next = STATE_RETURN3;
 			end
 			
@@ -687,9 +689,6 @@ module lisp_core(
 				ma_select = MA_INSTRUCTION_POINTER;
 				state_next = STATE_DECODE;
 			end
-			
-			default:	
-				;
 		endcase
 	end
 
