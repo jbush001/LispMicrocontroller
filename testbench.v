@@ -13,7 +13,7 @@ module testbench;
 	wire[15:0]			register_write_value;
 	reg[15:0]			register_read_value = 0;
 	
-	lisp_core l(
+	ulisp l(
 		.clk(clk),
 		.register_index(register_index),
 		.register_read(register_read),
@@ -51,66 +51,66 @@ module testbench;
 
 	task dumpstate;
 	begin
-		if (l.opcode != 0)
+		if (l.c.opcode != 0)
 		begin
-			$write("%d ", l.instruction_pointer / 4);
+			$write("%d ", l.c.instruction_pointer / 4);
 	
-			case (l.opcode)
-				l.OP_NOP: 		$write("nop");
-				l.OP_CALL: 		$write("call");
-				l.OP_RETURN: 	$write("return");
-				l.OP_POP: 		$write("pop");
-				l.OP_LOAD: 		$write("load");
-				l.OP_STORE: 	$write("store");
-				l.OP_ADD: 		$write("add");
-				l.OP_SUB: 		$write("sub");
-				l.OP_REST: 		$write("rest");
-				l.OP_GTR: 		$write("gtr");
-				l.OP_GTE: 		$write("gte");
-				l.OP_EQ: 		$write("eq");
-				l.OP_NEQ: 		$write("new");
-				l.OP_DUP: 		$write("dup");
-				l.OP_GETTAG: 	$write("gettag");
-				l.OP_SETTAG: 	$write("settag");
-				l.OP_RESERVE:	$write("reserve");
-				l.OP_PUSH: 		$write("push");
-				l.OP_GOTO: 		$write("goto");
-				l.OP_BFALSE: 	$write("bfalse");
-				l.OP_GETLOCAL: 	$write("getlocal");
-				l.OP_SETLOCAL: 	$write("setlocal");
-				l.OP_CLEANUP: 	$write("cleanup");
-				l.OP_AND: 		$write("and");
-				l.OP_OR: 		$write("or");
-				l.OP_XOR: 		$write("xor");
-				l.OP_LSHIFT: 	$write("lshift");
-				l.OP_RSHIFT: 	$write("rshift");
-				l.OP_GETBP:		$write("getbp");
+			case (l.c.opcode)
+				l.c.OP_NOP: 		$write("nop");
+				l.c.OP_CALL: 		$write("call");
+				l.c.OP_RETURN: 	$write("return");
+				l.c.OP_POP: 		$write("pop");
+				l.c.OP_LOAD: 		$write("load");
+				l.c.OP_STORE: 	$write("store");
+				l.c.OP_ADD: 		$write("add");
+				l.c.OP_SUB: 		$write("sub");
+				l.c.OP_REST: 		$write("rest");
+				l.c.OP_GTR: 		$write("gtr");
+				l.c.OP_GTE: 		$write("gte");
+				l.c.OP_EQ: 		$write("eq");
+				l.c.OP_NEQ: 		$write("new");
+				l.c.OP_DUP: 		$write("dup");
+				l.c.OP_GETTAG: 	$write("gettag");
+				l.c.OP_SETTAG: 	$write("settag");
+				l.c.OP_RESERVE:	$write("reserve");
+				l.c.OP_PUSH: 		$write("push");
+				l.c.OP_GOTO: 		$write("goto");
+				l.c.OP_BFALSE: 	$write("bfalse");
+				l.c.OP_GETLOCAL: 	$write("getlocal");
+				l.c.OP_SETLOCAL: 	$write("setlocal");
+				l.c.OP_CLEANUP: 	$write("cleanup");
+				l.c.OP_AND: 		$write("and");
+				l.c.OP_OR: 		$write("or");
+				l.c.OP_XOR: 		$write("xor");
+				l.c.OP_LSHIFT: 	$write("lshift");
+				l.c.OP_RSHIFT: 	$write("rshift");
+				l.c.OP_GETBP:		$write("getbp");
 			endcase
 	
-			if (l.opcode[4:3] == 2'b11)
-				$write(" %d", l.param);
+			if (l.c.opcode[4:3] == 2'b11)
+				$write(" %d", l.c.param);
 	
 			$write(" ");
 	
-			case (l.state)
-				l.STATE_IADDR_ISSUE: 		$write("IADDR_ISSUE");
-				l.STATE_DECODE: 			$write("DECODE");
-				l.STATE_GOT_NOS: 			$write("GOT_NOS");
-				l.STATE_LOAD_TOS1: 			$write("LOAD_TOS1");
-				l.STATE_PUSH_MEM_RESULT: 	$write("PUSH_MEM_RESULT");
-				l.STATE_GETLOCAL2: 			$write("GETLOCAL2");
-				l.STATE_RETURN2: 			$write("RETURN2");
-				l.STATE_CALL2: 				$write("CALL2");
-				l.STATE_RETURN3: 			$write("RETURN3");
+			case (l.c.state)
+				l.c.STATE_IADDR_ISSUE: 		$write("IADDR_ISSUE");
+				l.c.STATE_DECODE: 			$write("DECODE");
+				l.c.STATE_GOT_NOS: 			$write("GOT_NOS");
+				l.c.STATE_LOAD_TOS1: 			$write("LOAD_TOS1");
+				l.c.STATE_PUSH_MEM_RESULT: 	$write("PUSH_MEM_RESULT");
+				l.c.STATE_GETLOCAL2: 			$write("GETLOCAL2");
+				l.c.STATE_RETURN2: 			$write("RETURN2");
+				l.c.STATE_CALL2: 				$write("CALL2");
+				l.c.STATE_RETURN3: 			$write("RETURN3");
 			endcase
 		
-			$write(" stack(%d) ", l.stack_pointer);
-			$write(" %d", l.top_of_stack);
+			$write(" stack(%d) ", l.c.stack_pointer);
+			$write(" %d", l.c.top_of_stack);
 			for (j = 0; j < 5; j = j + 1)
-				$write(" %d", l.mem.data[l.stack_pointer + j]);
+				$write(" %d", l.mem.data[l.c.stack_pointer + j]);
 		
 			$write("\n");
-			if (l.instruction_pointer_next != l.instruction_pointer)
+			if (l.c.instruction_pointer_next != l.c.instruction_pointer)
 				$write("\n");
 			
 //			if (l.mem_write_enable)

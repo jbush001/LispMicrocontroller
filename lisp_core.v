@@ -1,14 +1,12 @@
-module lisp_core(
-	input 					clk,
-	output [6:0]			register_index,
-	output					register_read,
-	output					register_write,
-	output [15:0]			register_write_value,
-	input [15:0]			register_read_value);
-	
-	
-	parameter 				MEM_SIZE = 8192;	
-	parameter 				WORD_SIZE = 20;
+module lisp_core
+	#(parameter 			MEM_SIZE = 8192,
+	parameter 				WORD_SIZE = 20)
+
+	(input 						clk,
+	output reg[WORD_SIZE - 1:0]	memory_address = 0,
+	input [WORD_SIZE - 1:0] 	mem_read_value,
+	output reg[WORD_SIZE - 1:0]	mem_write_value = 0,
+	output reg					mem_write_enable = 0);
 
 	parameter				STATE_IADDR_ISSUE = 0;
 	parameter				STATE_DECODE = 1;
@@ -62,25 +60,7 @@ module lisp_core(
 	reg[WORD_SIZE - 1:0] 	current_instruction_word = 0;
 	reg[4:0] 				opcode = 0;
 	reg[WORD_SIZE - 1:0] 	param = 0;
-	reg[WORD_SIZE - 1:0]	memory_address = 0;
-	wire[WORD_SIZE - 1:0] 	mem_read_value;
-	reg[WORD_SIZE - 1:0]	mem_write_value = 0;
-	reg						mem_write_enable = 0;
 	reg[15:0]				alu_result = 0;
-	reg						last_was_register_access = 0;
-
-	wire is_hardware_register_access = memory_address[15:7] == 16'b111111111;
-	assign register_index = memory_address[6:0];
-	assign register_write_value = mem_write_value;
-	assign register_write = is_hardware_register_access && mem_write_enable;
-	assign register_read = is_hardware_register_access;
-
-	memory #(MEM_SIZE, WORD_SIZE) mem(
-		.clk(clk),
-		.addr_i(memory_address),
-		.value_i(mem_write_value),
-		.write_i(mem_write_enable && !is_hardware_register_access),
-		.value_o(mem_read_value));
 
 	//
 	// Instruction alignment/Selection
@@ -217,9 +197,8 @@ module lisp_core(
 	parameter TOS_SETTAG = 5;
 	parameter TOS_ALU_RESULT = 6;
 	parameter TOS_MEMORY_RESULT = 7;
-	parameter TOS_REGISTER_RESULT = 8;	// XXX move logic outside this module
 
-	reg[3:0] tos_select = TOS_CURRENT;
+	reg[2:0] tos_select = TOS_CURRENT;
 	reg[WORD_SIZE - 1:0] top_of_stack_next = 0;
 	
 	always @*
@@ -233,7 +212,6 @@ module lisp_core(
 			TOS_SETTAG:				top_of_stack_next = { mem_read_value[3:0], top_of_stack[15:0] };
 			TOS_ALU_RESULT:			top_of_stack_next = { top_of_stack[19:16], alu_result[15:0] };
 			TOS_MEMORY_RESULT:		top_of_stack_next = mem_read_value;
-			TOS_REGISTER_RESULT: 	top_of_stack_next = register_read_value;
 			default:				top_of_stack_next = 0;
 		endcase
 	end
@@ -646,10 +624,7 @@ module lisp_core(
 			
 			STATE_PUSH_MEM_RESULT:
 			begin
-				if (last_was_register_access)
-					tos_select = TOS_REGISTER_RESULT;
-				else
-					tos_select = TOS_MEMORY_RESULT;
+				tos_select = TOS_MEMORY_RESULT;
 
 				// Fetch next instruction
 				// If we're finishing a branch, don't increment again
@@ -699,41 +674,8 @@ module lisp_core(
 		top_of_stack <= top_of_stack_next;
 		stack_pointer <= stack_pointer_next;
 		base_pointer <= base_pointer_next;
-		last_was_register_access <= is_hardware_register_access;
 		if (state == STATE_DECODE)
 			latched_instruction <= mem_read_value;
 	end
 endmodule
 
-module memory
-	#(parameter MEM_SIZE = 4096,
-	parameter WORD_SIZE = 20)
-
-	(input 						clk,
-	input[WORD_SIZE - 1:0] 		addr_i,
-	input[WORD_SIZE - 1:0] 		value_i,
-	input 						write_i,
-	output reg[WORD_SIZE - 1:0] 	value_o);
-
-	reg[15:0]					latched_addr = 0;
-	reg[19:0]					data[0:MEM_SIZE];
-	integer 					i;
-
-	initial
-	begin
-		// synthesis translate_off
-		for (i = 0; i < MEM_SIZE; i = i + 1)
-			data[i] = 0;
-		// synthesis translate_on
-		
-		$readmemh("ram.hex", data);
-	end
-
-	always @(posedge clk)
-	begin
-		if (write_i)
-			data[addr_i] <= value_i;
-
-		value_o <= data[addr_i];
-	end
-endmodule

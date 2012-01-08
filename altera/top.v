@@ -12,10 +12,10 @@ module top(
 	wire				register_write;
 	wire[15:0]			register_write_value;
 	reg[15:0]			register_read_value = 0;
-	reg[3:0]				buttons_sync0 = 0;
-	reg[3:0]				buttons_sync1 = 0;
+	reg[3:0]			buttons_sync0 = 0;
+	reg[3:0]			buttons_sync1 = 0;
 	
-	lisp_core l(
+	ulisp l(
 		.clk(clk),
 		.register_index(register_index),
 		.register_read(register_read),

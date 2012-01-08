@@ -5,7 +5,7 @@ Running in simulation
 This has been tested with Icarus Verilog (http://iverilog.icarus.com/), although other tool flows are probably similar.  Tests can be run as follows:
   1. Compile the verilog model. This only needs to be recompiled the first time simulation is run or if the verilog sources have changed.
     
-     iverilog -o core.vvp testbench.v lisp_core.v
+     iverilog -o core.vvp testbench.v lisp_core.v memory.v ulisp.v
 
   2. Compile the LISP sources.  This will produce two files: ram.hex, which has the raw program machine code and is loaded by the simulator, and program.lst, which is informational and shows details of the generated code.  For example:
 
