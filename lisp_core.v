@@ -264,6 +264,25 @@ module lisp_core(
 	end
 	
 	//
+	// Mem write value mux
+	//
+	parameter MW_BASE_POINTER = 0;
+	parameter MW_TOP_OF_STACK = 1;
+	parameter MW_MEM_READ_VALUE = 2;
+	
+	reg[1:0] mw_select = MW_BASE_POINTER;
+	
+	always @*
+	begin
+		case (mw_select)
+			MW_BASE_POINTER: mem_write_value = base_pointer;
+			MW_TOP_OF_STACK: mem_write_value = top_of_stack;
+			MW_MEM_READ_VALUE: mem_write_value = mem_read_value;
+			default: mem_write_value = 0;
+		endcase
+	end
+	
+	//
 	// Base pointer mux
 	//
 	parameter BP_CURRENT = 0;
@@ -300,8 +319,8 @@ module lisp_core(
 	always @*
 	begin
 		mem_write_enable = 0;
-		mem_write_value = 0;
 		state_next = state;
+		mw_select = MW_BASE_POINTER;
 		stack_pointer_select = SP_CURRENT;
 		tos_select = TOS_CURRENT;
 		bp_select = BP_CURRENT;
@@ -337,7 +356,7 @@ module lisp_core(
 						alu_op1_select = OP1_ONE;
 						alu_op = OP_SUB;
 						
-						mem_write_value = base_pointer;
+						mw_select = MW_BASE_POINTER;
 						mem_write_enable = 1;
 						bp_select = BP_ALU;
 						tos_select = TOS_RETURN_ADDR;
@@ -381,7 +400,7 @@ module lisp_core(
 						alu_op = OP_SUB;
 
 						mem_write_enable = 1;
-						mem_write_value = top_of_stack;
+						mw_select = MW_TOP_OF_STACK;
 						tos_select = TOS_BASE_POINTER;
 						state_next = STATE_IADDR_ISSUE;
 					end
@@ -432,7 +451,7 @@ module lisp_core(
 						alu_op = OP_SUB;
 
 						mem_write_enable = 1;
-						mem_write_value = top_of_stack;
+						mw_select = MW_TOP_OF_STACK;
 						state_next = STATE_IADDR_ISSUE;
 					end
 
@@ -453,7 +472,7 @@ module lisp_core(
 							// extra dummy value on the stack.
 							ma_select = MA_STACK_POINTER_MINUS_ONE;
 							mem_write_enable = 1;
-							mem_write_value = top_of_stack;
+							mw_select = MW_TOP_OF_STACK;
 							
 							stack_pointer_select = SP_ALU;
 							alu_op = OP_SUB;
@@ -474,7 +493,7 @@ module lisp_core(
 						alu_op = OP_SUB;
 
 						mem_write_enable = 1;
-						mem_write_value = top_of_stack;
+						mw_select = MW_TOP_OF_STACK;
 						tos_select = TOS_PARAM;
 						state_next = STATE_IADDR_ISSUE;
 					end
@@ -517,7 +536,7 @@ module lisp_core(
 						alu_op = OP_SUB;
 
 						mem_write_enable = 1;
-						mem_write_value = top_of_stack;
+						mw_select = MW_TOP_OF_STACK;
 						state_next = STATE_GETLOCAL2;
 					end
 					
@@ -531,7 +550,7 @@ module lisp_core(
 						alu_op = OP_ADD;
 
 						mem_write_enable = 1;
-						mem_write_value = top_of_stack;
+						mw_select = MW_TOP_OF_STACK;
 						state_next = STATE_LOAD_TOS1;
 					end
 					
@@ -581,7 +600,7 @@ module lisp_core(
 					// because it doesn't leave anything on the stack
 					ma_select = MA_TOP_OF_STACK;
 					mem_write_enable = 1;
-					mem_write_value = mem_read_value;	// next on stack
+					mw_select = MW_MEM_READ_VALUE;
 					stack_pointer_select = SP_INCREMENT;
 					
 					// Load top of stack
