@@ -63,22 +63,22 @@ module lisp_core(
 	reg[WORD_SIZE - 1:0] 	current_instruction_word = 0;
 	reg[4:0] 				opcode = 0;
 	reg[WORD_SIZE - 1:0] 	param = 0;
-	reg[WORD_SIZE - 1:0]	mem_addr = 0;
+	reg[WORD_SIZE - 1:0]	memory_address = 0;
 	wire[WORD_SIZE - 1:0] 	mem_read_value;
 	reg[WORD_SIZE - 1:0]	mem_write_value = 0;
 	reg						mem_write_enable = 0;
 	reg[15:0]				alu_result = 0;
 	reg						last_was_register_access = 0;
 
-	wire is_hardware_register_access = mem_addr[15:7] == 16'b111111111;
-	assign register_index = mem_addr[6:0];
+	wire is_hardware_register_access = memory_address[15:7] == 16'b111111111;
+	assign register_index = memory_address[6:0];
 	assign register_write_value = mem_write_value;
 	assign register_write = is_hardware_register_access && mem_write_enable;
 	assign register_read = is_hardware_register_access;
 
 	memory #(MEM_SIZE, WORD_SIZE) mem(
 		.clk(clk),
-		.addr_i(mem_addr),
+		.addr_i(memory_address),
 		.value_i(mem_write_value),
 		.write_i(mem_write_enable && !is_hardware_register_access),
 		.value_o(mem_read_value));
@@ -240,6 +240,31 @@ module lisp_core(
 	end
 	
 	//
+	// Memory address mux
+	//
+	parameter MA_INSTRUCTION_POINTER = 0;
+	parameter MA_STACK_POINTER = 1;
+	parameter MA_TOP_OF_STACK = 2;
+	parameter MA_ALU = 3;
+	parameter MA_BASE_POINTER = 4;
+	parameter MA_STACK_POINTER_MINUS_ONE = 5;
+	
+	reg[2:0] ma_select = MA_INSTRUCTION_POINTER;
+	
+	always @*
+	begin
+		case (ma_select)
+			MA_INSTRUCTION_POINTER: 	memory_address = instruction_pointer_next[WORD_SIZE + 1:2];
+			MA_STACK_POINTER: 			memory_address = stack_pointer;
+			MA_TOP_OF_STACK: 			memory_address = top_of_stack[15:0];
+			MA_ALU:						memory_address = alu_result;
+			MA_BASE_POINTER:			memory_address = base_pointer;
+			MA_STACK_POINTER_MINUS_ONE:	memory_address = stack_pointer - 1;
+			default:					memory_address = 0;
+		endcase
+	end
+	
+	//
 	// Next instruction mux
 	//
 	always @*
@@ -257,7 +282,6 @@ module lisp_core(
 	begin
 		mem_write_enable = 0;
 		mem_write_value = 0;
-		mem_addr = 0;
 		stack_pointer_select = SP_CURRENT;
 		tos_select = TOS_CURRENT;
 		state_next = state;
@@ -266,13 +290,14 @@ module lisp_core(
 		alu_op0_select = OP0_TOP_OF_STACK;
 		alu_op1_select = OP1_MEM_READ_VALUE;
 		alu_op = opcode;
+		ma_select = MA_INSTRUCTION_POINTER;
 	
 		case (state)
 			STATE_IADDR_ISSUE:
 			begin
 				// Fetch next instruction
 				instruction_pointer_next = next_instruction;
-				mem_addr = instruction_pointer_next[WORD_SIZE + 1:2];
+				ma_select = MA_INSTRUCTION_POINTER;
 				state_next = STATE_DECODE;
 			end			
 
@@ -288,7 +313,11 @@ module lisp_core(
 						// and stash the return value in TOS
 						instruction_pointer_next =  { top_of_stack[15:0], 2'b00 };
 						stack_pointer_select = SP_DECREMENT;
-						mem_addr = stack_pointer_next;
+						ma_select = MA_ALU;
+						alu_op0_select = OP0_STACK_POINTER;
+						alu_op1_select = OP1_ONE;
+						alu_op = OP_SUB;
+						
 						mem_write_value = base_pointer;
 						mem_write_enable = 1;
 						base_pointer_next = stack_pointer_next;
@@ -300,13 +329,16 @@ module lisp_core(
 					begin
 						// A function must push its return value into TOS,
 						// so we know PC is saved in memory.  First fetch that.
-						mem_addr = base_pointer - 1;
+						ma_select = MA_ALU;
+						alu_op0_select = OP0_BASE_POINTER;
+						alu_op1_select = OP1_ONE;
+						alu_op = OP_SUB;
 						state_next = STATE_RETURN2;
 					end
 
 					OP_POP:	// pop
 					begin
-						mem_addr = stack_pointer;
+						ma_select = MA_STACK_POINTER;
 						stack_pointer_select = SP_INCREMENT;
 						state_next = STATE_PUSH_MEM_RESULT;
 					end
@@ -317,14 +349,18 @@ module lisp_core(
 
 						// Fetch next instruction
 						instruction_pointer_next = next_instruction;
-						mem_addr = instruction_pointer_next[WORD_SIZE + 1:2];
+						ma_select = MA_INSTRUCTION_POINTER;
 						state_next = STATE_DECODE;
 					end
 
 					OP_GETBP:
 					begin
 						stack_pointer_select = SP_DECREMENT;
-						mem_addr = stack_pointer_next;
+						ma_select = MA_ALU;
+						alu_op0_select = OP0_STACK_POINTER;
+						alu_op1_select = OP1_ONE;
+						alu_op = OP_SUB;
+
 						mem_write_enable = 1;
 						mem_write_value = top_of_stack;
 						tos_select = TOS_BASE_POINTER;
@@ -334,7 +370,7 @@ module lisp_core(
 					OP_LOAD:
 					begin
 						// This just replaces TOS.
-						mem_addr = top_of_stack[15:0];
+						ma_select = MA_TOP_OF_STACK;
 						state_next = STATE_PUSH_MEM_RESULT;
 					end
 
@@ -355,20 +391,27 @@ module lisp_core(
 					begin
 						// In the first cycle of a store, we need to fetch
 						// the next value on the stack 
-						mem_addr = stack_pointer;
+						ma_select = MA_STACK_POINTER;
 						state_next = STATE_GOT_NOS;	
 					end
 					
 					OP_REST:	// Just a load with an extra offset
 					begin
-						mem_addr = top_of_stack[15:0] + 1;
+						ma_select = MA_ALU;
+						alu_op0_select = OP0_TOP_OF_STACK;
+						alu_op1_select = OP1_ONE;
+						alu_op = OP_ADD;
 						state_next = STATE_PUSH_MEM_RESULT;
 					end
 
 					OP_DUP:	// Push TOS, but leave it untouched.
 					begin
 						stack_pointer_select = SP_DECREMENT;
-						mem_addr = stack_pointer_next;
+						ma_select = MA_ALU;
+						alu_op0_select = OP0_STACK_POINTER;
+						alu_op1_select = OP1_ONE;
+						alu_op = OP_SUB;
+
 						mem_write_enable = 1;
 						mem_write_value = top_of_stack;
 						state_next = STATE_IADDR_ISSUE;
@@ -380,7 +423,8 @@ module lisp_core(
 						begin
 							// Not reserving anything, jump to next instruction
 							instruction_pointer_next = next_instruction;
-							mem_addr = instruction_pointer_next[WORD_SIZE + 1:2];
+
+							ma_select = MA_INSTRUCTION_POINTER;
 							state_next = STATE_DECODE;
 						end
 						else
@@ -388,7 +432,7 @@ module lisp_core(
 							// Store the current TOS to memory and update sp.
 							// this has the side effect of pushing an 
 							// extra dummy value on the stack.
-							mem_addr = stack_pointer - 1;
+							ma_select = MA_STACK_POINTER_MINUS_ONE;
 							mem_write_enable = 1;
 							mem_write_value = top_of_stack;
 							
@@ -405,7 +449,11 @@ module lisp_core(
 						// Immediate Push.  Store the current 
 						// TOS to memory and latch the value into the TOS reg.
 						stack_pointer_select = SP_DECREMENT;
-						mem_addr = stack_pointer_next;
+						ma_select = MA_ALU;
+						alu_op0_select = OP0_STACK_POINTER;
+						alu_op1_select = OP1_ONE;
+						alu_op = OP_SUB;
+
 						mem_write_enable = 1;
 						mem_write_value = top_of_stack;
 						tos_select = TOS_PARAM;
@@ -416,7 +464,7 @@ module lisp_core(
 					begin
 						instruction_pointer_next = { instruction_pointer[WORD_SIZE + 1:2], 2'b00 } 
 							+ { param, 2'b00 };
-						mem_addr = instruction_pointer_next[WORD_SIZE + 1:2];
+						ma_select = MA_INSTRUCTION_POINTER;
 						state_next = STATE_DECODE;
 					end
 
@@ -436,7 +484,7 @@ module lisp_core(
 						
 						// Read the next value from the stack
 						stack_pointer_select = SP_INCREMENT;
-						mem_addr = stack_pointer;
+						ma_select = MA_STACK_POINTER;
 						state_next = STATE_PUSH_MEM_RESULT;
 					end
 					
@@ -444,7 +492,11 @@ module lisp_core(
 					begin
 						// First cycle, need to save current TOS into memory.
 						stack_pointer_select = SP_DECREMENT;
-						mem_addr = stack_pointer_next;
+						ma_select = MA_ALU;
+						alu_op0_select = OP0_STACK_POINTER;
+						alu_op1_select = OP1_ONE;
+						alu_op = OP_SUB;
+
 						mem_write_enable = 1;
 						mem_write_value = top_of_stack;
 						state_next = STATE_GETLOCAL2;
@@ -454,7 +506,11 @@ module lisp_core(
 					begin
 						// Write TOS value to appropriate local slot, then
 						// fetch new TOS.
-						mem_addr = base_pointer + param;
+						ma_select = MA_ALU;
+						alu_op0_select = OP0_BASE_POINTER;
+						alu_op1_select = OP1_PARAM;
+						alu_op = OP_ADD;
+
 						mem_write_enable = 1;
 						mem_write_value = top_of_stack;
 						state_next = STATE_LOAD_TOS1;
@@ -471,7 +527,7 @@ module lisp_core(
 
 						// Fetch next instruction
 						instruction_pointer_next = next_instruction;
-						mem_addr = instruction_pointer_next[WORD_SIZE + 1:2];
+						ma_select = MA_INSTRUCTION_POINTER;
 						state_next = STATE_DECODE;
 					end
 
@@ -479,7 +535,7 @@ module lisp_core(
 					begin
 						// Fetch next instruction
 						instruction_pointer_next = next_instruction;
-						mem_addr = instruction_pointer_next[WORD_SIZE + 1:2];
+						ma_select = MA_INSTRUCTION_POINTER;
 						state_next = STATE_DECODE;
 					end
 				endcase
@@ -497,14 +553,14 @@ module lisp_core(
 
 					// Fetch next instruction
 					instruction_pointer_next = next_instruction;
-					mem_addr = instruction_pointer_next[WORD_SIZE + 1:2];
+					ma_select = MA_INSTRUCTION_POINTER;
 					state_next = STATE_DECODE;
 				end
 				else if (opcode == OP_STORE)
 				begin
 					// This is a binary op, but is a bit difference
 					// because it doesn't leave anything on the stack
-					mem_addr = top_of_stack[15:0];
+					ma_select = MA_TOP_OF_STACK;
 					mem_write_enable = 1;
 					mem_write_value = mem_read_value;	// next on stack
 					stack_pointer_select = SP_INCREMENT;
@@ -515,19 +571,22 @@ module lisp_core(
 				else
 				begin
 					// standard binary arithmetic.
+					alu_op0_select = OP0_TOP_OF_STACK;
+					alu_op1_select = OP1_MEM_READ_VALUE;
+					alu_op = opcode;
 					tos_select = TOS_ALU_RESULT;
 					stack_pointer_select = SP_INCREMENT;
 
 					// Fetch next instruction
 					instruction_pointer_next = next_instruction;
-					mem_addr = instruction_pointer_next[WORD_SIZE + 1:2];
+					ma_select = MA_INSTRUCTION_POINTER;
 					state_next = STATE_DECODE;
 				end
 			end
 
 			STATE_LOAD_TOS1:
 			begin
-				mem_addr = stack_pointer;
+				ma_select = MA_STACK_POINTER;
 				stack_pointer_select = SP_INCREMENT;
 				state_next = STATE_PUSH_MEM_RESULT;
 			end
@@ -535,7 +594,11 @@ module lisp_core(
 			STATE_GETLOCAL2:
 			begin
 				// Issue memory read for local value
-				mem_addr = base_pointer + param;
+				ma_select = MA_ALU;
+				alu_op0_select = OP0_BASE_POINTER;
+				alu_op1_select = OP1_PARAM;
+				alu_op = OP_ADD;
+
 				state_next = STATE_PUSH_MEM_RESULT;
 			end
 			
@@ -552,7 +615,7 @@ module lisp_core(
 				if (opcode != OP_BFALSE)
 					instruction_pointer_next = next_instruction;
 
-				mem_addr = instruction_pointer_next[WORD_SIZE + 1:2];
+				ma_select = MA_INSTRUCTION_POINTER;
 				state_next = STATE_DECODE;
 			end
 			
@@ -560,7 +623,7 @@ module lisp_core(
 			begin
 				// Got the instruction pointer, now fetch old base pointer
 				instruction_pointer_next = mem_read_value;
-				mem_addr = base_pointer;
+				ma_select = MA_BASE_POINTER;
 				
 				stack_pointer_select = SP_ALU;
 				alu_op = OP_ADD;
@@ -575,7 +638,7 @@ module lisp_core(
 				base_pointer_next = mem_read_value;
 
 				// Fetch next instruction
-				mem_addr = instruction_pointer[WORD_SIZE + 1:2];
+				ma_select = MA_INSTRUCTION_POINTER;
 				state_next = STATE_DECODE;
 			end
 
@@ -583,7 +646,7 @@ module lisp_core(
 			// pointer.
 			STATE_CALL2:
 			begin
-				mem_addr = instruction_pointer[WORD_SIZE + 1:2];
+				ma_select = MA_INSTRUCTION_POINTER;
 				state_next = STATE_DECODE;
 			end
 			
