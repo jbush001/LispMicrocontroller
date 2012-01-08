@@ -55,7 +55,6 @@ module lisp_core(
 	reg[WORD_SIZE - 1:0] 	top_of_stack = 0;
 	reg[WORD_SIZE - 1:0] 	stack_pointer = MEM_SIZE - 8;
 	reg[WORD_SIZE - 1:0] 	base_pointer = MEM_SIZE - 4;
-	reg[WORD_SIZE - 1:0] 	base_pointer_next = MEM_SIZE - 4;
 	reg[WORD_SIZE + 1:0] 	instruction_pointer = -1;
 	reg[WORD_SIZE + 1:0] 	instruction_pointer_next = 0;
 	reg[WORD_SIZE - 1:0]	next_instruction = 0;
@@ -265,6 +264,26 @@ module lisp_core(
 	end
 	
 	//
+	// Base pointer mux
+	//
+	parameter BP_CURRENT = 0;
+	parameter BP_ALU = 1;
+	parameter BP_MEM = 2;
+	
+	reg[WORD_SIZE - 1:0] base_pointer_next = MEM_SIZE - 4;
+	reg[1:0] bp_select = BP_CURRENT;
+
+	always @*
+	begin
+		case (bp_select)
+			BP_CURRENT: 	base_pointer_next = base_pointer;
+			BP_ALU:			base_pointer_next = alu_result;
+			BP_MEM:			base_pointer_next = mem_read_value;
+			default:		base_pointer_next = 0;
+		endcase
+	end
+	
+	//
 	// Next instruction mux
 	//
 	always @*
@@ -282,15 +301,15 @@ module lisp_core(
 	begin
 		mem_write_enable = 0;
 		mem_write_value = 0;
+		state_next = state;
 		stack_pointer_select = SP_CURRENT;
 		tos_select = TOS_CURRENT;
-		state_next = state;
-		base_pointer_next = base_pointer;
-		instruction_pointer_next = instruction_pointer;
+		bp_select = BP_CURRENT;
 		alu_op0_select = OP0_TOP_OF_STACK;
 		alu_op1_select = OP1_MEM_READ_VALUE;
 		alu_op = opcode;
 		ma_select = MA_INSTRUCTION_POINTER;
+		instruction_pointer_next = instruction_pointer;
 	
 		case (state)
 			STATE_IADDR_ISSUE:
@@ -320,7 +339,7 @@ module lisp_core(
 						
 						mem_write_value = base_pointer;
 						mem_write_enable = 1;
-						base_pointer_next = stack_pointer_next;
+						bp_select = BP_ALU;
 						tos_select = TOS_RETURN_ADDR;
 						state_next = STATE_CALL2;
 					end
@@ -635,7 +654,7 @@ module lisp_core(
 			
 			STATE_RETURN3:
 			begin
-				base_pointer_next = mem_read_value;
+				bp_select = BP_MEM;
 
 				// Fetch next instruction
 				ma_select = MA_INSTRUCTION_POINTER;
