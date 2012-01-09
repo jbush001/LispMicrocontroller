@@ -49,21 +49,19 @@ module lisp_core
 	parameter				OP_CLEANUP = 5'd31;
 
 	reg[3:0]				state = STATE_IADDR_ISSUE;
-	reg[3:0]				state_next = STATE_IADDR_ISSUE;
 	reg[WORD_SIZE - 1:0] 	top_of_stack = 0;
 	reg[15:0] 				stack_pointer = MEM_SIZE - 16'd8;
 	reg[15:0] 				base_pointer = MEM_SIZE - 16'd4;
 	reg[17:0] 				instruction_pointer = 18'h3ffff;
-	reg[17:0] 				instruction_pointer_next = 0;
 	reg[WORD_SIZE - 1:0] 	latched_instruction = 0;
-	reg[WORD_SIZE - 1:0] 	current_instruction_word = 0;
-	reg[4:0] 				opcode = 0;
-	reg[WORD_SIZE - 1:0] 	param = 0;
-	reg[15:0]				alu_result = 0;
 
 	//
 	// Instruction alignment/Selection
 	//
+	reg[4:0] opcode = 0;
+	reg[WORD_SIZE - 1:0] param = 0;
+	reg[WORD_SIZE - 1:0] current_instruction_word = 0;
+
 	always @*
 	begin	
 		if (state == STATE_DECODE)
@@ -135,7 +133,7 @@ module lisp_core
 			OP0_TOP_OF_STACK: 	alu_op0 = top_of_stack[15:0];
 			OP0_STACK_POINTER: 	alu_op0 = stack_pointer;
 			OP0_BASE_POINTER: 	alu_op0 = base_pointer;
-			default:			alu_op0 = 0;
+			default:			alu_op0 = base_pointer;	// Make case full
 		endcase
 	end
 	
@@ -155,13 +153,14 @@ module lisp_core
 			OP1_MEM_READ_VALUE: alu_op1 = mem_read_value[15:0];
 			OP1_PARAM: 			alu_op1 = param[15:0];
 			OP1_ONE: 			alu_op1 = 16'd1;
-			default:			alu_op1 = 0;
+			default:			alu_op1 = 16'd1;		// Make case full
 		endcase
 	end
 
 	//
 	// ALU
 	//
+	reg[15:0] alu_result = 0;
 	reg[4:0] alu_op = 0;
 	wire[15:0] diff = alu_op0 - alu_op1;
 	wire zero = diff == 0;
@@ -181,7 +180,7 @@ module lisp_core
 			OP_XOR: alu_result = alu_op0 ^ alu_op1;
 			OP_LSHIFT: alu_result = alu_op0 << alu_op1;
 			OP_RSHIFT: alu_result = alu_op0 >> alu_op1;
-			default: alu_result = 0;
+			default: alu_result = diff;	// Make case full
 		endcase
 	end
 
@@ -288,6 +287,7 @@ module lisp_core
 	parameter IP_MEM_READ_VALUE = 3;
 	parameter IP_STACK_TARGET = 4;
 	
+	reg[17:0] instruction_pointer_next = 0;
 	reg[2:0] ip_select = IP_CURRENT;
 	
 	always @*
@@ -313,10 +313,13 @@ module lisp_core
 	//
 	// Main state machine
 	//
+	reg[3:0] state_next = STATE_IADDR_ISSUE;
+
 	always @*
 	begin
-		mem_write_enable = 0;
 		state_next = state;
+		mem_write_enable = 0;
+		ma_select = MA_INSTRUCTION_POINTER;
 		mw_select = MW_BASE_POINTER;
 		stack_pointer_select = SP_CURRENT;
 		tos_select = TOS_CURRENT;
@@ -324,7 +327,6 @@ module lisp_core
 		alu_op0_select = OP0_TOP_OF_STACK;
 		alu_op1_select = OP1_MEM_READ_VALUE;
 		alu_op = opcode;
-		ma_select = MA_INSTRUCTION_POINTER;
 		ip_select = IP_CURRENT;
 	
 		case (state)
