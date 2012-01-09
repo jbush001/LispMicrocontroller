@@ -205,7 +205,7 @@ module lisp_core
 		case (tos_select)
 			TOS_CURRENT: 			top_of_stack_next = top_of_stack;
 			TOS_TAG:				top_of_stack_next = top_of_stack[19:16];
-			TOS_RETURN_ADDR:		top_of_stack_next = { instruction_pointer[WORD_SIZE + 1:2], 2'b00 } + 4;
+			TOS_RETURN_ADDR:		top_of_stack_next = instruction_pointer[WORD_SIZE + 1:2] + 1;
 			TOS_BASE_POINTER:		top_of_stack_next = base_pointer;
 			TOS_PARAM:				top_of_stack_next = param;
 			TOS_SETTAG:				top_of_stack_next = { mem_read_value[3:0], top_of_stack[15:0] };
@@ -304,7 +304,7 @@ module lisp_core
 
 			IP_BRANCH_TARGET: instruction_pointer_next = { instruction_pointer[WORD_SIZE + 1:2], 2'b00 } 
 				+ { param, 2'b00 };
-			IP_MEM_READ_VALUE: instruction_pointer_next = mem_read_value;
+			IP_MEM_READ_VALUE: instruction_pointer_next = { mem_read_value, 2'b00 };
 			IP_STACK_TARGET: instruction_pointer_next =  { top_of_stack[15:0], 2'b00 };		
 			default: instruction_pointer_next = instruction_pointer;
 		endcase
