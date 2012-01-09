@@ -289,7 +289,7 @@
 
 (function sqrt (num)
 	(let ((guess num) (lastguess 0))
-		(while (<> lastguess guess)
+		(while (> (- lastguess guess) 2)
 			(assign lastguess guess)
 			(assign guess (/ (+ guess (/ num guess)) 2))
 		)
