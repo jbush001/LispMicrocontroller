@@ -52,7 +52,7 @@ module lisp_core
 	reg[3:0]				state_next = STATE_IADDR_ISSUE;
 	reg[WORD_SIZE - 1:0] 	top_of_stack = 0;
 	reg[WORD_SIZE - 1:0] 	stack_pointer = MEM_SIZE - 8;
-	reg[WORD_SIZE - 1:0] 	base_pointer = MEM_SIZE - 4;
+	reg[15:0] 				base_pointer = MEM_SIZE - 4;
 	reg[WORD_SIZE + 1:0] 	instruction_pointer = -1;
 	reg[WORD_SIZE + 1:0] 	instruction_pointer_next = 0;
 	reg[WORD_SIZE - 1:0] 	latched_instruction = 0;
@@ -206,7 +206,7 @@ module lisp_core
 			TOS_CURRENT: 			top_of_stack_next = top_of_stack;
 			TOS_TAG:				top_of_stack_next = top_of_stack[19:16];
 			TOS_RETURN_ADDR:		top_of_stack_next = instruction_pointer[WORD_SIZE + 1:2] + 1;
-			TOS_BASE_POINTER:		top_of_stack_next = base_pointer;
+			TOS_BASE_POINTER:		top_of_stack_next = { 4'd0, base_pointer };
 			TOS_PARAM:				top_of_stack_next = param;
 			TOS_SETTAG:				top_of_stack_next = { mem_read_value[3:0], top_of_stack[15:0] };
 			TOS_ALU_RESULT:			top_of_stack_next = { top_of_stack[19:16], alu_result[15:0] };
@@ -252,7 +252,7 @@ module lisp_core
 	always @*
 	begin
 		case (mw_select)
-			MW_BASE_POINTER: mem_write_value = base_pointer;
+			MW_BASE_POINTER: mem_write_value = { 4'd0, base_pointer };
 			MW_TOP_OF_STACK: mem_write_value = top_of_stack;
 			MW_MEM_READ_VALUE: mem_write_value = mem_read_value;
 			default: mem_write_value = 0;
@@ -266,7 +266,7 @@ module lisp_core
 	parameter BP_ALU = 1;
 	parameter BP_MEM = 2;
 	
-	reg[WORD_SIZE - 1:0] base_pointer_next = MEM_SIZE - 4;
+	reg[15:0] base_pointer_next = 0;
 	reg[1:0] bp_select = BP_CURRENT;
 
 	always @*
@@ -274,7 +274,7 @@ module lisp_core
 		case (bp_select)
 			BP_CURRENT: 	base_pointer_next = base_pointer;
 			BP_ALU:			base_pointer_next = alu_result;
-			BP_MEM:			base_pointer_next = mem_read_value;
+			BP_MEM:			base_pointer_next = mem_read_value[15:0];
 			default:		base_pointer_next = 0;
 		endcase
 	end
