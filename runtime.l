@@ -330,7 +330,7 @@
 			)
 	
 			(foreach ch str
-				(printchar (+48 ch))
+				(printchar (+ 48 ch))
 			)
 		)
 

@@ -189,7 +189,7 @@ class Parser:
 		self.lexer = shlex.shlex(stream)
 		self.lexer.commenters = ';'
 		self.lexer.quotes = '"'
-		self.lexer.wordchars += '<>!@#$%^&*;:.=-_'
+		self.lexer.wordchars += '+<>!@#$%^&*;:.=-_'
 
 		while True:
 			expr = self.parseExpr()
