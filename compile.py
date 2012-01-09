@@ -1047,6 +1047,6 @@ code = compiler.compile(optimized)
 
 outfile = open('ram.hex', 'w')
 for instr in code:
-	outfile.write('%06x\n' % instr)
+	outfile.write('%05x\n' % instr)
 		
 outfile.close()

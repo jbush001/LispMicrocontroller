@@ -51,8 +51,8 @@ module lisp_core
 	reg[3:0]				state = STATE_IADDR_ISSUE;
 	reg[3:0]				state_next = STATE_IADDR_ISSUE;
 	reg[WORD_SIZE - 1:0] 	top_of_stack = 0;
-	reg[15:0] 				stack_pointer = MEM_SIZE - 8;
-	reg[15:0] 				base_pointer = MEM_SIZE - 4;
+	reg[15:0] 				stack_pointer = MEM_SIZE - 16'd8;
+	reg[15:0] 				base_pointer = MEM_SIZE - 16'd4;
 	reg[17:0] 				instruction_pointer = 18'h3ffff;
 	reg[17:0] 				instruction_pointer_next = 0;
 	reg[WORD_SIZE - 1:0] 	latched_instruction = 0;
@@ -81,13 +81,13 @@ module lisp_core
 			1:
 			begin
 				opcode = current_instruction_word[14:10];
-				param = { {11{current_instruction_word[9]}}, current_instruction_word[9:0] };
+				param = { {10{current_instruction_word[9]}}, current_instruction_word[9:0] };
 			end
 
 			2:
 			begin
 				opcode = current_instruction_word[9:5];
-				param = { {16{current_instruction_word[4]}}, current_instruction_word[4:0] };
+				param = { {15{current_instruction_word[4]}}, current_instruction_word[4:0] };
 			end
 
 			3:
@@ -154,7 +154,7 @@ module lisp_core
 		case (alu_op1_select)
 			OP1_MEM_READ_VALUE: alu_op1 = mem_read_value[15:0];
 			OP1_PARAM: 			alu_op1 = param;
-			OP1_ONE: 			alu_op1 = 1;
+			OP1_ONE: 			alu_op1 = 16'd1;
 			default:			alu_op1 = 0;
 		endcase
 	end
@@ -211,7 +211,7 @@ module lisp_core
 			TOS_SETTAG:				top_of_stack_next = { mem_read_value[3:0], top_of_stack[15:0] };
 			TOS_ALU_RESULT:			top_of_stack_next = { top_of_stack[19:16], alu_result[15:0] };
 			TOS_MEMORY_RESULT:		top_of_stack_next = mem_read_value;
-			default:				top_of_stack_next = 0;
+			default:				top_of_stack_next = top_of_stack;	// Make case full
 		endcase
 	end
 	
@@ -255,7 +255,7 @@ module lisp_core
 			MW_BASE_POINTER: mem_write_value = { 4'd0, base_pointer };
 			MW_TOP_OF_STACK: mem_write_value = top_of_stack;
 			MW_MEM_READ_VALUE: mem_write_value = mem_read_value;
-			default: mem_write_value = 0;
+			default: mem_write_value = mem_read_value; 	// Make full case
 		endcase
 	end
 	
@@ -275,7 +275,7 @@ module lisp_core
 			BP_CURRENT: 	base_pointer_next = base_pointer;
 			BP_ALU:			base_pointer_next = alu_result;
 			BP_MEM:			base_pointer_next = mem_read_value[15:0];
-			default:		base_pointer_next = 0;
+			default:		base_pointer_next = base_pointer;	// Make full case
 		endcase
 	end
 	
@@ -306,7 +306,7 @@ module lisp_core
 				+ { param, 2'b00 };
 			IP_MEM_READ_VALUE: instruction_pointer_next = { mem_read_value, 2'b00 };
 			IP_STACK_TARGET: instruction_pointer_next =  { top_of_stack[15:0], 2'b00 };		
-			default: instruction_pointer_next = instruction_pointer;
+			default: instruction_pointer_next = instruction_pointer;	// Make full case
 		endcase
 	end
 

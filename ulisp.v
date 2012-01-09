@@ -6,7 +6,7 @@ module ulisp(
 	output [15:0]			register_write_value,
 	input [15:0]			register_read_value);
 
-	parameter 				MEM_SIZE = 8192;
+	parameter 				MEM_SIZE = 16'd8192;
 	parameter 				WORD_SIZE = 20;
 
 	wire[WORD_SIZE - 1:0]	memory_address;
@@ -17,7 +17,7 @@ module ulisp(
 
 	wire is_hardware_register_access = memory_address[15:7] == 16'b111111111;
 	assign register_index = memory_address[6:0];
-	assign register_write_value = mem_write_value;
+	assign register_write_value = mem_write_value[15:0];
 	assign register_write = is_hardware_register_access && mem_write_enable;
 	assign register_read = is_hardware_register_access && !mem_write_enable;
 	reg	last_was_register_access = 0;
