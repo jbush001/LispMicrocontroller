@@ -1,5 +1,5 @@
 module top(
-	input 				clk,
+	input 				clk50,
 	output reg[7:0]		r_led = 0,
 	output reg[6:0] 	digit3 = 0,
 	output reg[6:0] 	digit2 = 0,
@@ -14,6 +14,11 @@ module top(
 	reg[15:0]			register_read_value = 0;
 	reg[3:0]			buttons_sync0 = 0;
 	reg[3:0]			buttons_sync1 = 0;
+	reg				clk = 0;
+	
+	// Divide 50 Mhz clock down to 25 Mhz
+	always @(posedge clk50)
+		clk <= ~clk;
 	
 	ulisp l(
 		.clk(clk),
