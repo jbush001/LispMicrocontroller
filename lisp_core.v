@@ -51,7 +51,7 @@ module lisp_core
 	reg[3:0]				state = STATE_IADDR_ISSUE;
 	reg[3:0]				state_next = STATE_IADDR_ISSUE;
 	reg[WORD_SIZE - 1:0] 	top_of_stack = 0;
-	reg[WORD_SIZE - 1:0] 	stack_pointer = MEM_SIZE - 8;
+	reg[15:0] 				stack_pointer = MEM_SIZE - 8;
 	reg[15:0] 				base_pointer = MEM_SIZE - 4;
 	reg[WORD_SIZE + 1:0] 	instruction_pointer = -1;
 	reg[WORD_SIZE + 1:0] 	instruction_pointer_next = 0;
@@ -107,14 +107,14 @@ module lisp_core
 	parameter SP_ALU = 3;
 
 	reg[1:0] stack_pointer_select = SP_CURRENT;
-	reg[WORD_SIZE - 1:0] stack_pointer_next = MEM_SIZE - 8;
+	reg[15:0] stack_pointer_next = 0;
 	
 	always @*
 	begin
 		case (stack_pointer_select)
 			SP_CURRENT: 	stack_pointer_next = stack_pointer;
-			SP_DECREMENT: 	stack_pointer_next = stack_pointer - 1;
-			SP_INCREMENT: 	stack_pointer_next = stack_pointer + 1;
+			SP_DECREMENT: 	stack_pointer_next = stack_pointer - 16'd1;
+			SP_INCREMENT: 	stack_pointer_next = stack_pointer + 16'd1;
 			SP_ALU: 		stack_pointer_next = alu_result[15:0];
 		endcase
 	end
@@ -235,7 +235,7 @@ module lisp_core
 			MA_TOP_OF_STACK: 			memory_address = top_of_stack[15:0];
 			MA_ALU:						memory_address = alu_result;
 			MA_BASE_POINTER:			memory_address = base_pointer;
-			MA_STACK_POINTER_MINUS_ONE:	memory_address = stack_pointer - 1;
+			MA_STACK_POINTER_MINUS_ONE:	memory_address = stack_pointer - 16'd1;
 			default:					memory_address = 0;
 		endcase
 	end
