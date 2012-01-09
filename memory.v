@@ -8,7 +8,6 @@ module memory
 	input 						write_i,
 	output reg[WORD_SIZE - 1:0] 	value_o);
 
-	reg[15:0]					latched_addr = 0;
 	reg[19:0]					data[0:MEM_SIZE];
 	integer 					i;
 

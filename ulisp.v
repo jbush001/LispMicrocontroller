@@ -33,7 +33,7 @@ module ulisp(
 	lisp_core #(MEM_SIZE, WORD_SIZE) c(
 		.clk(clk),
 		.memory_address(memory_address),
-		.mem_read_value(mem_read_value),
+		.mem_read_value(core_read_value),
 		.mem_write_value(mem_write_value),
 		.mem_write_enable(mem_write_enable));
 	

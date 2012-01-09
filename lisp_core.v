@@ -55,7 +55,6 @@ module lisp_core
 	reg[WORD_SIZE - 1:0] 	base_pointer = MEM_SIZE - 4;
 	reg[WORD_SIZE + 1:0] 	instruction_pointer = -1;
 	reg[WORD_SIZE + 1:0] 	instruction_pointer_next = 0;
-	reg[WORD_SIZE - 1:0]	next_instruction = 0;
 	reg[WORD_SIZE - 1:0] 	latched_instruction = 0;
 	reg[WORD_SIZE - 1:0] 	current_instruction_word = 0;
 	reg[4:0] 				opcode = 0;
