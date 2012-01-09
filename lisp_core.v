@@ -18,35 +18,35 @@ module lisp_core
 	parameter				STATE_CALL2 = 7;
 	parameter				STATE_RETURN3 = 8;
 
-	parameter				OP_NOP = 0;
-	parameter				OP_CALL = 1;
-	parameter				OP_RETURN = 2;
-	parameter				OP_POP = 3;
-	parameter				OP_LOAD = 4;
-	parameter				OP_STORE = 5;
-	parameter				OP_ADD = 6;
-	parameter				OP_SUB = 7;
-	parameter				OP_REST = 8;
-	parameter				OP_GTR = 9;
-	parameter				OP_GTE = 10;
-	parameter				OP_EQ = 11;
-	parameter				OP_NEQ = 12;
-	parameter				OP_DUP = 13;
-	parameter				OP_GETTAG = 14;
-	parameter				OP_SETTAG = 15;
-	parameter				OP_AND = 16;
-	parameter				OP_OR = 17;
-	parameter				OP_XOR = 18;
-	parameter				OP_LSHIFT = 19;
-	parameter				OP_RSHIFT = 20;
-	parameter				OP_GETBP = 21;
-	parameter				OP_RESERVE = 24;	
-	parameter				OP_PUSH = 25;
-	parameter				OP_GOTO = 26;
-	parameter				OP_BFALSE = 27;
-	parameter				OP_GETLOCAL = 29;
-	parameter				OP_SETLOCAL = 30;
-	parameter				OP_CLEANUP = 31;
+	parameter				OP_NOP = 5'd0;
+	parameter				OP_CALL = 5'd1;
+	parameter				OP_RETURN = 5'd2;
+	parameter				OP_POP = 5'd3;
+	parameter				OP_LOAD = 5'd4;
+	parameter				OP_STORE = 5'd5;
+	parameter				OP_ADD = 5'd6;
+	parameter				OP_SUB = 5'd7;
+	parameter				OP_REST = 5'd8;
+	parameter				OP_GTR = 5'd9;
+	parameter				OP_GTE = 5'd10;
+	parameter				OP_EQ = 5'd11;
+	parameter				OP_NEQ = 5'd12;
+	parameter				OP_DUP = 5'd13;
+	parameter				OP_GETTAG = 5'd14;
+	parameter				OP_SETTAG = 5'd15;
+	parameter				OP_AND = 5'd16;
+	parameter				OP_OR = 5'd17;
+	parameter				OP_XOR = 5'd18;
+	parameter				OP_LSHIFT = 5'd19;
+	parameter				OP_RSHIFT = 5'd20;
+	parameter				OP_GETBP = 5'd21;
+	parameter				OP_RESERVE = 5'd24;	
+	parameter				OP_PUSH = 5'd25;
+	parameter				OP_GOTO = 5'd26;
+	parameter				OP_BFALSE = 5'd27;
+	parameter				OP_GETLOCAL = 5'd29;
+	parameter				OP_SETLOCAL = 5'd30;
+	parameter				OP_CLEANUP = 5'd31;
 
 	reg[3:0]				state = STATE_IADDR_ISSUE;
 	reg[3:0]				state_next = STATE_IADDR_ISSUE;
@@ -153,7 +153,7 @@ module lisp_core
 	begin
 		case (alu_op1_select)
 			OP1_MEM_READ_VALUE: alu_op1 = mem_read_value[15:0];
-			OP1_PARAM: 			alu_op1 = param;
+			OP1_PARAM: 			alu_op1 = param[15:0];
 			OP1_ONE: 			alu_op1 = 16'd1;
 			default:			alu_op1 = 0;
 		endcase
@@ -303,8 +303,8 @@ module lisp_core
 			end
 
 			IP_BRANCH_TARGET: instruction_pointer_next = { instruction_pointer[17:2], 2'b00 } 
-				+ { param, 2'b00 };
-			IP_MEM_READ_VALUE: instruction_pointer_next = { mem_read_value, 2'b00 };
+				+ { param[15:0], 2'b00 };
+			IP_MEM_READ_VALUE: instruction_pointer_next = { mem_read_value[15:0], 2'b00 };
 			IP_STACK_TARGET: instruction_pointer_next =  { top_of_stack[15:0], 2'b00 };		
 			default: instruction_pointer_next = instruction_pointer;	// Make full case
 		endcase
