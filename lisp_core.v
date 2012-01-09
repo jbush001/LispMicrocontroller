@@ -53,8 +53,8 @@ module lisp_core
 	reg[WORD_SIZE - 1:0] 	top_of_stack = 0;
 	reg[15:0] 				stack_pointer = MEM_SIZE - 8;
 	reg[15:0] 				base_pointer = MEM_SIZE - 4;
-	reg[WORD_SIZE + 1:0] 	instruction_pointer = -1;
-	reg[WORD_SIZE + 1:0] 	instruction_pointer_next = 0;
+	reg[17:0] 				instruction_pointer = 18'h3ffff;
+	reg[17:0] 				instruction_pointer_next = 0;
 	reg[WORD_SIZE - 1:0] 	latched_instruction = 0;
 	reg[WORD_SIZE - 1:0] 	current_instruction_word = 0;
 	reg[4:0] 				opcode = 0;
@@ -205,7 +205,7 @@ module lisp_core
 		case (tos_select)
 			TOS_CURRENT: 			top_of_stack_next = top_of_stack;
 			TOS_TAG:				top_of_stack_next = top_of_stack[19:16];
-			TOS_RETURN_ADDR:		top_of_stack_next = instruction_pointer[WORD_SIZE + 1:2] + 1;
+			TOS_RETURN_ADDR:		top_of_stack_next = { 4'd0, instruction_pointer[17:2] + 16'd1 };
 			TOS_BASE_POINTER:		top_of_stack_next = { 4'd0, base_pointer };
 			TOS_PARAM:				top_of_stack_next = param;
 			TOS_SETTAG:				top_of_stack_next = { mem_read_value[3:0], top_of_stack[15:0] };
@@ -230,7 +230,7 @@ module lisp_core
 	always @*
 	begin
 		case (ma_select)
-			MA_INSTRUCTION_POINTER: 	memory_address = instruction_pointer_next[WORD_SIZE + 1:2];
+			MA_INSTRUCTION_POINTER: 	memory_address = instruction_pointer_next[17:2];
 			MA_STACK_POINTER: 			memory_address = stack_pointer;
 			MA_TOP_OF_STACK: 			memory_address = top_of_stack[15:0];
 			MA_ALU:						memory_address = alu_result;
@@ -297,12 +297,12 @@ module lisp_core
 			IP_NEXT:			
 			begin
 				if (opcode[4:3] == 2'b11)	// Does this have a param?  If so, skip to next word
-					instruction_pointer_next = { instruction_pointer[WORD_SIZE + 1:2], 2'b00 } + 4;
+					instruction_pointer_next = { instruction_pointer[17:2], 2'b00 } + 18'd4;
 				else
-					instruction_pointer_next = instruction_pointer + 1;
+					instruction_pointer_next = instruction_pointer + 18'd1;
 			end
 
-			IP_BRANCH_TARGET: instruction_pointer_next = { instruction_pointer[WORD_SIZE + 1:2], 2'b00 } 
+			IP_BRANCH_TARGET: instruction_pointer_next = { instruction_pointer[17:2], 2'b00 } 
 				+ { param, 2'b00 };
 			IP_MEM_READ_VALUE: instruction_pointer_next = { mem_read_value, 2'b00 };
 			IP_STACK_TARGET: instruction_pointer_next =  { top_of_stack[15:0], 2'b00 };		
