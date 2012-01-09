@@ -393,6 +393,7 @@ class Compiler:
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, sym ) ]
 			self.currentFunction.emitInstruction(OP_STORE);
+			self.currentFunction.emitInstruction(OP_POP);
 			sym.initialized = True
 			function.referenced = True
 		else:
@@ -541,7 +542,6 @@ class Compiler:
 			self.currentFunction.emitInstructionWithParam(OP_SETLOCAL, variable.index)
 		elif variable.type == Symbol.GLOBAL_VARIABLE:
 			self.compileExpression(expr[2])
-			self.currentFunction.emitInstruction(OP_DUP)
 			self.currentFunction.emitInstructionWithParam(OP_PUSH, 16383)
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, variable ) ]
@@ -676,9 +676,7 @@ class Compiler:
 		else:
 			if len(expr) > 2:
 				self.compileExpression(expr[2])
-				if opcode == OP_STORE:
-					self.currentFunction.emitInstruction(OP_DUP)
-	
+
 			self.compileExpression(expr[1])
 			self.currentFunction.emitInstruction(opcode)
 

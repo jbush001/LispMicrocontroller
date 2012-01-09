@@ -565,38 +565,30 @@ module lisp_core
 			// in the second cycle, when the NOS has been fetched.
 			STATE_GOT_NOS:
 			begin
-				if (opcode == OP_SETTAG)
+				if (opcode == OP_STORE)
 				begin
-					// This modifies in-place
-					tos_select = TOS_SETTAG;
-					stack_pointer_select = SP_INCREMENT;
-
-					// Fetch next instruction
-					ip_select = IP_NEXT;
-					ma_select = MA_INSTRUCTION_POINTER;
-					state_next = STATE_DECODE;
-				end
-				else if (opcode == OP_STORE)
-				begin
-					// This is a binary op, but is a bit difference
-					// because it doesn't leave anything on the stack
-					ma_select = MA_TOP_OF_STACK;
+					// Leave the stored value on the stack
 					mem_write_enable = 1;
+					ma_select = MA_TOP_OF_STACK;
 					mw_select = MW_MEM_READ_VALUE;
-					stack_pointer_select = SP_INCREMENT;
-					
-					// Load top of stack
-					state_next = STATE_LOAD_TOS1;
+					tos_select = TOS_MEMORY_RESULT;	// save store value
+					state_next = STATE_IADDR_ISSUE;
 				end
 				else
 				begin
-					// standard binary arithmetic.
-					alu_op0_select = OP0_TOP_OF_STACK;
-					alu_op1_select = OP1_MEM_READ_VALUE;
-					alu_op = opcode;
-					tos_select = TOS_ALU_RESULT;
+					if (opcode == OP_SETTAG)
+						tos_select = TOS_SETTAG;	// Unary, just replace top
+					else
+					begin
+						// standard binary arithmetic.
+						alu_op0_select = OP0_TOP_OF_STACK;
+						alu_op1_select = OP1_MEM_READ_VALUE;
+						alu_op = opcode;
+						tos_select = TOS_ALU_RESULT;
+					end
+	
 					stack_pointer_select = SP_INCREMENT;
-
+	
 					// Fetch next instruction
 					ip_select = IP_NEXT;
 					ma_select = MA_INSTRUCTION_POINTER;
