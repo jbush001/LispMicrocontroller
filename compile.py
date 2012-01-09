@@ -634,7 +634,7 @@ class Compiler:
 	def compileBreak(self, expr):
 		label = self.loopStack[-1]
 		# self.compileExpression(expr[1])	# Push value on stack
-		self.currentFunction.emitInstruction(OP_GOTO, label)
+		self.currentFunction.emitBranchInstruction(OP_GOTO, label)
 
  	ARITH_OPS = {
 		'+' 		: ( OP_ADD, 2),
