@@ -2,13 +2,6 @@
 ; Library of standard macros and runtime functions
 ;
 
-(defmacro if (a b c)
-	`(cond 
-		(,a ,b)
-		(1 ,c)
-	)
-)
-
 (defmacro foreach (var list expr)
 	`(let ((,var 0)(nodePtr ,list))
 		(while nodePtr
@@ -20,24 +13,20 @@
 )
 
 (defmacro for (var start end step expr)
-	(cond
-		((< step 0)
-			; Decrementing
-			`(let ((,var ,start) (__endval ,end))
-				(while (> ,var __endval) 
-					,expr
-					(assign ,var (+ ,var ,step))
-				)
+	(if (< step 0)
+		; Decrementing
+		`(let ((,var ,start) (__endval ,end))
+			(while (> ,var __endval) 
+				,expr
+				(assign ,var (+ ,var ,step))
 			)
 		)
-		
-		(1 
-			; Incrementing
-			`(let ((,var ,start)(__endval ,end))
-				(while (< ,var __endval) 
-					,expr
-					(assign ,var (+ ,var ,step))
-				)
+
+		; Incrementing
+		`(let ((,var ,start)(__endval ,end))
+			(while (< ,var __endval) 
+				,expr
+				(assign ,var (+ ,var ,step))
 			)
 		)
 	)
@@ -80,7 +69,6 @@
 						; Check if we need to mark the first pointer
 						($mark-recursive (first ptr))
 					)
-					()
 				)
 			)
 
@@ -204,7 +192,6 @@
 		(while multiplier
 			(if (and multiplier 1)
 				(assign product (+ product multiplicand))
-				()
 			)
 
 			(assign multiplier (rshift multiplier 1))
@@ -254,7 +241,6 @@
 						(assign divisor (- divisor dividend))
 						(assign quotient (or quotient 1))
 					)
-					()
 				)
 			
 				(assign dividend (rshift dividend 1))

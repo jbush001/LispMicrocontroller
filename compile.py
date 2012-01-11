@@ -467,8 +467,8 @@ class Compiler:
 			self.compileWhile(expr)
 		elif functionName == 'break':
 			self.compileBreak(expr)
-		elif functionName == 'cond':	# Special forms handling starts here
-			self.compileCond(expr)
+		elif functionName == 'if':		# Special forms handling starts here
+			self.compileIf(expr)
 		elif functionName == 'assign':
 			self.compileAssign(expr)
 		elif functionName == 'quote':
@@ -580,33 +580,25 @@ class Compiler:
 
 	#
 	# Conditional execution of the form
-	# (cond (check1 val1) (check2 val2) (check3 val3))
+	# (if expr true [false])
 	#
-	def compileCond(self, expr):
+	def compileIf(self, expr):
+		falseLabel = self.currentFunction.generateLabel()
 		doneLabel = self.currentFunction.generateLabel()
-		nextLabel = None
-	
-		for check, val in expr[1:]:
-			if nextLabel != None:
-				self.currentFunction.emitLabel(nextLabel)
 
-			nextLabel = self.currentFunction.generateLabel()
-			if check == '1' or check == 'T':
-				# This is a default case, take a short-circuit fastpath
-				self.currentFunction.emitLabel(nextLabel)
-				self.compileExpression(val)
-				self.currentFunction.emitLabel(doneLabel)
-				return
-			else:
-				self.compileBooleanExpression(check, nextLabel)
-				self.compileExpression(val)
-				self.currentFunction.emitBranchInstruction(OP_GOTO, doneLabel);
-
-		# No cases were true.  Behavior is technically undefined, but we 
-		# return 0
-		self.currentFunction.emitLabel(nextLabel)
-		self.currentFunction.emitInstructionWithParam(OP_PUSH, 0)
+		self.compileBooleanExpression(expr[1], falseLabel)
+		self.compileExpression(expr[2])	# True part
+		self.currentFunction.emitBranchInstruction(OP_GOTO, doneLabel);
+		self.currentFunction.emitLabel(falseLabel)
+		
+		# False part
+		if len(expr) > 3:
+			self.compileExpression(expr[3])	
+		else:
+			self.currentFunction.emitInstructionWithParam(OP_PUSH, 0)
+		
 		self.currentFunction.emitLabel(doneLabel)
+
 
 	#
 	# (while condition body)
@@ -819,22 +811,12 @@ UOPS = {
 
 #
 # Simple arithmetic constant folding on the S-Expression data structure.
+# XXX could optimize (if) and (while)
 #
 def foldConstants(expr):
 	if isinstance(expr, list) and len(expr) > 0:
 		if expr[0] == 'quote':
 			return expr			# Ignore everything in quotes
-		elif expr[0] == 'cond':
-			newExpr = [ 'cond' ]
-			for test, result in expr[1:]:
-				newTest = foldConstants(test)
-				if newTest != '0':		# Eliminate cases that don't make sense
-					newExpr += [ [ newTest, foldConstants(result) ] ]
-
-			if len(newExpr) == 2 and (newExpr[1][0] == '1' or newExpr[1][0] == 'T'):
-				newExpr = newExpr[1][1]	# There is only one case that is always true
-
-			return newExpr
 		else:
 			# Optimize this expression
 			optimizedParams = [ foldConstants(sub) for sub in expr[1:] ]
@@ -954,14 +936,13 @@ class MacroProcessor:
 				return self.eval(expr[1], env)[0]
 			elif func == 'rest':
 				return self.eval(expr[1], env)[1]
-			elif func == 'cond':		# (cond (test prediate) (test predicate)...)
-				result = 0
-				for pair in expr[1:]:
-					if self.eval(pair[0], env):
-						result = self.eval(pair[1], env)
-						break
-
-				return result
+			elif func == 'if':		# (if test trueexpr falsexpr)
+				if self.eval(expr[1], env):
+					return self.eval(pair[2], env)
+				elif len(expr) > 3:
+					return self.eval(expr[3], env)
+				else:
+					return 0
 			elif func == 'assign':	# (assign var value)
 				env[expr[1]] = self.eval(expr[2], env)
 			elif func == 'list':

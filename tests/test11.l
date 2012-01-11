@@ -22,7 +22,5 @@
 			(printdec i)
 			(printchar 10)
 		)
-
-		()	
 	)
 )
