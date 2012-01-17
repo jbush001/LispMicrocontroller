@@ -1,7 +1,7 @@
 (function isprime (x)
 	(let ((p 1))
 		(for i 2 (sqrt x) 1
-			(if (% x i)
+			(if (mod x i)
 				()			
 
 				(begin

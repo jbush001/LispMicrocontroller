@@ -8,7 +8,7 @@
 (function set-display (num)
 	(for register 2 6 1
 		(begin
-			(write-register register (nth segments (% num 10)))
+			(write-register register (nth segments (mod num 10)))
 			(assign num (/ num 10))
 		)
 	)

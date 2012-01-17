@@ -28,13 +28,13 @@
 (printhex (/ 0 a))			; zero identity
 (printchar 10)
 
-(printhex (% -2319 a))		; negative / positive
+(printhex (mod -2319 a))		; negative / positive
 (printchar 10)
-(printhex (% -2319 b))		; negative / negative
+(printhex (mod -2319 b))		; negative / negative
 (printchar 10)
-(printhex (% 2319 a))		; positive / positive
+(printhex (mod 2319 a))		; positive / positive
 (printchar 10)
-(printhex (% 2319 b))		; positive / negative
+(printhex (mod 2319 b))		; positive / negative
 (printchar 10)
 
 (printhex (sqrt 1902))

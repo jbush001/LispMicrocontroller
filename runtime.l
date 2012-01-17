@@ -79,20 +79,18 @@
 	)
 )
 
-(function $clear-flags ()
-	(for ptr $heapstart $wilderness-start 2
-		(let ((val (load ptr)) (tag (gettag val)))
-			(store ptr (settag val (and tag 7)))
-		)
-	)
-)
-
 (function $gc ()
 	(begin
 		(gclog 71 $wilderness-start)
 
-		; Mark phase: clear flags and recursively walk elements
-		($clear-flags)
+		; Mark phase ;;;;;;;;;;;;;
+
+		; clear flags 
+		(for ptr $heapstart $wilderness-start 2
+			(let ((val (load ptr)) (tag (gettag val)))
+				(store ptr (settag val (and tag 7)))
+			)
+		)
 		
 		; Walk globals
 		(for ptr $globalstart $heapstart 1
@@ -104,7 +102,8 @@
 			($mark-recursive (load ptr))		
 		)
 		
-		; Sweep
+		; Sweep ;;;;;;;;;;;;;
+		
 		(assign $freelist 0)	; First clear the freelist so we don't double-add
 		(for ptr $heapstart $wilderness-start 2
 			(if (and (gettag (load ptr)) 16)
@@ -264,7 +263,7 @@
 	)
 )
 
-(function % (divisor dividend)
+(function mod (divisor dividend)
 	(let ((uremainder ($udiv (abs divisor) (abs dividend) 1)))
 		(if (< dividend 0)
 			(- 0 uremainder)	
@@ -311,7 +310,7 @@
 		; Not zero
 		(let ((str 0))
 			(while num
-				(assign str (cons (% num 10) str))
+				(assign str (cons (mod num 10) str))
 				(assign num (/ num 10))
 			)
 	
