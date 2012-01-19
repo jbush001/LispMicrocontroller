@@ -17,6 +17,9 @@ module lisp_core
 	parameter				STATE_RETURN2 = 6;
 	parameter				STATE_CALL2 = 7;
 	parameter				STATE_RETURN3 = 8;
+	parameter				STATE_GOT_STORE_VALUE = 9;
+	parameter				STATE_GOT_NEW_TAG = 10;
+	parameter				STATE_BFALSE2 = 11;
 
 	parameter				OP_NOP = 5'd0;
 	parameter				OP_CALL = 5'd1;
@@ -409,15 +412,28 @@ module lisp_core
 						state_next = STATE_PUSH_MEM_RESULT;
 					end
 
+					OP_STORE:
+					begin
+						// Top of stack is the store address, need to fetch
+						// the store value from next-on-stack
+						ma_select = MA_STACK_POINTER;
+						state_next = STATE_GOT_STORE_VALUE;	
+					end
+
+					OP_SETTAG:
+					begin
+						// Need to fetch next-on-stack to get the new tag
+						ma_select = MA_STACK_POINTER;
+						state_next = STATE_GOT_NEW_TAG;
+					end
+
 					// binary operations
-					OP_STORE, 
 					OP_ADD,
 					OP_SUB, 
 					OP_GTR, 
 					OP_GTE, 
 					OP_EQ, 
 					OP_NEQ,
-					OP_SETTAG,
 					OP_AND,
 					OP_OR,
 					OP_XOR,
@@ -506,10 +522,10 @@ module lisp_core
 						else
 							ip_select = IP_NEXT;
 						
-						// Read the next value from the stack
+						// We popped TOS, so reload it from memory
 						stack_pointer_select = SP_INCREMENT;
 						ma_select = MA_STACK_POINTER;
-						state_next = STATE_PUSH_MEM_RESULT;
+						state_next = STATE_BFALSE2;
 					end
 					
 					OP_GETLOCAL:
@@ -563,39 +579,43 @@ module lisp_core
 				endcase
 			end
 			
+			STATE_GOT_NEW_TAG:
+			begin
+				tos_select = TOS_SETTAG;	// Unary, just replace top
+				stack_pointer_select = SP_INCREMENT;
+
+				// Fetch next instruction
+				ip_select = IP_NEXT;
+				ma_select = MA_INSTRUCTION_POINTER;
+				state_next = STATE_DECODE;
+			end
+			
+			STATE_GOT_STORE_VALUE:
+			begin
+				// Do the store in this cycle and leave the value on the TOS.
+				mem_write_enable = 1;
+				ma_select = MA_TOP_OF_STACK;
+				mw_select = MW_MEM_READ_VALUE;
+				tos_select = TOS_MEMORY_RESULT;	
+				state_next = STATE_IADDR_ISSUE;
+				stack_pointer_select = SP_INCREMENT;
+			end
+			
 			// For any instruction with two stack operands, this is called
 			// in the second cycle, when the NOS has been fetched.
 			STATE_GOT_NOS:
 			begin
-				if (opcode == OP_STORE)
-				begin
-					// Leave the stored value on the stack
-					mem_write_enable = 1;
-					ma_select = MA_TOP_OF_STACK;
-					mw_select = MW_MEM_READ_VALUE;
-					tos_select = TOS_MEMORY_RESULT;	// save store value
-					state_next = STATE_IADDR_ISSUE;
-				end
-				else
-				begin
-					if (opcode == OP_SETTAG)
-						tos_select = TOS_SETTAG;	// Unary, just replace top
-					else
-					begin
-						// standard binary arithmetic.
-						alu_op0_select = OP0_TOP_OF_STACK;
-						alu_op1_select = OP1_MEM_READ_VALUE;
-						alu_op = opcode;
-						tos_select = TOS_ALU_RESULT;
-					end
-	
-					stack_pointer_select = SP_INCREMENT;
-	
-					// Fetch next instruction
-					ip_select = IP_NEXT;
-					ma_select = MA_INSTRUCTION_POINTER;
-					state_next = STATE_DECODE;
-				end
+				// standard binary arithmetic.
+				alu_op0_select = OP0_TOP_OF_STACK;
+				alu_op1_select = OP1_MEM_READ_VALUE;
+				alu_op = opcode;
+				tos_select = TOS_ALU_RESULT;
+				stack_pointer_select = SP_INCREMENT;
+
+				// Fetch next instruction
+				ip_select = IP_NEXT;
+				ma_select = MA_INSTRUCTION_POINTER;
+				state_next = STATE_DECODE;
 			end
 
 			STATE_LOAD_TOS1:
@@ -615,16 +635,19 @@ module lisp_core
 				state_next = STATE_PUSH_MEM_RESULT;
 			end
 			
+			STATE_BFALSE2:
+			begin 
+				// Latch top of stack and fetch next instruction
+				tos_select = TOS_MEMORY_RESULT;
+				ma_select = MA_INSTRUCTION_POINTER;
+				state_next = STATE_DECODE;
+			end
+			
 			STATE_PUSH_MEM_RESULT:
 			begin
+				// Store whatever was returned from memory to the top of stack.
 				tos_select = TOS_MEMORY_RESULT;
-
-				// Fetch next instruction
-				// If we're finishing a branch, don't increment again
-				// because we've already reloaded the new destination.
-				if (opcode != OP_BFALSE)
-					ip_select = IP_NEXT;
-
+				ip_select = IP_NEXT;
 				ma_select = MA_INSTRUCTION_POINTER;
 				state_next = STATE_DECODE;
 			end
