@@ -18,13 +18,14 @@ Note that any writes to register index 0 will be printed to standard out by the 
     vvp core.vvp
 
 
+
 Running in hardware
 
 This has only been tested under Quartus/Altera with the Cyclone II starter kit.  The project file is located at altera/LispMicrocontroller.qpf.
 
  1. Compile the LISP sources, as above
 
- 2. Synthesize the design.  Note that the synthesis tools will read ram.hex to create the initial values of memory.  If the source files are changed, the design must be re-synthesized.
+ 2. Synthesize the design.  Note that the synthesis tools will read ram.hex to create the initial values of memory.  If you recompile the LISP sources (thereby changing ram.hex), the design must be re-synthesized.
 
  3. Run.  Writing to register 1 will set the values of 8 of the LEDs (one bit per LED).  Registers 2-5 control the 7 segment LED display, and register 6 is an input to sample the four buttons.
 
