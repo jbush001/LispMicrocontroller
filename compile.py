@@ -274,9 +274,17 @@ class Compiler:
 	# namespace.
 	#
 	def lookupSymbol(self, name):
-		for scope in self.environmentStack[-1]:
-			if name in scope:
-				return scope[name]
+		isUpval = False
+		for lambdaContext in reversed(self.environmentStack):
+			for scope in reversed(lambdaContext):
+				if name in scope:
+					sym = scope[name]
+					if isUpval:
+						raise Exception(str(name) + ' is referenced inside a lambda.  Not supported.')
+						
+					return sym
+				
+			isUpval = True
 
 		if name in self.globals:
 			return self.globals[name]
