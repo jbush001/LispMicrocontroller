@@ -78,13 +78,11 @@ class Function:
 		self.localFixups = []
 		self.baseAddress = 0
 		self.numLocals = 0
-		self.currentInstruction = 0	# A word that is being packed
-		self.instructionOffset = 0	# Within word
 		self.instructions = []		# Each entry is a word
 		self.referenced = False		# Used to strip dead functions
 
 		# Save a spot for an initial 'reserve' instruction
-		self.emitInstructionWithParam(OP_RESERVE, 16383)
+		self.emitInstruction(OP_RESERVE, 16383)
 
 	def generateLabel(self):
 		return Label()
@@ -97,76 +95,36 @@ class Function:
 	def getProgramAddress(self):
 		return len(self.instructions)
 
-	# Align to word boundary
-	def align(self):
-		if self.instructionOffset != 0:
-			self.instructions += [ self.currentInstruction ]
-			self.instructionOffset = 0
-			self.currentInstruction = 0
-
 	def emitLabel(self, label):
 		assert not label.defined
 		label.defined = True
-		self.align()
 		label.address = self.getProgramAddress()
-
-	def emitInstruction(self, op):
-		self.currentInstruction |= op << ((3 - self.instructionOffset) *  5)
-		self.instructionOffset += 1
-		if self.instructionOffset == 4:
-			self.instructions += [ self.currentInstruction ]
-			self.instructionOffset = 0
-			self.currentInstruction = 0
 
 	def emitBranchInstruction(self, op, label):
 		if label.defined:
 			# We can emit this now.
 			offset = label.address - self.getProgramAddress()
-			self.emitInstructionWithParam(op, offset)
+			self.emitInstruction(op, offset)
 		else:
 			# Forward reference, we'll get back to it later
-			self.emitInstructionWithParam(op, 16383)
+			self.emitInstruction(op, 16383)
 			self.localFixups += [( self.getProgramAddress() - 1, label)]
 
-	def emitInstructionWithParam(self, op, param):
-		# Determine the size required for this parameter
+	def emitInstruction(self, op, param = 0):
 		if param > 16383 or param < -16384:
 			raise Exception('param out of range ' + str(param));
-		elif param > 511 or param < -512:
-			paramSize = 3
-		elif param > 15 or param < -16:
-			paramSize = 2
-		else:
-			paramSize = 1
 	
-		# XXX could allow a param of zero to be at end of word as an optimization
-		if self.instructionOffset + 1 + paramSize > 4:
-			# Need to start a new packet to make this fit
-			self.instructions += [ self.currentInstruction ]
-			self.instructionOffset = 0
-			self.currentInstruction = 0
-
 		# Convert to two's complement
 		if param < 0:
-			param = ((-param ^ 0xffffffff) + 1) & 0xffffffff
+			param = ((-param ^ 0x7fff) + 1) & 0x7fff
 
-		maskedParam = param & ((1 << ((3 - self.instructionOffset) * 5)) - 1)
-		self.currentInstruction |= op << ((3 - self.instructionOffset) * 5)
-		self.currentInstruction |= maskedParam
-	
-		# Round out this instruction
-		self.instructionOffset = 0
-		self.instructions += [ self.currentInstruction ]
-		self.currentInstruction = 0
+		self.instructions += [ (op << 15) | param]
 
 	def patch(self, offset, value):
 		self.instructions[offset] &= ~0x7fff
 		self.instructions[offset] |= value
 
 	def performLocalFixups(self):
-		if self.instructionOffset != 0:
-			self.instructions += [ self.currentInstruction ]
-	
 		self.instructions[0] = (OP_RESERVE << 15) | (self.numLocals + 1)
 		for ip, label in self.localFixups:
 			if not label.defined:
@@ -392,12 +350,12 @@ class Compiler:
 				raise Exception('Global variable ' + expr[1] + ' redefined as function')
 
 			# Function address, to be fixed up
-			self.currentFunction.emitInstructionWithParam(OP_PUSH, 16383)
+			self.currentFunction.emitInstruction(OP_PUSH, 16383)
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, function ) ]
 
 			# Global variable offset, to be fixed up
-			self.currentFunction.emitInstructionWithParam(OP_PUSH, 16383)
+			self.currentFunction.emitInstruction(OP_PUSH, 16383)
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, sym ) ]
 			self.currentFunction.emitInstruction(OP_STORE);
@@ -422,7 +380,7 @@ class Compiler:
 		if isinstance(expr, list):
 			if len(expr) == 0:
 				# Empty expression
-				self.currentFunction.emitInstructionWithParam(OP_PUSH, 0)
+				self.currentFunction.emitInstruction(OP_PUSH, 0)
 			else:
 				self.compileCombination(expr)
 		elif isinstance(expr, int):
@@ -434,7 +392,7 @@ class Compiler:
 			self.compileAtom(expr)
 
 	def compileConstant(self, expr):
-		self.currentFunction.emitInstructionWithParam(OP_PUSH, expr)
+		self.currentFunction.emitInstruction(OP_PUSH, expr)
 
 	# 
 	# compile atom reference (which will look up the variable in the current
@@ -443,16 +401,16 @@ class Compiler:
 	def compileAtom(self, expr):
 		variable = self.lookupSymbol(expr)
 		if variable.type == Symbol.LOCAL_VARIABLE:
-			self.currentFunction.emitInstructionWithParam(OP_GETLOCAL, 
+			self.currentFunction.emitInstruction(OP_GETLOCAL, 
 				variable.index)
 		elif variable.type == Symbol.GLOBAL_VARIABLE:
-			self.currentFunction.emitInstructionWithParam(OP_PUSH, 16383)
+			self.currentFunction.emitInstruction(OP_PUSH, 16383)
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, variable ) ]
 			self.currentFunction.emitInstruction(OP_LOAD);
 		elif variable.type == Symbol.FUNCTION:
 			variable.function.referenced = True
-			self.currentFunction.emitInstructionWithParam(OP_PUSH, 16383)
+			self.currentFunction.emitInstruction(OP_PUSH, 16383)
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, variable ) ]
 		else:
@@ -490,7 +448,7 @@ class Compiler:
 			self.compileFunctionCall(expr)
 
 	def compileBasePointer(self, expr):
-		self.currentFunction.emitInstructionWithParam(OP_GETLOCAL, 0)
+		self.currentFunction.emitInstruction(OP_GETLOCAL, 0)
 
 	#
 	# In order to handle quoted expressions, we need to set up a bunch of cons
@@ -516,8 +474,7 @@ class Compiler:
 		# Cons is not an instruction.  Emit a call to the library function
 		self.compileAtom('cons')
 		self.currentFunction.emitInstruction(OP_CALL)
-		self.currentFunction.align()
-		self.currentFunction.emitInstructionWithParam(OP_CLEANUP, 2)
+		self.currentFunction.emitInstruction(OP_CLEANUP, 2)
 
 	#
 	# Strings just compile down to lists of characters, since there is not
@@ -534,8 +491,7 @@ class Compiler:
 		# Cons is not an instruction.  Emit a call to the library function
 		self.compileAtom('cons')
 		self.currentFunction.emitInstruction(OP_CALL)
-		self.currentFunction.align()
-		self.currentFunction.emitInstructionWithParam(OP_CLEANUP, 2)
+		self.currentFunction.emitInstruction(OP_CLEANUP, 2)
 
 	# 
 	# Set a variable (assign variable value)
@@ -547,10 +503,10 @@ class Compiler:
 		if variable.type == Symbol.LOCAL_VARIABLE:
 			self.compileExpression(expr[2])
 			self.currentFunction.emitInstruction(OP_DUP)
-			self.currentFunction.emitInstructionWithParam(OP_SETLOCAL, variable.index)
+			self.currentFunction.emitInstruction(OP_SETLOCAL, variable.index)
 		elif variable.type == Symbol.GLOBAL_VARIABLE:
 			self.compileExpression(expr[2])
-			self.currentFunction.emitInstructionWithParam(OP_PUSH, 16383)
+			self.currentFunction.emitInstruction(OP_PUSH, 16383)
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, variable ) ]
 			self.currentFunction.emitInstruction(OP_STORE);
@@ -603,7 +559,7 @@ class Compiler:
 		if len(expr) > 3:
 			self.compileExpression(expr[3])	
 		else:
-			self.currentFunction.emitInstructionWithParam(OP_PUSH, 0)
+			self.currentFunction.emitInstruction(OP_PUSH, 0)
 		
 		self.currentFunction.emitLabel(doneLabel)
 
@@ -626,7 +582,7 @@ class Compiler:
 		self.currentFunction.emitLabel(exitLoop)
 		self.loopStack.pop()
 
-		self.currentFunction.emitInstructionWithParam(OP_PUSH, 0)
+		self.currentFunction.emitInstruction(OP_PUSH, 0)
 
 	# break out of a loop 
 	# (break [value])
@@ -689,9 +645,8 @@ class Compiler:
 
 		self.compileAtom(expr[0])
 		self.currentFunction.emitInstruction(OP_CALL)
-		self.currentFunction.align()	# Return always comes back to word boundary
 		if len(expr) > 1:
-			self.currentFunction.emitInstructionWithParam(OP_CLEANUP, len(expr) - 1)
+			self.currentFunction.emitInstruction(OP_CLEANUP, len(expr) - 1)
 
 	#
 	# Actual guts of the function body
@@ -728,8 +683,8 @@ class Compiler:
 		
 		# Now compile code that references the lambda object we created.  We'll
 		# set the tag to indicate this is a function.
-		self.currentFunction.emitInstructionWithParam(OP_PUSH, TAG_FUNCTION)
-		self.currentFunction.emitInstructionWithParam(OP_PUSH, 16383)
+		self.currentFunction.emitInstruction(OP_PUSH, TAG_FUNCTION)
+		self.currentFunction.emitInstruction(OP_PUSH, 16383)
 		self.globalFixups += [ ( self.currentFunction,
 			self.currentFunction.getProgramAddress() - 1, newFunction ) ]
 		self.currentFunction.emitInstruction(OP_SETTAG)
@@ -764,7 +719,7 @@ class Compiler:
 			symbol = self.createLocalVariable(variable)
 			symbol.index = self.currentFunction.allocateLocal()
 			self.compileExpression(value)
-			self.currentFunction.emitInstructionWithParam(OP_SETLOCAL, symbol.index)
+			self.currentFunction.emitInstruction(OP_SETLOCAL, symbol.index)
 
 		# Now evaluate the predicate, which can be a sequence
 		self.compileSequence(expr[2:])
@@ -847,6 +802,7 @@ def foldConstants(expr):
 
 # name, hasparam
 disasmTable = {
+	OP_NOP			: ('nop', False),
 	OP_CALL 		: ('call', False),
 	OP_RETURN 		: ('return', False),
 	OP_CLEANUP 		: ('cleanup', True),
@@ -879,26 +835,19 @@ disasmTable = {
 def disassemble(outfile, instructions, baseAddress):
 	for pc, word in enumerate(instructions):
 		outfile.write('' + str(baseAddress + pc))
-		for index in range(4):
-			opcode = (word >> ((3 - index) * 5)) & 0x1f
-			if opcode == 0:
-				continue
-				
-			name, hasParam = disasmTable[opcode]
-			if hasParam:
-				paramBits = (3 - index) * 5
-				mask = (1 << paramBits) - 1
-				paramValue = word & mask
-				if paramValue & (1 << (paramBits - 1)):
-					paramValue = -(((paramValue ^ mask) + 1) & mask)
+		opcode = (word >> 15)
+		name, hasParam = disasmTable[opcode]
+		if hasParam:
+			paramValue = word & 0x7fff
+			if paramValue & 0x4000:
+				paramValue = -(((paramValue ^ 0x7fff) + 1) & 0x7fff)
 
-				if name == 'goto' or name == 'bfalse':
-					paramValue = baseAddress + pc + paramValue
-					
-				outfile.write('\t' + name + ' ' + str(paramValue) + '\n')
-				break	# Skip to next word
-			else:
-				outfile.write('\t' + name + '\n')
+			if name == 'goto' or name == 'bfalse':
+				paramValue = baseAddress + pc + paramValue
+				
+			outfile.write('\t' + name + ' ' + str(paramValue) + '\n')
+		else:
+			outfile.write('\t' + name + '\n')
 
 def prettyPrintSExpr(listfile, expr, indent = 0):
 	if isinstance(expr, list):

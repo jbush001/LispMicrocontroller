@@ -55,14 +55,12 @@ module lisp_core
 	reg[WORD_SIZE - 1:0] 	top_of_stack = 0;
 	reg[15:0] 				stack_pointer = MEM_SIZE - 16'd8;
 	reg[15:0] 				base_pointer = MEM_SIZE - 16'd4;
-	reg[17:0] 				instruction_pointer = 18'h3ffff;
+	reg[15:0] 				instruction_pointer = 16'hffff;
 	reg[WORD_SIZE - 1:0] 	latched_instruction = 0;
 
 	//
 	// Instruction alignment/Selection
 	//
-	reg[4:0] opcode = 0;
-	reg[WORD_SIZE - 1:0] param = 0;
 	reg[WORD_SIZE - 1:0] current_instruction_word = 0;
 
 	always @*
@@ -71,33 +69,10 @@ module lisp_core
 			current_instruction_word = mem_read_value;
 		else
 			current_instruction_word = latched_instruction;
-
-		case (instruction_pointer[1:0])
-			0:	
-			begin
-				opcode = current_instruction_word[19:15];
-				param = { {5{current_instruction_word[14]}}, current_instruction_word[14:0] };
-			end
-
-			1:
-			begin
-				opcode = current_instruction_word[14:10];
-				param = { {10{current_instruction_word[9]}}, current_instruction_word[9:0] };
-			end
-
-			2:
-			begin
-				opcode = current_instruction_word[9:5];
-				param = { {15{current_instruction_word[4]}}, current_instruction_word[4:0] };
-			end
-
-			3:
-			begin
-				opcode = current_instruction_word[4:0];
-				param = 0;
-			end
-		endcase		
 	end
+
+	wire[4:0] opcode = current_instruction_word[19:15];
+	wire[WORD_SIZE - 1:0] param = { {5{current_instruction_word[14]}}, current_instruction_word[14:0] };
 	
 	//
 	// Stack pointer next mux
@@ -207,7 +182,7 @@ module lisp_core
 		case (tos_select)
 			TOS_CURRENT: 			top_of_stack_next = top_of_stack;
 			TOS_TAG:				top_of_stack_next = top_of_stack[19:16];
-			TOS_RETURN_ADDR:		top_of_stack_next = { 4'd0, instruction_pointer[17:2] + 16'd1 };
+			TOS_RETURN_ADDR:		top_of_stack_next = { 4'd0, instruction_pointer + 16'd1 };
 			TOS_BASE_POINTER:		top_of_stack_next = { 4'd0, base_pointer };
 			TOS_PARAM:				top_of_stack_next = param;
 			TOS_SETTAG:				top_of_stack_next = { mem_read_value[3:0], top_of_stack[15:0] };
@@ -232,7 +207,7 @@ module lisp_core
 	always @*
 	begin
 		case (ma_select)
-			MA_INSTRUCTION_POINTER: 	memory_address = instruction_pointer_next[17:2];
+			MA_INSTRUCTION_POINTER: 	memory_address = instruction_pointer_next;
 			MA_STACK_POINTER: 			memory_address = stack_pointer;
 			MA_TOP_OF_STACK: 			memory_address = top_of_stack[15:0];
 			MA_ALU:						memory_address = alu_result;
@@ -290,25 +265,18 @@ module lisp_core
 	parameter IP_MEM_READ_VALUE = 3;
 	parameter IP_STACK_TARGET = 4;
 	
-	reg[17:0] instruction_pointer_next = 0;
+	reg[15:0] instruction_pointer_next = 0;
 	reg[2:0] ip_select = IP_CURRENT;
 	
 	always @*
 	begin
 		case (ip_select)
 			IP_CURRENT: instruction_pointer_next = instruction_pointer;
-			IP_NEXT:			
-			begin
-				if (opcode[4:3] == 2'b11)	// Does this have a param?  If so, skip to next word
-					instruction_pointer_next = { instruction_pointer[17:2], 2'b00 } + 18'd4;
-				else
-					instruction_pointer_next = instruction_pointer + 18'd1;
-			end
-
-			IP_BRANCH_TARGET: instruction_pointer_next = { instruction_pointer[17:2], 2'b00 } 
-				+ { param[15:0], 2'b00 };
-			IP_MEM_READ_VALUE: instruction_pointer_next = { mem_read_value[15:0], 2'b00 };
-			IP_STACK_TARGET: instruction_pointer_next =  { top_of_stack[15:0], 2'b00 };		
+			IP_NEXT: instruction_pointer_next = instruction_pointer + 16'd1;
+			IP_BRANCH_TARGET: instruction_pointer_next = instruction_pointer 
+				+ param[15:0];
+			IP_MEM_READ_VALUE: instruction_pointer_next = mem_read_value[15:0];
+			IP_STACK_TARGET: instruction_pointer_next =  top_of_stack[15:0];		
 			default: instruction_pointer_next = instruction_pointer;	// Make full case
 		endcase
 	end
