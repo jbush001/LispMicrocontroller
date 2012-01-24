@@ -778,25 +778,33 @@ UOPS = {
 
 #
 # Simple arithmetic constant folding on the S-Expression data structure.
-# XXX could optimize (if) and (while)
 #
 def foldConstants(expr):
 	if isinstance(expr, list) and len(expr) > 0:
 		if expr[0] == 'quote':
 			return expr			# Ignore everything in quotes
 		else:
-			# Optimize this expression
+			# Fold arithmetic expressions if possible
 			optimizedParams = [ foldConstants(sub) for sub in expr[1:] ]
 			if not isinstance(expr[0], list) and expr[0] in BINOPS \
-				and len(expr) == 3 and not isinstance(optimizedParams[0], list) \
-				and isinstance(optimizedParams[0], int) and not isinstance(optimizedParams[1], list) and isinstance(optimizedParams[1], int):
+				and len(expr) == 3 and isinstance(optimizedParams[0], int) \
+				and isinstance(optimizedParams[1], int):
 				return BINOPS[expr[0]](optimizedParams[0], optimizedParams[1])
+			
 			if not isinstance(expr[0], list) and expr[0] in UOPS \
-				and len(expr) == 2 and not isinstance(optimizedParams[0], list) \
-				and isinstance(optimizedParams[0], int):
+				and len(expr) == 2 and isinstance(optimizedParams[0], int):
 				return UOPS[expr[0]](optimizedParams[0])
-			else:
-				return [ expr[0] ] + optimizedParams
+				
+			# If an if form has a constant expression, only include the
+			# appropriate clause
+			if not isinstance(expr[0], list) and expr[0] == 'if' \
+				and isinstance(optimizedParams[0], int):
+				if optimizedParams[0] != 0:
+					return optimizedParams[1]
+				else:
+					return optimizedParams[2]
+
+			return [ expr[0] ] + optimizedParams
 	else:
 		return expr
 
