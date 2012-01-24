@@ -173,8 +173,8 @@ module lisp_core
 		case (tos_select)
 			TOS_CURRENT: 			top_of_stack_next = top_of_stack;
 			TOS_TAG:				top_of_stack_next = top_of_stack[18:16];
-			TOS_RETURN_ADDR:		top_of_stack_next = { 4'd0, instruction_pointer + 16'd1 };
-			TOS_BASE_POINTER:		top_of_stack_next = { 4'd0, base_pointer };
+			TOS_RETURN_ADDR:		top_of_stack_next = { 3'd0, instruction_pointer + 16'd1 };
+			TOS_BASE_POINTER:		top_of_stack_next = { 3'd0, base_pointer };
 			TOS_PARAM:				top_of_stack_next = param;
 			TOS_SETTAG:				top_of_stack_next = { data_mem_read_value[2:0], top_of_stack[15:0] };
 			TOS_ALU_RESULT:			top_of_stack_next = { top_of_stack[18:16], alu_result[15:0] };
@@ -218,7 +218,7 @@ module lisp_core
 	always @*
 	begin
 		case (mw_select)
-			MW_BASE_POINTER: data_mem_write_value = { 4'd0, base_pointer };
+			MW_BASE_POINTER: data_mem_write_value = { 3'd0, base_pointer };
 			MW_TOP_OF_STACK: data_mem_write_value = top_of_stack;
 			MW_MEM_READ_RESULT: data_mem_write_value = data_mem_read_value;
 			default: data_mem_write_value = data_mem_read_value; 	// Make full case
