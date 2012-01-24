@@ -9,15 +9,14 @@ module ulisp(
 	input [15:0]			register_read_value);
 
 	parameter 				MEM_SIZE = 16'd4096;
-	parameter 				WORD_SIZE = 20;
 
-	wire[WORD_SIZE - 1:0]	data_mem_address;
-	wire[WORD_SIZE - 1:0]	instr_mem_address;
-	wire[WORD_SIZE - 1:0] 	data_mem_read_value;
-	wire[WORD_SIZE - 1:0] 	instr_mem_read_value;
-	wire[WORD_SIZE - 1:0]	data_mem_write_value;
+	wire[15:0]				data_mem_address;
+	wire[15:0]				instr_mem_address;
+	wire[19:0] 				data_mem_read_value;
+	wire[20:0] 				instr_mem_read_value;
+	wire[19:0]				data_mem_write_value;
 	wire 					data_mem_write_enable;
-	reg[WORD_SIZE - 1:0] 	data_core_read_value = 0;
+	reg[19:0] 				data_core_read_value = 0;
 
 	wire is_hardware_register_access = data_mem_address[15:7] == 16'b111111111;
 	assign register_index = data_mem_address[6:0];
@@ -34,7 +33,7 @@ module ulisp(
 			data_core_read_value = data_mem_read_value;
 	end
 
-	lisp_core #(MEM_SIZE, WORD_SIZE) c(
+	lisp_core #(MEM_SIZE) c(
 		.clk(clk),
 		.instr_mem_address(instr_mem_address),
 		.instr_mem_read_value(instr_mem_read_value),
@@ -43,12 +42,12 @@ module ulisp(
 		.data_mem_write_value(data_mem_write_value),
 		.data_mem_write_enable(data_mem_write_enable));
 
-	rom #(MEM_SIZE, WORD_SIZE) instr_mem(
+	rom #(MEM_SIZE, 21, 16) instr_mem(
 		.clk(clk),
 		.addr_i(instr_mem_address),
 		.value_o(instr_mem_read_value));
 	
-	ram #(MEM_SIZE, WORD_SIZE) data_mem(
+	ram #(MEM_SIZE, 20) data_mem(
 		.clk(clk),
 		.addr_i(data_mem_address),
 		.value_i(data_mem_write_value),

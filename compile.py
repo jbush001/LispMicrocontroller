@@ -82,7 +82,7 @@ class Function:
 		self.referenced = False		# Used to strip dead functions
 
 		# Save a spot for an initial 'reserve' instruction
-		self.emitInstruction(OP_RESERVE, 16383)
+		self.emitInstruction(OP_RESERVE, 0)
 
 	def generateLabel(self):
 		return Label()
@@ -107,25 +107,25 @@ class Function:
 			self.emitInstruction(op, offset)
 		else:
 			# Forward reference, we'll get back to it later
-			self.emitInstruction(op, 16383)
+			self.emitInstruction(op, 0)
 			self.localFixups += [( self.getProgramAddress() - 1, label)]
 
 	def emitInstruction(self, op, param = 0):
-		if param > 16383 or param < -16384:
+		if param > 32767 or param < -32768:
 			raise Exception('param out of range ' + str(param));
 	
 		# Convert to two's complement
 		if param < 0:
-			param = ((-param ^ 0x7fff) + 1) & 0x7fff
+			param = ((-param ^ 0xffff) + 1) & 0xffff
 
-		self.instructions += [ (op << 15) | param]
+		self.instructions += [ (op << 16) | param]
 
 	def patch(self, offset, value):
-		self.instructions[offset] &= ~0x7fff
-		self.instructions[offset] |= value
+		self.instructions[offset] &= ~0xffff
+		self.instructions[offset] |= (value & 0xffff)
 
 	def performLocalFixups(self):
-		self.instructions[0] = (OP_RESERVE << 15) | (self.numLocals + 1)
+		self.instructions[0] = (OP_RESERVE << 16) | (self.numLocals + 1)
 		for ip, label in self.localFixups:
 			if not label.defined:
 				raise Exception('undefined label')
@@ -355,12 +355,12 @@ class Compiler:
 				raise Exception('Global variable ' + expr[1] + ' redefined as function')
 
 			# Function address, to be fixed up
-			self.currentFunction.emitInstruction(OP_PUSH, 16383)
+			self.currentFunction.emitInstruction(OP_PUSH, 0)
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, function ) ]
 
 			# Global variable offset, to be fixed up
-			self.currentFunction.emitInstruction(OP_PUSH, 16383)
+			self.currentFunction.emitInstruction(OP_PUSH, 0)
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, sym ) ]
 			self.currentFunction.emitInstruction(OP_STORE);
@@ -409,13 +409,13 @@ class Compiler:
 			self.currentFunction.emitInstruction(OP_GETLOCAL, 
 				variable.index)
 		elif variable.type == Symbol.GLOBAL_VARIABLE:
-			self.currentFunction.emitInstruction(OP_PUSH, 16383)
+			self.currentFunction.emitInstruction(OP_PUSH, 0)
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, variable ) ]
 			self.currentFunction.emitInstruction(OP_LOAD);
 		elif variable.type == Symbol.FUNCTION:
 			variable.function.referenced = True
-			self.currentFunction.emitInstruction(OP_PUSH, 16383)
+			self.currentFunction.emitInstruction(OP_PUSH, 0)
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, variable ) ]
 		else:
@@ -511,7 +511,7 @@ class Compiler:
 			self.currentFunction.emitInstruction(OP_SETLOCAL, variable.index)
 		elif variable.type == Symbol.GLOBAL_VARIABLE:
 			self.compileExpression(expr[2])
-			self.currentFunction.emitInstruction(OP_PUSH, 16383)
+			self.currentFunction.emitInstruction(OP_PUSH, 0)
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, variable ) ]
 			self.currentFunction.emitInstruction(OP_STORE);
@@ -689,7 +689,7 @@ class Compiler:
 		# Now compile code that references the lambda object we created.  We'll
 		# set the tag to indicate this is a function.
 		self.currentFunction.emitInstruction(OP_PUSH, TAG_FUNCTION)
-		self.currentFunction.emitInstruction(OP_PUSH, 16383)
+		self.currentFunction.emitInstruction(OP_PUSH, 0)
 		self.globalFixups += [ ( self.currentFunction,
 			self.currentFunction.getProgramAddress() - 1, newFunction ) ]
 		self.currentFunction.emitInstruction(OP_SETTAG)
@@ -836,15 +836,16 @@ disasmTable = {
 	OP_RSHIFT		: ('rshift', False),
 	OP_GETBP		: ('getbp', False)
 }
+
 def disassemble(outfile, instructions, baseAddress):
 	for pc, word in enumerate(instructions):
 		outfile.write('' + str(baseAddress + pc))
-		opcode = (word >> 15)
+		opcode = (word >> 16)
 		name, hasParam = disasmTable[opcode]
 		if hasParam:
-			paramValue = word & 0x7fff
+			paramValue = word & 0xffff
 			if paramValue & 0x4000:
-				paramValue = -(((paramValue ^ 0x7fff) + 1) & 0x7fff)
+				paramValue = -(((paramValue ^ 0xffff) + 1) & 0xffff)
 
 			if name == 'goto' or name == 'bfalse':
 				paramValue = baseAddress + pc + paramValue
@@ -987,6 +988,6 @@ code = compiler.compile(optimized)
 
 outfile = open('rom.hex', 'w')
 for instr in code:
-	outfile.write('%05x\n' % instr)
+	outfile.write('%06x\n' % instr)
 		
 outfile.close()

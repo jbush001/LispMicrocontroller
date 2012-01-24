@@ -28,8 +28,7 @@ module testbench;
 		$dumpfile("trace.vcd");
 		$dumpvars(100, l);
 
-		while (1)		
-//		for (i = 0; i < 100000; i = i + 1)
+		for (i = 0; i < 100000; i = i + 1)
 		begin
 			#5 clk = ~clk;
 

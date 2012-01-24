@@ -1,17 +1,15 @@
 `timescale 1us/1us
 
 module lisp_core
-	#(parameter 			MEM_SIZE = 8192,
-	parameter 				WORD_SIZE = 20)
+	#(parameter 				DATA_MEM_SIZE = 8192)
 
 	(input 						clk,
 	
-	output [WORD_SIZE - 1:0]	instr_mem_address,
-	input [WORD_SIZE - 1:0] 	instr_mem_read_value,
-	
-	output reg[WORD_SIZE - 1:0]	data_mem_address = 0,
-	input [WORD_SIZE - 1:0] 	data_mem_read_value,
-	output reg[WORD_SIZE - 1:0]	data_mem_write_value = 0,
+	output [15:0]				instr_mem_address,
+	input [20:0] 				instr_mem_read_value,
+	output reg[15:0]			data_mem_address = 0,
+	input [19:0] 				data_mem_read_value,
+	output reg[19:0]			data_mem_write_value = 0,
 	output reg					data_mem_write_enable = 0);
 
 	parameter					STATE_DECODE = 0;
@@ -56,17 +54,17 @@ module lisp_core
 	parameter					OP_CLEANUP = 5'd31;
 
 	reg[3:0]					state = STATE_DECODE;
-	reg[WORD_SIZE - 1:0] 		top_of_stack = 0;
-	reg[15:0] 					stack_pointer = MEM_SIZE - 16'd8;
-	reg[15:0] 					base_pointer = MEM_SIZE - 16'd4;
+	reg[19:0]			 		top_of_stack = 0;
+	reg[15:0] 					stack_pointer = DATA_MEM_SIZE - 16'd8;
+	reg[15:0] 					base_pointer = DATA_MEM_SIZE - 16'd4;
 	reg[15:0] 					instruction_pointer = 16'hffff;
 
 	//
 	// Instruction fields
 	//
-	wire[4:0] opcode = instr_mem_read_value[19:15];
-	wire[WORD_SIZE - 1:0] param = { {5{instr_mem_read_value[14]}}, instr_mem_read_value[14:0] };
-	
+	wire[4:0] opcode = instr_mem_read_value[20:16];
+	wire[19:0] param = { {4{instr_mem_read_value[15]}}, instr_mem_read_value[15:0] };
+
 	//
 	// Stack pointer next mux
 	//
@@ -168,7 +166,7 @@ module lisp_core
 	parameter TOS_MEMORY_RESULT = 7;
 
 	reg[2:0] tos_select = TOS_CURRENT;
-	reg[WORD_SIZE - 1:0] top_of_stack_next = 0;
+	reg[19:0] top_of_stack_next = 0;
 	
 	always @*
 	begin

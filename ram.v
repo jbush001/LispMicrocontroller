@@ -2,10 +2,11 @@
 
 module ram
 	#(parameter MEM_SIZE = 4096,
-	parameter WORD_SIZE = 20)
+	parameter WORD_SIZE = 20,
+	parameter ADDR_SIZE = 16)
 
 	(input 						clk,
-	input[WORD_SIZE - 1:0] 		addr_i,
+	input[ADDR_SIZE - 1:0] 		addr_i,
 	input[WORD_SIZE - 1:0] 		value_i,
 	input 						write_i,
 	output reg[WORD_SIZE - 1:0] 	value_o);
