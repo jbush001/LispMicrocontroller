@@ -274,8 +274,12 @@ class Compiler:
 
 		# create a built-in variable that indicates where the heap starts
 		# (will be patched at the end of compilation with the proper address)
-		self.lookupSymbol('$globalstart').initialized = True
-		self.lookupSymbol('$heapstart').initialized = True
+		heapstart = self.lookupSymbol('$heapstart')
+		heapstart.initialized = True
+		self.currentFunction.emitInstruction(OP_PUSH, 0)
+		self.currentFunction.emitInstruction(OP_PUSH, 0)
+		self.currentFunction.emitInstruction(OP_STORE);
+		self.currentFunction.emitInstruction(OP_POP);
 
 		for expr in program:
 			if expr[0] == 'function':
@@ -300,7 +304,11 @@ class Compiler:
 		for function in self.functionList:
 			function.performLocalFixups()		# Replace labels with offsets
 
-		self.performGlobalFixups()			
+		self.performGlobalFixups()
+
+		# Fix up the global variable size table (we know it is the push right
+		# after reserve)
+		self.functionList[0].patch(1, len(self.globals))
 
 		# For debugging: create a listing of the instructions used.
 		listfile = open('program.lst', 'wb')
@@ -312,7 +320,7 @@ class Compiler:
 			if sym.type == Symbol.FUNCTION:
 				listfile.write(' ' + var + ' function@' + str(sym.function.baseAddress) + '\n')
 			else:
-				listfile.write(' ' + var + ' var@' + str(sym.index + self.codeLength) + '\n')
+				listfile.write(' ' + var + ' var@' + str(sym.index) + '\n')
 
 		for func in self.functionList:
 			listfile.write('\nfunction @' + str(func.baseAddress) + '\n')
@@ -327,9 +335,6 @@ class Compiler:
 		instructions = []
 		for func in self.functionList:
 			instructions += func.instructions		
-				
-		# Write the values for __globalstart and __heapstart variables
-		instructions += [ self.codeLength, self.codeLength + len(self.globals) ]
 		
 		return instructions
 
@@ -731,8 +736,7 @@ class Compiler:
 			if not self.globals[varName].initialized:
 				print 'unknown variable %s' % varName
 
-		# Need to determine where functions are in memory and where global
-		# table starts
+		# Need to determine where functions are in memory
 		self.codeLength = 0
 		for func in self.functionList:
 			func.baseAddress = self.codeLength
@@ -743,7 +747,7 @@ class Compiler:
 				function.patch(functionOffset, target.baseAddress)
 			elif isinstance(target, Symbol):
 				if target.type == Symbol.GLOBAL_VARIABLE:
-					function.patch(functionOffset, target.index + self.codeLength)
+					function.patch(functionOffset, target.index)
 				elif target.type == Symbol.FUNCTION:
 					function.patch(functionOffset, target.function.baseAddress)
 			else:
@@ -981,7 +985,7 @@ optimized = [ foldConstants(sub) for sub in expanded ]
 compiler = Compiler()
 code = compiler.compile(optimized)
 
-outfile = open('ram.hex', 'w')
+outfile = open('rom.hex', 'w')
 for instr in code:
 	outfile.write('%05x\n' % instr)
 		

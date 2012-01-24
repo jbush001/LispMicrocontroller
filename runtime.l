@@ -48,7 +48,7 @@
 	)
 )
 
-; Note that $globalstart and $heapstart are variables created automatically
+; Note that $heapstart is a variable created automatically
 ; by the compiler.  Wilderness is memory that has never been allocated and
 ; that we can simply slice off from.
 (assign $wilderness-start $heapstart)
@@ -93,7 +93,7 @@
 		)
 		
 		; Walk globals
-		(for ptr $globalstart $heapstart 1
+		(for ptr 0 $heapstart 1
 			($mark-recursive (load ptr))
 		)
 

@@ -27,8 +27,9 @@ module testbench;
 
 		$dumpfile("trace.vcd");
 		$dumpvars(100, l);
-		
-		for (i = 0; i < 100000; i = i + 1)
+
+		while (1)		
+//		for (i = 0; i < 100000; i = i + 1)
 		begin
 			#5 clk = ~clk;
 
@@ -53,7 +54,7 @@ module testbench;
 	begin
 		if (l.c.opcode != 0)
 		begin
-			$write("%d ", l.c.instruction_pointer / 4);
+			$write("%d ", l.c.instruction_pointer);
 	
 			case (l.c.opcode)
 				l.c.OP_NOP: 		$write("nop");
@@ -93,21 +94,23 @@ module testbench;
 			$write(" ");
 	
 			case (l.c.state)
-				l.c.STATE_IADDR_ISSUE: 		$write("IADDR_ISSUE");
 				l.c.STATE_DECODE: 			$write("DECODE");
 				l.c.STATE_GOT_NOS: 			$write("GOT_NOS");
-				l.c.STATE_LOAD_TOS1: 			$write("LOAD_TOS1");
+				l.c.STATE_LOAD_TOS1: 		$write("LOAD_TOS1");
 				l.c.STATE_PUSH_MEM_RESULT: 	$write("PUSH_MEM_RESULT");
-				l.c.STATE_GETLOCAL2: 			$write("GETLOCAL2");
+				l.c.STATE_GETLOCAL2: 		$write("GETLOCAL2");
 				l.c.STATE_RETURN2: 			$write("RETURN2");
-				l.c.STATE_CALL2: 				$write("CALL2");
 				l.c.STATE_RETURN3: 			$write("RETURN3");
+				l.c.STATE_GOT_STORE_VALUE:	$write("GOT_STORE_VALUE");
+				l.c.STATE_GOT_NEW_TAG:		$write("GOT_NEW_TAG");
+				l.c.STATE_BFALSE2:			$write("BFALSE2");
+				
 			endcase
 		
 			$write(" stack(%d) ", l.c.stack_pointer);
 			$write(" %d", l.c.top_of_stack);
 			for (j = 0; j < 5; j = j + 1)
-				$write(" %d", l.mem.data[l.c.stack_pointer + j]);
+				$write(" %d", l.data_mem.data[l.c.stack_pointer + j]);
 		
 			$write("\n");
 			if (l.c.instruction_pointer_next != l.c.instruction_pointer)

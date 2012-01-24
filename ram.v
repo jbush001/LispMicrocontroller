@@ -1,4 +1,6 @@
-module memory
+`timescale 1us/1us
+
+module ram
 	#(parameter MEM_SIZE = 4096,
 	parameter WORD_SIZE = 20)
 
@@ -17,8 +19,6 @@ module memory
 		for (i = 0; i < MEM_SIZE; i = i + 1)
 			data[i] = 0;
 		// synthesis translate_on
-		
-		$readmemh("ram.hex", data);
 	end
 
 	always @(posedge clk)
