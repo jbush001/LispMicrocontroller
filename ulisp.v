@@ -8,7 +8,7 @@ module ulisp(
 	output [15:0]			register_write_value,
 	input [15:0]			register_read_value);
 
-	parameter 				MEM_SIZE = 16'd8192;
+	parameter 				MEM_SIZE = 16'd4096;
 	parameter 				WORD_SIZE = 20;
 
 	wire[WORD_SIZE - 1:0]	data_mem_address;
