@@ -12,11 +12,11 @@ module ulisp(
 
 	wire[15:0]				data_mem_address;
 	wire[15:0]				instr_mem_address;
-	wire[19:0] 				data_mem_read_value;
+	wire[18:0] 				data_mem_read_value;
 	wire[20:0] 				instr_mem_read_value;
-	wire[19:0]				data_mem_write_value;
+	wire[18:0]				data_mem_write_value;
 	wire 					data_mem_write_enable;
-	reg[19:0] 				data_core_read_value = 0;
+	reg[18:0] 				data_core_read_value = 0;
 
 	wire is_hardware_register_access = data_mem_address[15:7] == 16'b111111111;
 	assign register_index = data_mem_address[6:0];
@@ -47,7 +47,7 @@ module ulisp(
 		.addr_i(instr_mem_address),
 		.value_o(instr_mem_read_value));
 	
-	ram #(MEM_SIZE, 20) data_mem(
+	ram #(MEM_SIZE, 19) data_mem(
 		.clk(clk),
 		.addr_i(data_mem_address),
 		.value_i(data_mem_write_value),

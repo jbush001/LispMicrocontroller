@@ -8,8 +8,8 @@ module lisp_core
 	output [15:0]				instr_mem_address,
 	input [20:0] 				instr_mem_read_value,
 	output reg[15:0]			data_mem_address = 0,
-	input [19:0] 				data_mem_read_value,
-	output reg[19:0]			data_mem_write_value = 0,
+	input [18:0] 				data_mem_read_value,
+	output reg[18:0]			data_mem_write_value = 0,
 	output reg					data_mem_write_enable = 0);
 
 	parameter					STATE_DECODE = 0;
@@ -54,7 +54,7 @@ module lisp_core
 	parameter					OP_CLEANUP = 5'd31;
 
 	reg[3:0]					state = STATE_DECODE;
-	reg[19:0]			 		top_of_stack = 0;
+	reg[18:0]			 		top_of_stack = 0;
 	reg[15:0] 					stack_pointer = DATA_MEM_SIZE - 16'd8;
 	reg[15:0] 					base_pointer = DATA_MEM_SIZE - 16'd4;
 	reg[15:0] 					instruction_pointer = 16'hffff;
@@ -63,7 +63,7 @@ module lisp_core
 	// Instruction fields
 	//
 	wire[4:0] opcode = instr_mem_read_value[20:16];
-	wire[19:0] param = { {4{instr_mem_read_value[15]}}, instr_mem_read_value[15:0] };
+	wire[18:0] param = { {3{instr_mem_read_value[15]}}, instr_mem_read_value[15:0] };
 
 	//
 	// Stack pointer next mux
@@ -166,18 +166,18 @@ module lisp_core
 	parameter TOS_MEMORY_RESULT = 7;
 
 	reg[2:0] tos_select = TOS_CURRENT;
-	reg[19:0] top_of_stack_next = 0;
+	reg[18:0] top_of_stack_next = 0;
 	
 	always @*
 	begin
 		case (tos_select)
 			TOS_CURRENT: 			top_of_stack_next = top_of_stack;
-			TOS_TAG:				top_of_stack_next = top_of_stack[19:16];
+			TOS_TAG:				top_of_stack_next = top_of_stack[18:16];
 			TOS_RETURN_ADDR:		top_of_stack_next = { 4'd0, instruction_pointer + 16'd1 };
 			TOS_BASE_POINTER:		top_of_stack_next = { 4'd0, base_pointer };
 			TOS_PARAM:				top_of_stack_next = param;
-			TOS_SETTAG:				top_of_stack_next = { data_mem_read_value[3:0], top_of_stack[15:0] };
-			TOS_ALU_RESULT:			top_of_stack_next = { top_of_stack[19:16], alu_result[15:0] };
+			TOS_SETTAG:				top_of_stack_next = { data_mem_read_value[2:0], top_of_stack[15:0] };
+			TOS_ALU_RESULT:			top_of_stack_next = { top_of_stack[18:16], alu_result[15:0] };
 			TOS_MEMORY_RESULT:		top_of_stack_next = data_mem_read_value;
 			default:				top_of_stack_next = top_of_stack;	// Make case full
 		endcase

@@ -58,13 +58,13 @@
 
 (function $mark-recursive (ptr)
 	(let ((tag (gettag ptr)))
-		(while (and tag (= (and tag 7) 1))	; Check if this is a cons and is not null
+		(while (and tag (= (and tag 3) 1))	; Check if this is a cons and is not null
 			(let ((firstword (load ptr)) (gcflag (gettag firstword)))
-				(if (= (rshift gcflag 3) 0)
+				(if (= (rshift gcflag 2) 0)
 					(begin
 						; An unmarked cons cell, mark it and continue
 						(gclog 77 ptr)	; M
-						(store ptr (settag firstword (or gcflag 8)))
+						(store ptr (settag firstword (or gcflag 4)))
 	
 						; Check if we need to mark the first pointer
 						($mark-recursive (first ptr))
@@ -88,7 +88,7 @@
 		; clear flags 
 		(for ptr $heapstart $wilderness-start 2
 			(let ((val (load ptr)) (tag (gettag val)))
-				(store ptr (settag val (and tag 7)))
+				(store ptr (settag val (and tag 3)))
 			)
 		)
 		

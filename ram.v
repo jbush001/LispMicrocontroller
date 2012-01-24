@@ -11,7 +11,7 @@ module ram
 	input 						write_i,
 	output reg[WORD_SIZE - 1:0] 	value_o);
 
-	reg[19:0]					data[0:MEM_SIZE];
+	reg[WORD_SIZE - 1:0]		data[0:MEM_SIZE];
 	integer 					i;
 
 	initial
