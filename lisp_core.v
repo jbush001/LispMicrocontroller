@@ -63,7 +63,7 @@ module lisp_core
 	// Instruction fields
 	//
 	wire[4:0] opcode = instr_mem_read_value[20:16];
-	wire[18:0] param = { {3{instr_mem_read_value[15]}}, instr_mem_read_value[15:0] };
+	wire[15:0] param = instr_mem_read_value[15:0];
 
 	//
 	// Stack pointer next mux
@@ -120,7 +120,7 @@ module lisp_core
 	begin
 		case (alu_op1_select)
 			OP1_MEM_READ: alu_op1 = data_mem_read_value[15:0];
-			OP1_PARAM: 			alu_op1 = param[15:0];
+			OP1_PARAM: 			alu_op1 = param;
 			OP1_ONE: 			alu_op1 = 16'd1;
 			default:			alu_op1 = 16'd1;		// Make case full
 		endcase
@@ -175,7 +175,7 @@ module lisp_core
 			TOS_TAG:				top_of_stack_next = top_of_stack[18:16];
 			TOS_RETURN_ADDR:		top_of_stack_next = { 3'd0, instruction_pointer + 16'd1 };
 			TOS_BASE_POINTER:		top_of_stack_next = { 3'd0, base_pointer };
-			TOS_PARAM:				top_of_stack_next = param;
+			TOS_PARAM:				top_of_stack_next = { 3'd0, param };
 			TOS_SETTAG:				top_of_stack_next = { data_mem_read_value[2:0], top_of_stack[15:0] };
 			TOS_ALU_RESULT:			top_of_stack_next = { top_of_stack[18:16], alu_result[15:0] };
 			TOS_MEMORY_RESULT:		top_of_stack_next = data_mem_read_value;
@@ -263,8 +263,7 @@ module lisp_core
 		case (ip_select)
 			IP_CURRENT: instruction_pointer_next = instruction_pointer;
 			IP_NEXT: instruction_pointer_next = instruction_pointer + 16'd1;
-			IP_BRANCH_TARGET: instruction_pointer_next = instruction_pointer 
-				+ param[15:0];
+			IP_BRANCH_TARGET: instruction_pointer_next = param;
 			IP_MEM_READ_RESULT: instruction_pointer_next = data_mem_read_value[15:0];
 			IP_STACK_TARGET: instruction_pointer_next =  top_of_stack[15:0];		
 			default: instruction_pointer_next = instruction_pointer;	// Make full case

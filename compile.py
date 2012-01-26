@@ -101,14 +101,8 @@ class Function:
 		label.address = self.getProgramAddress()
 
 	def emitBranchInstruction(self, op, label):
-		if label.defined:
-			# We can emit this now.
-			offset = label.address - self.getProgramAddress()
-			self.emitInstruction(op, offset)
-		else:
-			# Forward reference, we'll get back to it later
-			self.emitInstruction(op, 0)
-			self.localFixups += [( self.getProgramAddress() - 1, label)]
+		self.emitInstruction(op, 0)
+		self.localFixups += [( self.getProgramAddress() - 1, label)]
 
 	def emitInstruction(self, op, param = 0):
 		if param > 32767 or param < -32768:
@@ -130,7 +124,7 @@ class Function:
 			if not label.defined:
 				raise Exception('undefined label')
 
-			self.patch(ip, label.address - ip)
+			self.patch(ip, self.baseAddress + label.address)
 
 
 #
@@ -299,6 +293,12 @@ class Compiler:
 
 		# Strip out functions that aren't called
 		self.functionList = filter(lambda x: x.referenced, self.functionList)
+
+		# Need to determine where functions are in memory
+		self.codeLength = 0
+		for func in self.functionList:
+			func.baseAddress = self.codeLength
+			self.codeLength += len(func.instructions)
 
 		# Do fixups
 		for function in self.functionList:
@@ -538,7 +538,7 @@ class Compiler:
 				trueTarget = self.currentFunction.generateLabel()
 
 				self.compileBooleanExpression(expr[1], testSecond)
-				self.currentFunction.emitInstruction(OP_GOTO, trueTarget)
+				self.currentFunction.emitBranchInstruction(OP_GOTO, trueTarget)
 				self.currentFunction.emitLabel(testSecond)
 				self.compileBooleanExpression(expr[2], falseTarget)
 				self.currentFunction.emitLabel(trueTarget)
@@ -736,12 +736,6 @@ class Compiler:
 			if not self.globals[varName].initialized:
 				print 'unknown variable %s' % varName
 
-		# Need to determine where functions are in memory
-		self.codeLength = 0
-		for func in self.functionList:
-			func.baseAddress = self.codeLength
-			self.codeLength += len(func.instructions)
-
 		for function, functionOffset, target in self.globalFixups:
 			if isinstance(target, Function):
 				function.patch(functionOffset, target.baseAddress)
@@ -852,12 +846,9 @@ def disassemble(outfile, instructions, baseAddress):
 		name, hasParam = disasmTable[opcode]
 		if hasParam:
 			paramValue = word & 0xffff
-			if paramValue & 0x4000:
+			if paramValue & 0x8000:
 				paramValue = -(((paramValue ^ 0xffff) + 1) & 0xffff)
 
-			if name == 'goto' or name == 'bfalse':
-				paramValue = baseAddress + pc + paramValue
-				
 			outfile.write('\t' + name + ' ' + str(paramValue) + '\n')
 		else:
 			outfile.write('\t' + name + '\n')
