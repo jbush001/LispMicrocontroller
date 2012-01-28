@@ -973,7 +973,7 @@ class MacroProcessor:
 			return statement
 
 parser = Parser()
-parser.parseFile('runtime.l')
+parser.parseFile('runtime.lisp')
 for filename in sys.argv[1:]:
 	parser.parseFile(filename)
 
