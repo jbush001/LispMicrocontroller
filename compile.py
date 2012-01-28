@@ -1,24 +1,4 @@
 #!/usr/bin/python
-#
-# Memory Map:
-#
-#  [ instructions ]
-#  [ global data ]
-#  [ free space ]
-#  [ stack ]
-#
-# Each stack frame is (grows down, higher address is on top in this diagram):
-#
-#  paramn
-#  ...
-#  param1
-#  param0
-#  prev base ptr     <---- current base ptr ---
-#  return address
-#  local 0
-#  local 1
-#  ...
-#
 
 import sys, shlex, copy
 

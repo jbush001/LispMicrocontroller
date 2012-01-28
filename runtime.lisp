@@ -154,7 +154,7 @@
 
 					; No more space available, need to GC
 					(begin
-						($gc)	; No room, try to gc
+						($gc)
 						(if (= $freelist 0)
 							; GC gave us nothing, give up.
 							($oom)
