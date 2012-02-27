@@ -171,10 +171,7 @@ class Parser:
 class Compiler:
 	def __init__(self):
 		# The environment is a stack of lambdas, each of which is a stack of 
-		# scopes, each of which is a  dictionary of symbols.  Because closures 
-		# are not currently supported, we cannot access variables from the outer 
-		# function, but implementing them would simply be a matter of walking up
-		# to the next lambda context.
+		# scopes, each of which is a  dictionary of symbols.  
 		self.environmentStack = [[{}]]
 		self.globals = {}
 		self.currentFunction = Function()
@@ -220,9 +217,6 @@ class Compiler:
 
 		if name in self.globals:
 			return self.globals[name]
-
-		# Here is where we could walk back up the environment stack to find 
-		# closures if they were supported...
 
 		sym = Symbol(Symbol.GLOBAL_VARIABLE)
 		sym.index = len(self.globals)		# Allocate a storage slot for this
@@ -407,29 +401,32 @@ class Compiler:
 	# Anything that isn't an atom or a number is going to be compiled here.
 	#
 	def compileCombination(self, expr):
-		functionName = expr[0]
-		if functionName in self.ARITH_OPS:
-			self.compileArithmetic(expr)
-		elif functionName == 'lambda':
-			self.compileLambda(expr)
-		elif functionName == 'begin':
-			self.compileSequence(expr[1:])
-		elif functionName == 'while':
-			self.compileWhile(expr)
-		elif functionName == 'break':
-			self.compileBreak(expr)
-		elif functionName == 'if':		# Special forms handling starts here
-			self.compileIf(expr)
-		elif functionName == 'assign':
-			self.compileAssign(expr)
-		elif functionName == 'quote':
-			self.compileQuote(expr[1])
-		elif functionName == 'let':
-			self.compileLet(expr)
-		elif functionName == 'getbp':
-			self.currentFunction.emitInstruction(OP_GETBP)
+		if isinstance(expr[0], str):
+			functionName = expr[0]
+			if functionName in self.ARITH_OPS:
+				self.compileArithmetic(expr)
+			elif functionName == 'lambda':
+				self.compileLambda(expr)
+			elif functionName == 'begin':
+				self.compileSequence(expr[1:])
+			elif functionName == 'while':
+				self.compileWhile(expr)
+			elif functionName == 'break':
+				self.compileBreak(expr)
+			elif functionName == 'if':		# Special forms handling starts here
+				self.compileIf(expr)
+			elif functionName == 'assign':
+				self.compileAssign(expr)
+			elif functionName == 'quote':
+				self.compileQuote(expr[1])
+			elif functionName == 'let':
+				self.compileLet(expr)
+			elif functionName == 'getbp':
+				self.currentFunction.emitInstruction(OP_GETBP)
+			else:
+				# Anything that isn't a built in form falls through to here.
+				self.compileFunctionCall(expr)
 		else:
-			# Anything that isn't a built in form falls through to here.
 			self.compileFunctionCall(expr)
 
 	def compileBasePointer(self, expr):
@@ -627,8 +624,8 @@ class Compiler:
 		# for next call.
 		for paramExpr in reversed(expr[1:]):
 			self.compileExpression(paramExpr)
-
-		self.compileAtom(expr[0])
+		
+		self.compileExpression(expr[0])
 		self.currentFunction.emitInstruction(OP_CALL)
 		if len(expr) > 1:
 			self.currentFunction.emitInstruction(OP_CLEANUP, len(expr) - 1)
