@@ -368,7 +368,7 @@ class Compiler:
 			self.compileString(expr[1:-1])
 		else:
 			# This is a variable.
-			self.compileAtom(expr)
+			self.compileIdentifier(expr)
 
 	def compileConstant(self, expr):
 		self.currentFunction.emitInstruction(OP_PUSH, expr)
@@ -377,7 +377,7 @@ class Compiler:
 	# compile atom reference (which will look up the variable in the current
 	# environment)
 	#
-	def compileAtom(self, expr):
+	def compileIdentifier(self, expr):
 		variable = self.lookupSymbol(expr)
 		if variable.type == Symbol.LOCAL_VARIABLE:
 			self.currentFunction.emitInstruction(OP_GETLOCAL, 
@@ -454,7 +454,7 @@ class Compiler:
 		self.compileQuote(tail[0])
 
 		# Cons is not an instruction.  Emit a call to the library function
-		self.compileAtom('cons')
+		self.compileIdentifier('cons')
 		self.currentFunction.emitInstruction(OP_CALL)
 		self.currentFunction.emitInstruction(OP_CLEANUP, 2)
 
@@ -471,7 +471,7 @@ class Compiler:
 		self.compileConstant(ord(string[0]))
 
 		# Cons is not an instruction.  Emit a call to the library function
-		self.compileAtom('cons')
+		self.compileIdentifier('cons')
 		self.currentFunction.emitInstruction(OP_CALL)
 		self.currentFunction.emitInstruction(OP_CLEANUP, 2)
 
@@ -622,10 +622,9 @@ class Compiler:
 		# User defined function call.  Create a new frame.
 		# evaluate parameter expressions and stash results into frame
 		# for next call.
-		for paramExpr in reversed(expr[1:]):
+		for paramExpr in reversed(expr):
 			self.compileExpression(paramExpr)
 		
-		self.compileExpression(expr[0])
 		self.currentFunction.emitInstruction(OP_CALL)
 		if len(expr) > 1:
 			self.currentFunction.emitInstruction(OP_CLEANUP, len(expr) - 1)
