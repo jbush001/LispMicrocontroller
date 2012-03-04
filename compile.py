@@ -961,7 +961,7 @@ optimized = [ foldConstants(sub) for sub in expanded ]
 compiler = Compiler()
 code = compiler.compile(optimized)
 
-outfile = open('rom.hex', 'w')
+outfile = open('program.hex', 'w')
 for instr in code:
 	outfile.write('%06x\n' % instr)
 		

@@ -3,7 +3,8 @@
 module rom
 	#(parameter MEM_SIZE = 4096,
 	parameter WORD_SIZE = 20,
-	parameter ADDR_SIZE = 16)
+	parameter ADDR_SIZE = 16,
+	parameter INIT_FILE="")
 
 	(input 						clk,
 	input[ADDR_SIZE - 1:0] 		addr_i,
@@ -19,7 +20,7 @@ module rom
 			data[i] = 0;
 		// synthesis translate_on
 		
-		$readmemh("rom.hex", data);
+		$readmemh(INIT_FILE, data);
 	end
 
 	always @(posedge clk)

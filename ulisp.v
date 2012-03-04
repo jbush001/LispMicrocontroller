@@ -42,7 +42,7 @@ module ulisp(
 		.data_mem_write_value(data_mem_write_value),
 		.data_mem_write_enable(data_mem_write_enable));
 
-	rom #(MEM_SIZE, 21, 16) instr_mem(
+	rom #(MEM_SIZE, 21, 16, "program.hex") instr_mem(
 		.clk(clk),
 		.addr_i(instr_mem_address),
 		.value_o(instr_mem_read_value));
