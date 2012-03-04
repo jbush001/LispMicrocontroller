@@ -1,0 +1,39 @@
+. 0 0 0
+r 15 0 0
+b 0 15 0
+g 0 0 15
+
+......rrrr......
+.....rrrrrr.....
+....rrrrrrrr....
+...rrrrrrrrrr...
+..rrrrrrrrrrrr..
+.rrrrrrrrrrrrrr.
+.rrrrrrrrrrrrrr.
+rrrrrrrrrrrrrrrr
+rrrrrrrrrrrrrrrr
+.rrrrrrrrrrrrrr.
+.rrrrrrrrrrrrrr.
+..rrrrrrrrrrrr..
+...rrrrrrrrrr...
+....rrrrrrrr....
+.....rrrrrr.....
+......rrrr......
+
+
+gggggggggggggggg
+g..............g
+g..............g
+g..............g
+g..............g
+g.....bbbb.....g
+g.....b..b.....g
+g.....b..b.....g
+g.....b..b.....g
+g.....b..b.....g
+g.....bbbb.....g
+g..............g
+g..............g
+g..............g
+g..............g
+gggggggggggggggg
