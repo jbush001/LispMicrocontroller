@@ -4,18 +4,18 @@
 
 module vga_timing_generator(
 	input clk, 
-	output reg vsync_o, 
-	output reg hsync_o, 
+	output reg vsync_o = 0,  
+	output reg hsync_o = 0, 
 	output in_visible_region,
-	output reg[9:0] x_coord = 0, 
-	output reg[9:0] y_coord = 0,
+	output [9:0] x_coord, 
+	output [9:0] y_coord,
 	output in_vblank);
 
-	// 640x480 @60 hz.  Pixel clock = 25.175 Mhz Vert Refresh = 31.46875 kHz
+	// 640x480 @60 hz.  Pixel clock = 25 Mhz  (~40 ns)
 	// Horizontal timing:
-	// front porch 16 clocks
-	// sync pulse 96 clocks
-	// back porch 48 clocks
+	// front porch 16 clocks (0.6 uS)
+	// sync pulse 96 clocks (3.8 uS)
+	// back porch 48 clocks (1.9 uS)
 	// visible area 640 clocks
 	// total 800 clocks
 	//
@@ -34,26 +34,17 @@ module vga_timing_generator(
 	parameter VVISIBLE_START = VSYNC_END + 33;		// Back Porch
 	parameter VVISIBLE_END = VVISIBLE_START + 480;
 	
-	reg hvisible;
-	reg vvisible;
-	reg[10:0] horizontal_counter;
-	reg[10:0] vertical_counter;
-	
+	reg hvisible = 0;
+	reg vvisible = 0;
+	reg[9:0] horizontal_counter = 0;
+	reg[9:0] vertical_counter = 0;
 	assign in_visible_region = hvisible && vvisible;
 	assign in_vblank = !vvisible;
-	
-	initial
-	begin
-		vsync_o = 0; 
-		hsync_o = 0; 
-		hvisible = 0;
-		vvisible = 0;
-		horizontal_counter = 0;
-		vertical_counter = 0;
-	end
-
 	wire hvisible_end = horizontal_counter == HVISIBLE_END;
 	wire vvisible_end = vertical_counter == VVISIBLE_END;
+
+	assign x_coord = horizontal_counter - HVISIBLE_START;
+	assign y_coord = vertical_counter - VVISIBLE_START;
 
 	always @(posedge clk)
 	begin
@@ -78,23 +69,13 @@ module vga_timing_generator(
 		else if (vertical_counter == VSYNC_END)
 			vsync_o <= 1;
 		else if (vertical_counter == VVISIBLE_START)
-		begin
-			y_coord <= 0;
 			vvisible <= 1;
-		end
-		else if (vvisible)
-			y_coord <= y_coord + 1;
 		
 		if (horizontal_counter == HSYNC_START)
 			hsync_o <= 0;
 		else if (horizontal_counter == HSYNC_END)
 			hsync_o <= 1;
 		else if (horizontal_counter == HVISIBLE_START)
-		begin
 			hvisible <= 1;
-			x_coord <= 0;
-		end
-		else if (hvisible)
-			x_coord <= x_coord + 1;
 	end
 endmodule
