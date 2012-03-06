@@ -1,9 +1,8 @@
 
-; Sprite 0
-(write-register 4 0)	; shape
-(write-register 5 1)	; enable
-(assign xdir 1)
-(assign ydir 1)
+; Sprite 0 (player rocket)
+(write-register 5 1)			; enable
+(write-register 3 (-240 20))	; y coord (a little up from the bottom)
+(assign x0 (- (/ 320 2) 8))
 
 (while 1
 	; Wait for start of vblank
@@ -13,30 +12,28 @@
 
 	; Set up sprite 0
 	(write-register 2 x0)	; X coord
-	(write-register 3 y0)	; y coord
+	(write-register 4 s0shape)	; animation frame
 
 	; Wait for end of vblank
 	(while (read-register 1)
 		()
 	)
 
-	(if (< x0 1)
-		(assign xdir 1)
+	; Left?
+	(if (and (read-register 0) 1)
+		(if (> x0 5)
+			(assign x0 (- x0 5))
+		)
 	)
 
-	(if (> x0 (- 320 16))
-		(assign xdir -1)
+	; Move right?
+	(if (and (read-register 0) 2)
+		(if (< x0 (-320 21))
+			(assign x0 (+ x0 5))
+		)
 	)
 
-	(if (< y0 1)
-		(assign ydir 1)
-	)
-
-	(if (> y0 (- 240 16))
-		(assign ydir -1)
-	)
-
-	(assign x0 (+ x0 xdir))
-	(assign y0 (+ y0 ydir))
+	; Animate (flicker fire)
+	(assign s0shape (- 1 s0shape))
 )
 

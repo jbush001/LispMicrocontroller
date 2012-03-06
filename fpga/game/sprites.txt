@@ -2,38 +2,41 @@
 r 15 0 0
 b 0 15 0
 g 0 0 15
+y 15 0 15
+o 15 0 8
 
+................
+.......rr.......
 ......rrrr......
-.....rrrrrr.....
-....rrrrrrrr....
-...rrrrrrrrrr...
-..rrrrrrrrrrrr..
+.....rrbbrr.....
+.r..rrbbbbrr..r.
+.r..rrbbbbrr..r.
+.r..rrbbbbrr..r.
+.r..rrrbbrrr..r.
+.r.rrrrrrrrrr.r.
 .rrrrrrrrrrrrrr.
-.rrrrrrrrrrrrrr.
-rrrrrrrrrrrrrrrr
-rrrrrrrrrrrrrrrr
-.rrrrrrrrrrrrrr.
-.rrrrrrrrrrrrrr.
-..rrrrrrrrrrrr..
-...rrrrrrrrrr...
-....rrrrrrrr....
-.....rrrrrr.....
+.rrr.rrrrrr.rrr.
+.rr...rrrr...rr.
+.r.....rr.....r.
+.......oy.......
+......o.yy......
+.....y..y.......
+
+................
+.......rr.......
 ......rrrr......
+.....rrbbrr.....
+.r..rrbbbbrr..r.
+.r..rrbbbbrr..r.
+.r..rrbbbbrr..r.
+.r..rrrbbrrr..r.
+.r.rrrrrrrrrr.r.
+.rrrrrrrrrrrrrr.
+.rrr.rrrrrr.rrr.
+.rr...rrrr...rr.
+.r.....rr.....r.
+.......yo.......
+......o.y.......
+......y.o.o.....
 
 
-gggggggggggggggg
-g..............g
-g..............g
-g..............g
-g..............g
-g.....bbbb.....g
-g.....b..b.....g
-g.....b..b.....g
-g.....b..b.....g
-g.....b..b.....g
-g.....bbbb.....g
-g..............g
-g..............g
-g..............g
-g..............g
-gggggggggggggggg
