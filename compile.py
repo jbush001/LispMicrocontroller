@@ -619,7 +619,7 @@ class Compiler:
 			self.currentFunction.emitInstruction(opcode)
 
 	def compileFunctionCall(self, expr):
-		if isinstance(expr[0], list):
+		if isinstance(expr[0], int):
 			raise Exception('Cannot use integer as function')
 
 		# User defined function call.  Create a new frame.

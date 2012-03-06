@@ -22,16 +22,16 @@
 
 	; Left?
 	(if (<> (and (read-register 0) 1) 0)
-;		(if (> x0 5)
+		(if (> x0 5)
 			(assign x0 (- x0 5))
-;		)
+		)
 	)
 
 	; Move right?
 	(if (<> (and (read-register 0) 2) 0)
-;		(if (< x0 (-320 21))
+		(if (< x0 (- 320 21))
 			(assign x0 (+ x0 5))
-;		)
+		)
 	)
 
 	; Animate (flicker fire)
