@@ -619,6 +619,9 @@ class Compiler:
 			self.currentFunction.emitInstruction(opcode)
 
 	def compileFunctionCall(self, expr):
+		if isinstance(expr[0], list):
+			raise Exception('Cannot use integer as function')
+
 		# User defined function call.  Create a new frame.
 		# evaluate parameter expressions and stash results into frame
 		# for next call.
@@ -676,14 +679,18 @@ class Compiler:
 	#
 	def compileSequence(self, sequence):
 		# Execute a sequence of statements
-		# (begin stmt1 stmt2 stmt3...)
-		first = True
-		for expr in sequence:
-			if not first:
-				self.currentFunction.emitInstruction(OP_POP) # Clean up stack
+		# ...stmt1 stmt2 stmt3...)
+		if len(sequence) == 0:
+			self.currentFunction.emitInstruction(OP_PUSH, 0)	# Need to have at least one stmt
+		else:
+			first = True
+			for expr in sequence:
+				if not first:
+					self.currentFunction.emitInstruction(OP_POP) # Clean up stack
+	
+				first = False
+				self.compileExpression(expr)
 
-			first = False
-			self.compileExpression(expr)
 
 	#
 	# Of the form (let ((variable value) (variable value) (variable value)...) expr)

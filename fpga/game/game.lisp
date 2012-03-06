@@ -1,8 +1,8 @@
 
 ; Sprite 0 (player rocket)
 (write-register 5 1)			; enable
-(write-register 3 (-240 20))	; y coord (a little up from the bottom)
-(assign x0 (- (/ 320 2) 8))
+(write-register 3 (- 240 20))	; y coord (a little up from the bottom)
+(assign x0 (- 160 8))
 
 (while 1
 	; Wait for start of vblank
