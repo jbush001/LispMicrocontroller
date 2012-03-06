@@ -22,22 +22,26 @@
 
 	; Left?
 	(if (<> (and (read-register 0) 1) 0)
-		(if (> x0 5)
-			(assign x0 (- x0 5))
+		(if (> x0 3)
+			(assign x0 (- x0 3))
 		)
 	)
 
 	; Move right?
 	(if (<> (and (read-register 0) 2) 0)
-		(if (< x0 (- 320 21))
-			(assign x0 (+ x0 5))
+		(if (< x0 (- 320 (+ 16 3)))
+			(assign x0 (+ x0 3))
 		)
 	)
 
-	; Animate (flicker fire)
-	(if s0shape
-		(assign s0shape 0)
-		(assign s0shape 1)
+	(if (= animation-delay 0)
+		; Animate jet exhaust
+		(begin
+			(assign s0shape (- 1 s0shape))
+			(assign animation-delay 7)
+		)
+		(assign animation-delay (- animation-delay 1))
 	)
 )
+
 
