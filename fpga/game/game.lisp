@@ -1,7 +1,8 @@
 
 ; Sprite 0 (player rocket)
+(write-register 2 160)
 (write-register 5 1)			; enable
-(write-register 3 (-240 20))	; y coord (a little up from the bottom)
+(write-register 3 50)
 (assign x0 (- (/ 320 2) 8))
 
 (while 1
@@ -20,18 +21,18 @@
 	)
 
 	; Left?
-	(if (and (read-register 0) 1)
-		(if (> x0 5)
-			(assign x0 (- x0 5))
-		)
-	)
+;	(if (and (read-register 0) 1)
+;		(if (> x0 5)
+;			(assign x0 (- x0 5))
+;		)
+;	)
 
 	; Move right?
-	(if (and (read-register 0) 2)
-		(if (< x0 (-320 21))
-			(assign x0 (+ x0 5))
-		)
-	)
+;	(if (and (read-register 0) 2)
+;		(if (< x0 (-320 21))
+;			(assign x0 (+ x0 5))
+;		)
+;	)
 
 	; Animate (flicker fire)
 	(assign s0shape (- 1 s0shape))
