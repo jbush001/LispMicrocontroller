@@ -14,7 +14,8 @@ module top(
 	reg[15:0]			register_read_value = 0;
 	reg[3:0]			buttons_sync0 = 0;
 	reg[3:0]			buttons_sync1 = 0;
-	reg				clk = 0;
+	reg					clk = 0;
+	wire[5:0]			collision;
 	
 	// Divide 50 Mhz clock down to 25 Mhz
 	always @(posedge clk50)
@@ -38,15 +39,17 @@ module top(
 		.register_write_i(register_write),
 		.register_index_i(register_index),
 		.register_write_value_i(register_write_value),
-		.in_vblank(in_vblank));
+		.in_vblank_o(in_vblank),
+		.collision_o(collision));
 
 	always @(posedge clk)
 	begin
 		if (register_read)
 		begin
 			case (register_index)
-				0: register_read_value <= {12'd0, buttons_sync1 };
+				0: register_read_value <= { 12'd0, buttons_sync1 };
 				1: register_read_value <= in_vblank;
+				2: register_read_value <= { 10'd0, collision };
 			endcase
 		end
 

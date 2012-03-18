@@ -8,7 +8,8 @@ module display_controller(
 	input			register_write_i,
 	input [11:0]	register_index_i,
 	input [15:0]	register_write_value_i,
-	output			in_vblank);
+	output			in_vblank_o,
+	output reg[5:0]	collision_o);
 
 	wire[9:0] raster_x_native;
 	wire[9:0] raster_y_native;
@@ -37,7 +38,7 @@ module display_controller(
 	assign raster_x = { 1'b0, raster_x_native[9:1] };
 	assign raster_y = { 1'b0, raster_y_native[9:1] };
 
-	sprite_detect #(2) sprite0(
+	sprite_detect #(3) sprite0(
 		.clk(clk),
 		.raster_x(raster_x),
 		.raster_y(raster_y),
@@ -47,7 +48,7 @@ module display_controller(
 		.sprite_active(sprite0_active),
 		.sprite_address(sprite0_address));
 
-	sprite_detect #(6) sprite1(
+	sprite_detect #(7) sprite1(
 		.clk(clk),
 		.raster_x(raster_x),
 		.raster_y(raster_y),
@@ -57,7 +58,7 @@ module display_controller(
 		.sprite_active(sprite1_active),
 		.sprite_address(sprite1_address));
 
-	sprite_detect #(10) sprite2(
+	sprite_detect #(11) sprite2(
 		.clk(clk),
 		.raster_x(raster_x),
 		.raster_y(raster_y),
@@ -67,7 +68,7 @@ module display_controller(
 		.sprite_active(sprite2_active),
 		.sprite_address(sprite2_address));
 
-	sprite_detect #(13) sprite3(
+	sprite_detect #(14) sprite3(
 		.clk(clk),
 		.raster_x(raster_x),
 		.raster_y(raster_y),
@@ -90,6 +91,33 @@ module display_controller(
 		else /* sprite3 active or don't care */
 			sprite_addr = sprite3_address;
 	end
+
+	reg[5:0] collision = 0;
+	reg in_vblank_latched = 0;
+	
+	always @(posedge clk)
+	begin
+		in_vblank_latched <= in_vblank;
+		
+		if (in_vblank & ~in_vblank_latched)
+		begin
+			// Start of frame
+			collision <= 0;
+			collision_o <= collision;
+		end
+		else
+		begin
+			collision <= collision | { 
+				sprite0_active & sprite1_active,
+				sprite0_active & sprite2_active,
+				sprite0_active & sprite3_active,
+				sprite1_active & sprite2_active,
+				sprite1_active & sprite3_active,
+				sprite2_active & sprite3_active
+			};
+		end	
+	end
+	
 
 	wire[11:0] sprite_color;
 	wire[3:0] sprite_color_index;
