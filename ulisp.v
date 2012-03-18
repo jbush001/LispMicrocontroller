@@ -2,7 +2,7 @@
 
 module ulisp(
 	input 					clk,
-	output [6:0]			register_index,
+	output [11:0]			register_index,
 	output					register_read,
 	output					register_write,
 	output [15:0]			register_write_value,
@@ -18,8 +18,8 @@ module ulisp(
 	wire 					data_mem_write_enable;
 	reg[18:0] 				data_core_read_value = 0;
 
-	wire is_hardware_register_access = data_mem_address[15:7] == 16'b111111111;
-	assign register_index = data_mem_address[6:0];
+	wire is_hardware_register_access = data_mem_address[15:12] == 4'b1111;
+	assign register_index = data_mem_address[11:0];
 	assign register_write_value = data_mem_write_value[15:0];
 	assign register_write = is_hardware_register_access && data_mem_write_enable;
 	assign register_read = is_hardware_register_access && !data_mem_write_enable;

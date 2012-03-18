@@ -33,11 +33,11 @@
 )
 
 (defmacro write-register (index value)
-	`(store (- ,index 128) ,value)
+	`(store (- ,index 4096) ,value)
 )
 
 (defmacro read-register (index)
-	`(load (- ,index 128))
+	`(load (- ,index 4096))
 )
 
 (defmacro gclog (prefix address)

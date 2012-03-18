@@ -7,7 +7,7 @@ module testbench;
 	reg 				clk;
 	integer 			i;
 	integer 			j;
-	wire[6:0]			register_index;
+	wire[11:0]			register_index;
 	wire				register_read;
 	wire				register_write;
 	wire[15:0]			register_write_value;
