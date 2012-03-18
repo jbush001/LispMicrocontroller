@@ -32,7 +32,7 @@ module display_controller(
 		.in_visible_region(in_visible_region),
 		.x_coord(raster_x_native), 
 		.y_coord(raster_y_native),
-		.in_vblank(in_vblank));
+		.in_vblank(in_vblank_o));
 		
 	// Cut the resolution by half in each dimension
 	assign raster_x = { 1'b0, raster_x_native[9:1] };
@@ -97,9 +97,9 @@ module display_controller(
 	
 	always @(posedge clk)
 	begin
-		in_vblank_latched <= in_vblank;
+		in_vblank_latched <= in_vblank_o;
 		
-		if (in_vblank & ~in_vblank_latched)
+		if (in_vblank_o & ~in_vblank_latched)
 		begin
 			// Start of frame
 			collision <= 0;

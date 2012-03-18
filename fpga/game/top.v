@@ -16,6 +16,7 @@ module top(
 	reg[3:0]			buttons_sync1 = 0;
 	reg					clk = 0;
 	wire[5:0]			collision;
+	wire					in_vblank;
 	
 	// Divide 50 Mhz clock down to 25 Mhz
 	always @(posedge clk50)

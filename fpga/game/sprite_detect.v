@@ -26,10 +26,10 @@ module sprite_detect
 		if (register_write_i)
 		begin
 			case (register_index_i)
-				0: sprite_x <= register_write_value_i[9:0];
-				1: sprite_y <= register_write_value_i[9:0];
-				2: sprite_shape <= register_write_value_i[3:0];
-				3: sprite_enable <= register_write_value_i != 0;
+				BASE_INDEX: sprite_x <= register_write_value_i[9:0];
+				BASE_INDEX + 1: sprite_y <= register_write_value_i[9:0];
+				BASE_INDEX + 2: sprite_shape <= register_write_value_i[3:0];
+				BASE_INDEX + 3: sprite_enable <= register_write_value_i != 0;
 			endcase
 		end
 	end
