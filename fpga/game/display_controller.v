@@ -6,7 +6,7 @@ module display_controller(
 	output [3:0]	green_o,
 	output [3:0]	blue_o,
 	input			register_write_i,
-	input [6:0]		register_index_i,
+	input [11:0]	register_index_i,
 	input [15:0]	register_write_value_i,
 	output			in_vblank);
 
@@ -15,43 +15,15 @@ module display_controller(
 	wire[9:0] raster_x;
 	wire[9:0] raster_y;
 	wire in_visible_region;
-	
-	reg[8:0] sprite0_x = 0;
-	reg[8:0] sprite0_y = 0;
-	reg[3:0] sprite0_shape = 0;
-	reg sprite0_enable = 0;
+	wire[11:0] 	sprite0_address;
+	wire[11:0] 	sprite1_address;
+	wire[11:0] 	sprite2_address;
+	wire[11:0] 	sprite3_address;
 	wire sprite0_active;
-	wire[7:0] sprite0_address;
-
-	reg[8:0] sprite1_x = 0;
-	reg[8:0] sprite1_y = 0;
-	reg[3:0] sprite1_shape = 0;
-	reg sprite1_enable = 0;
 	wire sprite1_active;
-	wire[7:0] sprite1_address;
+	wire sprite2_active;
+	wire sprite3_active;
 	
-	reg[11:0] sprite_addr = 0;	// Sprite shape + address
-	wire[11:0] sprite_color;
-	wire[3:0] sprite_color_index;
-
-	wire sprite_is_active = (sprite0_active && sprite0_enable)
-		|| (sprite1_active && sprite1_enable);
-	
-	reg[11:0] output_color = 0;
-	assign { red_o, green_o, blue_o } = output_color;
-	always @*
-	begin
-		if (in_visible_region)
-		begin
-			if (sprite_is_active && sprite_color_index != 0)
-				output_color = sprite_color;
-			else
-				output_color = 12'b000000000100;	// Background color
-		end
-		else
-			output_color = 12'd0;
-	end
-		
 	vga_timing_generator vtg(
 		.clk(clk), 
 		.vsync_o(vsync_o), 
@@ -65,24 +37,63 @@ module display_controller(
 	assign raster_x = { 1'b0, raster_x_native[9:1] };
 	assign raster_y = { 1'b0, raster_y_native[9:1] };
 
-	sprite_detect sprite0(
+	sprite_detect #(2) sprite0(
 		.clk(clk),
 		.raster_x(raster_x),
 		.raster_y(raster_y),
-		.sprite_x(sprite0_x),
-		.sprite_y(sprite0_y),
+		.register_write_i(register_write_i),
+		.register_index_i(register_index_i),
+		.register_write_value_i(register_write_value_i),
 		.sprite_active(sprite0_active),
 		.sprite_address(sprite0_address));
 
-	sprite_detect sprite1(
+	sprite_detect #(6) sprite1(
 		.clk(clk),
 		.raster_x(raster_x),
 		.raster_y(raster_y),
-		.sprite_x(sprite1_x),
-		.sprite_y(sprite1_y),
+		.register_write_i(register_write_i),
+		.register_index_i(register_index_i),
+		.register_write_value_i(register_write_value_i),
 		.sprite_active(sprite1_active),
 		.sprite_address(sprite1_address));
-	
+
+	sprite_detect #(10) sprite2(
+		.clk(clk),
+		.raster_x(raster_x),
+		.raster_y(raster_y),
+		.register_write_i(register_write_i),
+		.register_index_i(register_index_i),
+		.register_write_value_i(register_write_value_i),
+		.sprite_active(sprite2_active),
+		.sprite_address(sprite2_address));
+
+	sprite_detect #(13) sprite3(
+		.clk(clk),
+		.raster_x(raster_x),
+		.raster_y(raster_y),
+		.register_write_i(register_write_i),
+		.register_index_i(register_index_i),
+		.register_write_value_i(register_write_value_i),
+		.sprite_active(sprite3_active),
+		.sprite_address(sprite3_address));
+
+	// Sprite priority logic	
+	reg[11:0] sprite_addr = 0;	// Sprite shape + address
+	always @*
+	begin
+		if (sprite0_active)
+			sprite_addr = sprite0_address;
+		else if (sprite1_active)
+			sprite_addr = sprite1_address;
+		else if (sprite2_active)
+			sprite_addr = sprite2_address;
+		else /* sprite3 active or don't care */
+			sprite_addr = sprite3_address;
+	end
+
+	wire[11:0] sprite_color;
+	wire[3:0] sprite_color_index;
+
 	arom #(4096, 4, 12, "sprites.hex") sprite_rom(
 		.addr_i(sprite_addr),
 		.value_o(sprite_color_index));
@@ -90,31 +101,21 @@ module display_controller(
 	arom #(16, 12, 4, "palette.hex") palette_rom(
 		.addr_i(sprite_color_index),
 		.value_o(sprite_color));
+		
+	wire sprite_is_active = sprite0_active || sprite1_active;
 
-	// Sprite priority logic	
+	reg[11:0] output_color = 0;
+	assign { red_o, green_o, blue_o } = output_color;
 	always @*
 	begin
-		if (sprite0_active && sprite0_enable)
-			sprite_addr = { sprite0_shape, sprite0_address };
-		else /* sprite1 active or don't care */
-			sprite_addr = { sprite1_shape, sprite1_address };
-	end
-
-	always @(posedge clk)
-	begin
-		if (register_write_i)
+		if (in_visible_region)
 		begin
-			case (register_index_i)
-				2: sprite0_x <= register_write_value_i[9:0];
-				3: sprite0_y <= register_write_value_i[9:0];
-				4: sprite0_shape <= register_write_value_i[3:0];
-				5: sprite0_enable <= register_write_value_i != 0;
-
-				6: sprite1_x <= register_write_value_i[9:0];
-				7: sprite1_y <= register_write_value_i[9:0];
-				8: sprite1_shape <= register_write_value_i[3:0];
-				9: sprite1_enable <= register_write_value_i != 0;
-			endcase
+			if (sprite_is_active && sprite_color_index != 0)
+				output_color = sprite_color;
+			else
+				output_color = 12'b000000000100;	// Background color
 		end
+		else
+			output_color = 12'd0;
 	end
 endmodule
