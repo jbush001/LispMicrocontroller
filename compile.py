@@ -170,8 +170,8 @@ class Parser:
 
 class Compiler:
 	def __init__(self):
-		# The environment is a stack of lambdas, each of which is a stack of 
-		# scopes, each of which is a  dictionary of symbols.  
+		# The environment is a stack of function defs (function definitions can be nested),
+		# each of which is a stack of  scopes, each of which is a  dictionary of symbols.  
 		self.environmentStack = [[{}]]
 		self.globals = {}
 		self.currentFunction = Function()
@@ -190,11 +190,11 @@ class Compiler:
 	def exitScope(self):
 		self.environmentStack[-1].pop()
 
-	def enterLambda(self):
+	def enterFunctionDef(self):
 		self.environmentStack += [[{}]]
 		self.enterScope()
 
-	def exitLambda(self):
+	def exitFunctionDef(self):
 		self.environmentStack.pop()
 
 	# 
@@ -204,12 +204,12 @@ class Compiler:
 	#
 	def lookupSymbol(self, name):
 		isUpval = False
-		for lambdaContext in reversed(self.environmentStack):
-			for scope in reversed(lambdaContext):
+		for functionContext in reversed(self.environmentStack):
+			for scope in reversed(functionContext):
 				if name in scope:
 					sym = scope[name]
 					if isUpval:
-						raise Exception(str(name) + ' is referenced inside a lambda.  Not supported.')
+						raise Exception(str(name) + ' is referenced inside a function def.  Not supported.')
 						
 					return sym
 				
@@ -233,7 +233,7 @@ class Compiler:
 		return sym
 
 	#
-	# Top level compile function.  All code not in lambda blocks will be 
+	# Top level compile function.  All code not in function blocks will be 
 	# emitted into an implicitly created dummy function 'main'
 	#
 	def compile(self, program):
@@ -403,10 +403,10 @@ class Compiler:
 	def compileCombination(self, expr):
 		if isinstance(expr[0], str):
 			functionName = expr[0]
-			if functionName in self.ARITH_OPS:
-				self.compileArithmetic(expr)
-			elif functionName == 'lambda':
-				self.compileLambda(expr)
+			if functionName in self.BUILT_IN_FUNCTIONS:
+				self.compileBuiltInFunction(expr)
+			elif functionName == 'function':
+				self.compileAnonymousFunction(expr)
 			elif functionName == 'begin':
 				self.compileSequence(expr[1:])
 			elif functionName == 'while':
@@ -574,7 +574,8 @@ class Compiler:
 		# self.compileExpression(expr[1])	# Push value on stack
 		self.currentFunction.emitBranchInstruction(OP_GOTO, label)
 
- 	ARITH_OPS = {
+	# Built in functions are map directly to opcodes
+ 	BUILT_IN_FUNCTIONS = {
 		'+' 		: ( OP_ADD, 2),
 		'-' 		: ( OP_SUB, 2),
 		'>'			: ( OP_GTR, 2),
@@ -596,8 +597,8 @@ class Compiler:
 		'lshift'	: (OP_LSHIFT, 2)
  	}
 
-	def compileArithmetic(self, expr):
-		opcode, nargs = self.ARITH_OPS[expr[0]]
+	def compileBuiltInFunction(self, expr):
+		opcode, nargs = self.BUILT_IN_FUNCTIONS[expr[0]]
 	
 		if len(expr) - 1 != nargs:
 			raise Exception('wrong number of arguments for', expr[0])
@@ -640,7 +641,7 @@ class Compiler:
 		oldFunc = self.currentFunction
 		newFunction = Function()
 		self.currentFunction = newFunction
-		self.enterLambda()
+		self.enterFunctionDef()
 		
 		for index, paramName in enumerate(params):
 			var = self.createLocalVariable(paramName)
@@ -651,21 +652,21 @@ class Compiler:
 		# Compile top level expression.
 		self.compileExpression(body)
 		self.currentFunction.emitInstruction(OP_RETURN)
-		self.exitLambda()
+		self.exitFunctionDef()
 		self.currentFunction = oldFunc
 
 		return newFunction
 
 	#
-	# lambda expression will be of the form (lambda (param param...) (expr))
+	# Expression will be of the form (function (param param...) (expr))
 	# We generate the code in a separate function, then we will emit a reference
 	# to that code in the current function.
 	#
-	def compileLambda(self, expr):
+	def compileAnonymousFunction(self, expr):
 		newFunction = self.compileFunctionBody(expr[1], expr[2])
 		newFunction.referenced = True
 		
-		# Now compile code that references the lambda object we created.  We'll
+		# Now compile code that references the function object we created.  We'll
 		# set the tag to indicate this is a function.
 		self.currentFunction.emitInstruction(OP_PUSH, TAG_FUNCTION)
 		self.currentFunction.emitInstruction(OP_PUSH, 0)
@@ -910,8 +911,8 @@ class MacroProcessor:
 			else:
 				# Call a function. This is a little tricky, since we can't really
 				# define functions. Stubbed out for now.
-				func = self.env[expr[0]]		# Func is (lambda (arg arg arg) body)
-				if func == None or not isinstance(func, list) or func[0] != 'lambda':
+				func = self.env[expr[0]]		# Func is (function (arg arg arg) body)
+				if func == None or not isinstance(func, list) or func[0] != 'function':
 					raise Exception('bad function call during macro expansion', '')
 				for name, value in zip(func[0], expr[1:]):
 					env[name] = self.eval(value, env)
