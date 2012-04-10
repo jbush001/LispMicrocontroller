@@ -12,46 +12,46 @@ module lisp_core
 	output reg[18:0]			data_mem_write_value = 0,
 	output reg					data_mem_write_enable = 0);
 
-	parameter					STATE_DECODE = 0;
-	parameter					STATE_GOT_NOS = 1;
-	parameter					STATE_LOAD_TOS1 = 2;
-	parameter					STATE_PUSH_MEM_RESULT = 3;
-	parameter					STATE_GETLOCAL2 = 4;
-	parameter					STATE_RETURN2 = 5;
-	parameter					STATE_RETURN3 = 6;
-	parameter					STATE_GOT_STORE_VALUE = 7;
-	parameter					STATE_GOT_NEW_TAG = 8;
-	parameter					STATE_BFALSE2 = 9;
+	localparam					STATE_DECODE = 0;
+	localparam					STATE_GOT_NOS = 1;
+	localparam					STATE_LOAD_TOS1 = 2;
+	localparam					STATE_PUSH_MEM_RESULT = 3;
+	localparam					STATE_GETLOCAL2 = 4;
+	localparam					STATE_RETURN2 = 5;
+	localparam					STATE_RETURN3 = 6;
+	localparam					STATE_GOT_STORE_VALUE = 7;
+	localparam					STATE_GOT_NEW_TAG = 8;
+	localparam					STATE_BFALSE2 = 9;
 
-	parameter					OP_NOP = 5'd0;
-	parameter					OP_CALL = 5'd1;
-	parameter					OP_RETURN = 5'd2;
-	parameter					OP_POP = 5'd3;
-	parameter					OP_LOAD = 5'd4;
-	parameter					OP_STORE = 5'd5;
-	parameter					OP_ADD = 5'd6;
-	parameter					OP_SUB = 5'd7;
-	parameter					OP_REST = 5'd8;
-	parameter					OP_GTR = 5'd9;
-	parameter					OP_GTE = 5'd10;
-	parameter					OP_EQ = 5'd11;
-	parameter					OP_NEQ = 5'd12;
-	parameter					OP_DUP = 5'd13;
-	parameter					OP_GETTAG = 5'd14;
-	parameter					OP_SETTAG = 5'd15;
-	parameter					OP_AND = 5'd16;
-	parameter					OP_OR = 5'd17;
-	parameter					OP_XOR = 5'd18;
-	parameter					OP_LSHIFT = 5'd19;
-	parameter					OP_RSHIFT = 5'd20;
-	parameter					OP_GETBP = 5'd21;
-	parameter					OP_RESERVE = 5'd24;	
-	parameter					OP_PUSH = 5'd25;
-	parameter					OP_GOTO = 5'd26;
-	parameter					OP_BFALSE = 5'd27;
-	parameter					OP_GETLOCAL = 5'd29;
-	parameter					OP_SETLOCAL = 5'd30;
-	parameter					OP_CLEANUP = 5'd31;
+	localparam					OP_NOP = 5'd0;
+	localparam					OP_CALL = 5'd1;
+	localparam					OP_RETURN = 5'd2;
+	localparam					OP_POP = 5'd3;
+	localparam					OP_LOAD = 5'd4;
+	localparam					OP_STORE = 5'd5;
+	localparam					OP_ADD = 5'd6;
+	localparam					OP_SUB = 5'd7;
+	localparam					OP_REST = 5'd8;
+	localparam					OP_GTR = 5'd9;
+	localparam					OP_GTE = 5'd10;
+	localparam					OP_EQ = 5'd11;
+	localparam					OP_NEQ = 5'd12;
+	localparam					OP_DUP = 5'd13;
+	localparam					OP_GETTAG = 5'd14;
+	localparam					OP_SETTAG = 5'd15;
+	localparam					OP_AND = 5'd16;
+	localparam					OP_OR = 5'd17;
+	localparam					OP_XOR = 5'd18;
+	localparam					OP_LSHIFT = 5'd19;
+	localparam					OP_RSHIFT = 5'd20;
+	localparam					OP_GETBP = 5'd21;
+	localparam					OP_RESERVE = 5'd24;	
+	localparam					OP_PUSH = 5'd25;
+	localparam					OP_GOTO = 5'd26;
+	localparam					OP_BFALSE = 5'd27;
+	localparam					OP_GETLOCAL = 5'd29;
+	localparam					OP_SETLOCAL = 5'd30;
+	localparam					OP_CLEANUP = 5'd31;
 
 	reg[3:0]					state = STATE_DECODE;
 	reg[18:0]			 		top_of_stack = 0;
@@ -68,10 +68,10 @@ module lisp_core
 	//
 	// Stack pointer next mux
 	//
-	parameter SP_CURRENT = 0;
-	parameter SP_DECREMENT = 1;
-	parameter SP_INCREMENT = 2;
-	parameter SP_ALU = 3;
+	localparam SP_CURRENT = 0;
+	localparam SP_DECREMENT = 1;
+	localparam SP_INCREMENT = 2;
+	localparam SP_ALU = 3;
 
 	reg[1:0] stack_pointer_select = SP_CURRENT;
 	reg[15:0] stack_pointer_next = 0;
@@ -89,9 +89,9 @@ module lisp_core
 	//
 	// ALU op0 mux
 	//
-	parameter OP0_TOP_OF_STACK = 0;
-	parameter OP0_STACK_POINTER = 1;
-	parameter OP0_BASE_POINTER = 2;
+	localparam OP0_TOP_OF_STACK = 0;
+	localparam OP0_STACK_POINTER = 1;
+	localparam OP0_BASE_POINTER = 2;
 
 	reg[1:0] alu_op0_select = OP0_TOP_OF_STACK;
 	reg[15:0] alu_op0 = 0;
@@ -109,9 +109,9 @@ module lisp_core
 	//
 	// ALU op1 mux
 	//
-	parameter OP1_MEM_READ = 0;
-	parameter OP1_PARAM = 1;
-	parameter OP1_ONE = 2;
+	localparam OP1_MEM_READ = 0;
+	localparam OP1_PARAM = 1;
+	localparam OP1_ONE = 2;
 
 	reg[1:0] alu_op1_select = OP1_MEM_READ;
 	reg[15:0] alu_op1 = 0;
@@ -156,14 +156,14 @@ module lisp_core
 	//
 	// Top of stack next mux
 	//
-	parameter TOS_CURRENT = 0;
-	parameter TOS_TAG = 1;
-	parameter TOS_RETURN_ADDR = 2;
-	parameter TOS_BASE_POINTER = 3;
-	parameter TOS_PARAM = 4;
-	parameter TOS_SETTAG = 5;
-	parameter TOS_ALU_RESULT = 6;
-	parameter TOS_MEMORY_RESULT = 7;
+	localparam TOS_CURRENT = 0;
+	localparam TOS_TAG = 1;
+	localparam TOS_RETURN_ADDR = 2;
+	localparam TOS_BASE_POINTER = 3;
+	localparam TOS_PARAM = 4;
+	localparam TOS_SETTAG = 5;
+	localparam TOS_ALU_RESULT = 6;
+	localparam TOS_MEMORY_RESULT = 7;
 
 	reg[2:0] tos_select = TOS_CURRENT;
 	reg[18:0] top_of_stack_next = 0;
@@ -186,11 +186,11 @@ module lisp_core
 	//
 	// Memory address mux
 	//
-	parameter MA_STACK_POINTER = 0;
-	parameter MA_TOP_OF_STACK = 1;
-	parameter MA_ALU = 2;
-	parameter MA_BASE_POINTER = 3;
-	parameter MA_STACK_POINTER_MINUS_ONE = 4;
+	localparam MA_STACK_POINTER = 0;
+	localparam MA_TOP_OF_STACK = 1;
+	localparam MA_ALU = 2;
+	localparam MA_BASE_POINTER = 3;
+	localparam MA_STACK_POINTER_MINUS_ONE = 4;
 	
 	reg[2:0] ma_select = MA_STACK_POINTER;
 	
@@ -209,9 +209,9 @@ module lisp_core
 	//
 	// Mem write value mux
 	//
-	parameter MW_BASE_POINTER = 0;
-	parameter MW_TOP_OF_STACK = 1;
-	parameter MW_MEM_READ_RESULT = 2;
+	localparam MW_BASE_POINTER = 0;
+	localparam MW_TOP_OF_STACK = 1;
+	localparam MW_MEM_READ_RESULT = 2;
 	
 	reg[1:0] mw_select = MW_BASE_POINTER;
 	
@@ -228,9 +228,9 @@ module lisp_core
 	//
 	// Base pointer mux
 	//
-	parameter BP_CURRENT = 0;
-	parameter BP_ALU = 1;
-	parameter BP_MEM = 2;
+	localparam BP_CURRENT = 0;
+	localparam BP_ALU = 1;
+	localparam BP_MEM = 2;
 	
 	reg[15:0] base_pointer_next = 0;
 	reg[1:0] bp_select = BP_CURRENT;
@@ -248,11 +248,11 @@ module lisp_core
 	//
 	// Instruction pointer next mux
 	//
-	parameter IP_CURRENT = 0;
-	parameter IP_NEXT = 1;
-	parameter IP_BRANCH_TARGET = 2;
-	parameter IP_MEM_READ_RESULT = 3;
-	parameter IP_STACK_TARGET = 4;
+	localparam IP_CURRENT = 0;
+	localparam IP_NEXT = 1;
+	localparam IP_BRANCH_TARGET = 2;
+	localparam IP_MEM_READ_RESULT = 3;
+	localparam IP_STACK_TARGET = 4;
 	
 	reg[15:0] instruction_pointer_next = 0;
 	reg[2:0] ip_select = IP_CURRENT;
