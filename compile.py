@@ -374,8 +374,7 @@ class Compiler:
 		self.currentFunction.emitInstruction(OP_PUSH, expr)
 
 	# 
-	# compile atom reference (which will look up the variable in the current
-	# environment)
+	# Look up the variable in the current environment)
 	#
 	def compileIdentifier(self, expr):
 		variable = self.lookupSymbol(expr)
@@ -396,7 +395,7 @@ class Compiler:
 			raise Exception('internal error: symbol does not have a valid type', '')
 
 	#
-	# A combination is basically a list expresion (op param param...)
+	# A combination is basically a list expression (op param param...)
 	# This may be a special form or a function call.
 	# Anything that isn't an atom or a number is going to be compiled here.
 	#
@@ -438,7 +437,20 @@ class Compiler:
 	#
 	def compileQuote(self, expr):
 		if isinstance(expr, list):
-			self.compileQuotedList(expr)
+			if expr[1] == '.' and len(expr) == 3:
+				# This is a pair of the for ( expr . expr )
+				# Create a single cons cell for it.
+				self.compileQuote(expr[2])
+				self.compileQuote(expr[0])
+
+				# Cons is not an instruction.  Emit a call to the 
+				# library function
+				self.compileIdentifier('cons')
+				self.currentFunction.emitInstruction(OP_CALL)
+				self.currentFunction.emitInstruction(OP_CLEANUP, 2)
+			else:
+				# List, create a chain of cons calls
+				self.compileQuotedList(expr)
 		elif isinstance(expr, int):
 			self.compileConstant(expr)
 		else:
