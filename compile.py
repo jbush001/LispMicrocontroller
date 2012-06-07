@@ -616,27 +616,33 @@ class Compiler:
 	#
 	# (while condition body)
 	# Note that body is implitly a (begin... and can use a sequence
-	# Leaves a zero on the stack when it finishes
+	# If the loop terminates normally (the condition is false), the
+	# result is zero.  If (break val) is called, 'val' will be the result.
 	#
 	def compileWhile(self, expr):
 		topOfLoop = self.currentFunction.generateLabel()
-		exitLoop = self.currentFunction.generateLabel()
-		self.loopStack += [ exitLoop ]
+		bottomOfLoop = self.currentFunction.generateLabel()
+		breakLoop = self.currentFunction.generateLabel()
+		self.loopStack += [ breakLoop ]
 		self.currentFunction.emitLabel(topOfLoop)
-		self.compilePredicate(expr[1], exitLoop)
+		self.compilePredicate(expr[1], bottomOfLoop)
 		self.compileSequence(expr[2:])
 		self.currentFunction.emitInstruction(OP_POP) # Clean up stack
 		self.currentFunction.emitBranchInstruction(OP_GOTO, topOfLoop)
-		self.currentFunction.emitLabel(exitLoop)
+		self.currentFunction.emitLabel(bottomOfLoop)
 		self.loopStack.pop()
-		self.currentFunction.emitInstruction(OP_PUSH, 0)
+		self.currentFunction.emitInstruction(OP_PUSH, 0)	# Default value
+		self.currentFunction.emitLabel(breakLoop)
 
 	# break out of a loop 
 	# (break [value])
-	# XXX value currently ignored
 	def compileBreak(self, expr):
 		label = self.loopStack[-1]
-		# self.compileExpression(expr[1])	# Push value on stack
+		if len(expr) > 1:
+			self.compileExpression(expr[1])	# Push value on stack
+		else
+			self.currentFunction.emitInstruction(OP_PUSH, 0)
+
 		self.currentFunction.emitBranchInstruction(OP_GOTO, label)
 
 	# Built in functions are map directly to opcodes
