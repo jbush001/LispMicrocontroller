@@ -40,6 +40,7 @@ class Symbol:
 	LOCAL_VARIABLE = 1
 	GLOBAL_VARIABLE = 2
 	FUNCTION = 3
+	CONSTANT = 4
 
 	def __init__(self, type):
 		self.type = type
@@ -293,6 +294,8 @@ class Compiler:
 			sym = self.globals[var]
 			if sym.type == Symbol.FUNCTION:
 				listfile.write(' ' + var + ' function@' + str(sym.function.baseAddress) + '\n')
+			elif sym.type == Symbol.CONSTANT:
+				listfile.write(' ' + var + ' constant ' + str(sym.index) + '\n')
 			else:
 				listfile.write(' ' + var + ' var@' + str(sym.index) + '\n')
 
@@ -391,6 +394,8 @@ class Compiler:
 			self.currentFunction.emitInstruction(OP_PUSH, 0)
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, variable ) ]
+		elif variable.type == Symbol.CONSTANT:
+			self.currentFunction.emitInstruction(OP_PUSH, variable.index)
 		else:
 			raise Exception('internal error: symbol does not have a valid type', '')
 
@@ -424,6 +429,8 @@ class Compiler:
 				self.currentFunction.emitInstruction(OP_GETBP)
 			elif functionName == 'and' or functionName == 'or':
 				self.compileBooleanExpression(expr)	
+			elif functionName == 'constant':
+				self.compileConstantDef(expr)
 			else:
 				# Anything that isn't a built in form falls through to here.
 				self.compileFunctionCall(expr)
@@ -508,9 +515,26 @@ class Compiler:
 			self.currentFunction.emitInstruction(OP_STORE);
 			variable.initialized = True
 		elif variable.type == Symbol.FUNCTION:
-			raise Exception('Error: cannot assign function')
+			raise Exception('Error: cannot assign function ' + expr[1])
+		elif variable.type == Symbol.CONSTANT:
+			raise Exception('Error: cannot assign to constant ' + expr[1])
 		else:
 			raise Exception('Internal error: what kind of variable is ' + expr[1] + '?', '')
+
+	def compileConstantDef(self, expr):
+		if len(expr) != 3:
+			raise Exception('wrong number of arguments for constant definition')
+
+		if not isinstance(expr[2], int):
+			raise Exception('invalid constant form: 2nd arg must be integer')
+
+		variable = self.lookupSymbol(expr[1])
+		if variable.initialized:
+			raise Exception('attempt to redefine ' + expr[1] + ' as a constant')
+
+		variable.initialized = True
+		variable.type = Symbol.CONSTANT
+		variable.index = int(expr[2])
 
 	# 
 	# Compile a boolean value that is not part of an conditional form
