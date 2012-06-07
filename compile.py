@@ -122,7 +122,7 @@ class Parser:
 		self.lexer = shlex.shlex(stream)
 		self.lexer.commenters = ';'
 		self.lexer.quotes = '"'
-		self.lexer.wordchars += '+<>!@#$%^&*;:.=-_'
+		self.lexer.wordchars += '?+<>!@#$%^&*;:.=-_'
 
 		while True:
 			expr = self.parseExpr()
@@ -366,14 +366,14 @@ class Compiler:
 			else:
 				self.compileCombination(expr)
 		elif isinstance(expr, int):
-			self.compileConstant(expr)
+			self.compileIntegerLiteral(expr)
 		elif expr[0] == '"':
 			self.compileString(expr[1:-1])
 		else:
 			# This is a variable.
 			self.compileIdentifier(expr)
 
-	def compileConstant(self, expr):
+	def compileIntegerLiteral(self, expr):
 		self.currentFunction.emitInstruction(OP_PUSH, expr)
 
 	# 
@@ -461,13 +461,13 @@ class Compiler:
 				# List, create a chain of cons calls
 				self.compileQuotedList(expr)
 		elif isinstance(expr, int):
-			self.compileConstant(expr)
+			self.compileIntegerLiteral(expr)
 		else:
 			self.compileString(expr)
 
 	def compileQuotedList(self, tail):
 		if len(tail) == 1:
-			self.compileConstant(0)
+			self.compileIntegerLiteral(0)
 		else:
 			# Do the tail first to avoid allocating too many temporaries
 			self.compileQuotedList(tail[1:])
@@ -485,11 +485,11 @@ class Compiler:
 	#
 	def compileString(self, string):
 		if len(string) == 1:
-			self.compileConstant(0)
+			self.compileIntegerLiteral(0)
 		else:
 			self.compileString(string[1:])
 
-		self.compileConstant(ord(string[0]))
+		self.compileIntegerLiteral(ord(string[0]))
 
 		# Cons is not an instruction.  Emit a call to the library function
 		self.compileIdentifier('cons')
