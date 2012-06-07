@@ -177,7 +177,7 @@ class Compiler:
 		self.globals = {}
 		self.currentFunction = Function()
 		self.functionList = [ 0 ]		# We reserve a spot for 'main'
-		self.loopStack = []	# Each entry is ( resultReg, exitLabel )
+		self.breakStack = []
 
 		# Can be a fixup for:
 		#   - A global variable 
@@ -623,24 +623,24 @@ class Compiler:
 		topOfLoop = self.currentFunction.generateLabel()
 		bottomOfLoop = self.currentFunction.generateLabel()
 		breakLoop = self.currentFunction.generateLabel()
-		self.loopStack += [ breakLoop ]
+		self.breakStack += [ breakLoop ]
 		self.currentFunction.emitLabel(topOfLoop)
 		self.compilePredicate(expr[1], bottomOfLoop)
 		self.compileSequence(expr[2:])
 		self.currentFunction.emitInstruction(OP_POP) # Clean up stack
 		self.currentFunction.emitBranchInstruction(OP_GOTO, topOfLoop)
 		self.currentFunction.emitLabel(bottomOfLoop)
-		self.loopStack.pop()
+		self.breakStack.pop()
 		self.currentFunction.emitInstruction(OP_PUSH, 0)	# Default value
 		self.currentFunction.emitLabel(breakLoop)
 
 	# break out of a loop 
 	# (break [value])
 	def compileBreak(self, expr):
-		label = self.loopStack[-1]
+		label = self.breakStack[-1]
 		if len(expr) > 1:
 			self.compileExpression(expr[1])	# Push value on stack
-		else
+		else:
 			self.currentFunction.emitInstruction(OP_PUSH, 0)
 
 		self.currentFunction.emitBranchInstruction(OP_GOTO, label)
