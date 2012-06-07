@@ -40,6 +40,7 @@
 	`(load (- ,index 4096))
 )
 
+; For debugging, uncomment the printchar lines to log GC actions
 (defmacro gclog (prefix address)
 	`(begin
 ;		(printchar ,prefix)
@@ -58,13 +59,13 @@
 
 (function $mark-recursive (ptr)
 	(let ((tag (gettag ptr)))
-		(while (and tag (= (and tag 3) 1))	; Check if this is a cons and is not null
-			(let ((firstword (load ptr)) (gcflag (gettag firstword)))
-				(if (= (rshift gcflag 2) 0)
+		(while (and tag (= (bitwise-and tag 3) 1))	; Check if this is a cons and is not null
+			(let ((firstword (load ptr)) (tag (gettag firstword)))
+				(if (not (rshift tag 2))
 					(begin
 						; An unmarked cons cell, mark it and continue
 						(gclog 77 ptr)	; M
-						(store ptr (settag firstword (or gcflag 4)))
+						(store ptr (settag firstword (bitwise-or tag 4)))
 	
 						; Check if we need to mark the first pointer
 						($mark-recursive (first ptr))
@@ -88,7 +89,7 @@
 		; clear flags 
 		(for ptr $heapstart $wilderness-start 2
 			(let ((val (load ptr)) (tag (gettag val)))
-				(store ptr (settag val (and tag 3)))
+				(store ptr (settag val (bitwise-and tag 3)))
 			)
 		)
 		
@@ -103,11 +104,9 @@
 		)
 		
 		; Sweep ;;;;;;;;;;;;;
-		
 		(assign $freelist 0)	; First clear the freelist so we don't double-add
 		(for ptr $heapstart $wilderness-start 2
-			(if (and (gettag (load ptr)) 16)
-				()	; do nothing, this is in-use
+			(if (not (bitwise-and (gettag (load ptr)) 4))
 				(begin
 					(gclog 70 ptr) 	; 'F'
 
@@ -189,7 +188,7 @@
 (function $umul (multiplicand multiplier)
 	(let ((product 0))
 		(while multiplier
-			(if (and multiplier 1)
+			(if (bitwise-and multiplier 1)
 				(assign product (+ product multiplicand))
 			)
 
@@ -238,7 +237,7 @@
 				(if (>= divisor dividend)
 					(begin
 						(assign divisor (- divisor dividend))
-						(assign quotient (or quotient 1))
+						(assign quotient (bitwise-or quotient 1))
 					)
 				)
 			
@@ -273,7 +272,7 @@
 )
 
 (function sqrt (num)
-	(let ((guess num) (lastguess 0))
+	(let ((guess num) (lastguess (+ num 3)))
 		(while (> (- lastguess guess) 2)
 			(assign lastguess guess)
 			(assign guess (/ (+ guess (/ num guess)) 2))
@@ -295,7 +294,7 @@
 
 (function printhex (num)
 	(for idx 0 16 4
-		(let ((digit (and (rshift num (- 12 idx)) 15)))
+		(let ((digit (bitwise-and (rshift num (- 12 idx)) 15)))
 			(if (< digit 10)
 				(printchar (+ digit 48))
 				(printchar (+ digit 55))	; - 10 + 'A'

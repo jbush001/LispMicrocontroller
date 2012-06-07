@@ -15,7 +15,7 @@ Note that any writes to register index 0 will be printed to standard out by the 
 
   3. Run simulation.  The simulator will read rom.hex each time it starts.
 
-    vvp core.vvp
+    vvp sim.vvp
 
 
 Running in hardware

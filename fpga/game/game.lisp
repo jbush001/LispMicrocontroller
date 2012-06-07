@@ -26,14 +26,14 @@
 	)
 
 	; Left?
-	(if (<> (and (read-register 0) 1) 0)
+	(if (<> (bitwise-and (read-register 0) 1) 0)
 		(if (> x0 3)
 			(assign x0 (- x0 3))
 		)
 	)
 
 	; Move right?
-	(if (<> (and (read-register 0) 2) 0)
+	(if (<> (bitwise-and (read-register 0) 2) 0)
 		(if (< x0 (- 320 (+ 16 3)))
 			(assign x0 (+ x0 3))
 		)
@@ -50,7 +50,7 @@
 		)
 
 		; Missile is not active, test for firing
-		(if (= (and (read-register 0) 4) 0)	; Not clear why this is inverted
+		(if (= (bitwise-and (read-register 0) 4) 0)	; Not clear why this is inverted
 			(begin
 				(assign missile-active 1)
 				(assign missile-y (- 240 32))

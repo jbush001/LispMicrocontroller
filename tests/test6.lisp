@@ -10,7 +10,7 @@
 )
 
 ; Show only odd numbers of a sequence
-(foreach i (filter '(1 2 3 4 5 6 7 8 9 10) (function (x) (and x 1)))
+(foreach i (filter '(1 2 3 4 5 6 7 8 9 10) (function (x) (bitwise-and x 1)))
 	(begin
 		(printhex i)
 		(printchar 10)

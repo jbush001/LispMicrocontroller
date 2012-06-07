@@ -422,6 +422,8 @@ class Compiler:
 				self.compileLet(expr)
 			elif functionName == 'getbp':
 				self.currentFunction.emitInstruction(OP_GETBP)
+			elif functionName == 'and' or functionName == 'or':
+				self.compileBooleanExpression(expr)	
 			else:
 				# Anything that isn't a built in form falls through to here.
 				self.compileFunctionCall(expr)
@@ -510,27 +512,56 @@ class Compiler:
 		else:
 			raise Exception('Internal error: what kind of variable is ' + expr[1] + '?', '')
 
+	# 
+	# Compile a boolean value that is not part of an conditional form
+	# This will push the result on the stack.
+	#
+	def compileBooleanExpression(self, expr):
+		falseLabel = self.currentFunction.generateLabel()
+		doneLabel = self.currentFunction.generateLabel()
+		self.compilePredicate(expr, falseLabel)
+		self.currentFunction.emitInstruction(OP_PUSH, 1)
+		self.currentFunction.emitBranchInstruction(OP_GOTO, doneLabel);
+		self.currentFunction.emitLabel(falseLabel)
+		self.currentFunction.emitInstruction(OP_PUSH, 0)
+		self.currentFunction.emitLabel(doneLabel)
+
 	#
 	# Note that this won't alter the stack.  It instead sets up branches to the appropriate
 	# targets, performing short circuit evaluation where possible.
 	#
-	def compileBooleanExpression(self, expr, falseTarget):
+	def compilePredicate(self, expr, falseTarget):
 		if isinstance(expr, list):
 			if expr[0] == 'and':
+				if len(expr) != 3:
+					raise Exception('wrong number of arguments for and')
+
 				# Note that we short circuit if the first condition is false and
 				# jump directly to the false case
-				self.compileBooleanExpression(expr[1], falseTarget)
-				self.compileBooleanExpression(expr[2], falseTarget)
+				self.compilePredicate(expr[1], falseTarget)
+				self.compilePredicate(expr[2], falseTarget)
 				return
 			elif expr[0] == 'or':
+				if len(expr) != 3:
+					raise Exception('wrong number of arguments for or')
+
 				testSecond = self.currentFunction.generateLabel()
 				trueTarget = self.currentFunction.generateLabel()
 
-				self.compileBooleanExpression(expr[1], testSecond)
+				self.compilePredicate(expr[1], testSecond)
 				self.currentFunction.emitBranchInstruction(OP_GOTO, trueTarget)
 				self.currentFunction.emitLabel(testSecond)
-				self.compileBooleanExpression(expr[2], falseTarget)
+				self.compilePredicate(expr[2], falseTarget)
 				self.currentFunction.emitLabel(trueTarget)
+				return
+			elif expr[0] == 'not':
+				if len(expr) != 2:
+					raise Exception('wrong number of arguments for not')
+
+				skipTo = self.currentFunction.generateLabel()
+				self.compilePredicate(expr[1], skipTo)
+				self.currentFunction.emitBranchInstruction(OP_GOTO, falseTarget)
+				self.currentFunction.emitLabel(skipTo)
 				return
 
 		self.compileExpression(expr)
@@ -544,7 +575,7 @@ class Compiler:
 		falseLabel = self.currentFunction.generateLabel()
 		doneLabel = self.currentFunction.generateLabel()
 
-		self.compileBooleanExpression(expr[1], falseLabel)
+		self.compilePredicate(expr[1], falseLabel)
 		self.compileExpression(expr[2])	# True part
 		self.currentFunction.emitBranchInstruction(OP_GOTO, doneLabel);
 		self.currentFunction.emitLabel(falseLabel)
@@ -568,14 +599,12 @@ class Compiler:
 		exitLoop = self.currentFunction.generateLabel()
 		self.loopStack += [ exitLoop ]
 		self.currentFunction.emitLabel(topOfLoop)
-		self.compileExpression(expr[1])
-		self.currentFunction.emitBranchInstruction(OP_BFALSE, exitLoop)
+		self.compilePredicate(expr[1], exitLoop)
 		self.compileSequence(expr[2:])
 		self.currentFunction.emitInstruction(OP_POP) # Clean up stack
 		self.currentFunction.emitBranchInstruction(OP_GOTO, topOfLoop)
 		self.currentFunction.emitLabel(exitLoop)
 		self.loopStack.pop()
-
 		self.currentFunction.emitInstruction(OP_PUSH, 0)
 
 	# break out of a loop 
@@ -602,9 +631,9 @@ class Compiler:
 		'rest' 		: (OP_REST, 1),
 		'settag'	: (OP_SETTAG, 2),
 		'gettag'	: (OP_GETTAG, 1),
-		'and'		: (OP_AND, 2),
-		'or'		: (OP_OR, 2),
-		'xor'		: (OP_XOR, 2),
+		'bitwise-and' : (OP_AND, 2),
+		'bitwise-or' : (OP_OR, 2),
+		'bitwise-xor' : (OP_XOR, 2),
 		'rshift'	: (OP_RSHIFT, 2),
 		'lshift'	: (OP_LSHIFT, 2)
  	}
@@ -748,9 +777,11 @@ BINOPS = {
 	'-' : (lambda x, y : x - y),
 	'/' : (lambda x, y : x / y),
 	'*' : (lambda x, y : x * y),
-	'and' : (lambda x, y : x & y),
-	'or' : (lambda x, y : x | y),
-	'xor' : (lambda x, y : x ^ y),
+	'bitwise-and' : (lambda x, y : x & y),
+	'bitwise-or' : (lambda x, y : x | y),
+	'and' : (lambda x, y : x and y),
+	'or'  : (lambda x, y : x or y),
+	'bitwise-xor' : (lambda x, y : x ^ y),
 	'lshift' : (lambda x, y : x << y),
 	'rshift' : (lambda x, y : x >> y),
 	'>' : (lambda x, y : 1 if x > y else 0),

@@ -27,12 +27,12 @@
 	(assign a (+ a 1))
 
 	; Wait for key release
-	(while (and (read-register 6) 1)
+	(while (bitwise-and (read-register 6) 1)
 		()
 	)
 
 	; Wait for key press
-	(while (= (and (read-register 6) 1) 0)
+	(while (= (bitwise-and (read-register 6) 1) 0)
 		()
 	)
 )
