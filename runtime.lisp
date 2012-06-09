@@ -49,6 +49,18 @@
 	)
 )
 
+(defmacro atom? (ptr)
+	`(= (bitwise-and (gettag ,ptr) 3) 0)
+)
+
+(defmacro list? (ptr)
+	`(= (bitwise-and (gettag ,ptr) 3) 1)
+)
+
+(defmacro function? (ptr)
+	`(= (bitwise-and (gettag ,ptr) 3) 2)
+)
+
 ; Note that $heapstart is a variable created automatically
 ; by the compiler.  Wilderness is memory that has never been allocated and
 ; that we can simply slice off from.
@@ -58,25 +70,23 @@
 (assign $freelist 0)
 
 (function $mark-recursive (ptr)
-	(let ((tag (gettag ptr)))
-		(while (and tag (= (bitwise-and tag 3) 1))	; Check if this is a cons and is not null
-			(let ((firstword (load ptr)) (tag (gettag firstword)))
-				(if (not (rshift tag 2))
-					(begin
-						; An unmarked cons cell, mark it and continue
-						(gclog 77 ptr)	; M
-						(store ptr (settag firstword (bitwise-or tag 4)))
-	
-						; Check if we need to mark the first pointer
-						($mark-recursive (first ptr))
-					)
+	(while (and ptr (list? ptr))	; Check if this is a cons and is not null
+		(let ((firstword (load ptr)) (tag (gettag firstword)))
+			(if (not (rshift tag 2))
+				(begin
+					; An unmarked cons cell, mark it and continue
+					(gclog 77 ptr)	; M
+					(store ptr (settag firstword (bitwise-or tag 4)))
+
+					; Check if we need to mark the first pointer
+					($mark-recursive (first ptr))
 				)
 			)
-
-			; Check next node
-			(assign ptr (rest ptr))
-			(assign tag (gettag ptr))
 		)
+
+		; Check next node
+		(assign ptr (rest ptr))
+		(assign tag (gettag ptr))
 	)
 )
 
