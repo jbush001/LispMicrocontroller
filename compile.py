@@ -294,8 +294,6 @@ class Compiler:
 			sym = self.globals[var]
 			if sym.type == Symbol.FUNCTION:
 				listfile.write(' ' + var + ' function@' + str(sym.function.baseAddress) + '\n')
-			elif sym.type == Symbol.CONSTANT:
-				listfile.write(' ' + var + ' constant ' + str(sym.index) + '\n')
 			else:
 				listfile.write(' ' + var + ' var@' + str(sym.index) + '\n')
 
@@ -427,10 +425,8 @@ class Compiler:
 				self.compileLet(expr)
 			elif functionName == 'getbp':
 				self.currentFunction.emitInstruction(OP_GETBP)
-			elif functionName == 'and' or functionName == 'or':
+			elif functionName == 'and' or functionName == 'or' or functionName == 'not':
 				self.compileBooleanExpression(expr)	
-			elif functionName == 'constant':
-				self.compileConstantDef(expr)
 			else:
 				# Anything that isn't a built in form falls through to here.
 				self.compileFunctionCall(expr)
@@ -516,25 +512,8 @@ class Compiler:
 			variable.initialized = True
 		elif variable.type == Symbol.FUNCTION:
 			raise Exception('Error: cannot assign function ' + expr[1])
-		elif variable.type == Symbol.CONSTANT:
-			raise Exception('Error: cannot assign to constant ' + expr[1])
 		else:
 			raise Exception('Internal error: what kind of variable is ' + expr[1] + '?', '')
-
-	def compileConstantDef(self, expr):
-		if len(expr) != 3:
-			raise Exception('wrong number of arguments for constant definition')
-
-		if not isinstance(expr[2], int):
-			raise Exception('invalid constant form: 2nd arg must be integer')
-
-		variable = self.lookupSymbol(expr[1])
-		if variable.initialized:
-			raise Exception('attempt to redefine ' + expr[1] + ' as a constant')
-
-		variable.initialized = True
-		variable.type = Symbol.CONSTANT
-		variable.index = int(expr[2])
 
 	# 
 	# Compile a boolean value that is not part of an conditional form

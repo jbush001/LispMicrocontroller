@@ -57,13 +57,9 @@
 (assign $max-heap (- $stacktop 1024)) 	
 (assign $freelist 0)
 
-(constant TYPE-INT 0)
-(constant TYPE-CONS 1)
-(constant TYPE-FUNC 2)
-
 (function $mark-recursive (ptr)
 	(let ((tag (gettag ptr)))
-		(while (and tag (= (bitwise-and tag 3) TYPE-CONS))	; Check if this is a cons and is not null
+		(while (and tag (= (bitwise-and tag 3) 1))	; Check if this is a cons and is not null
 			(let ((firstword (load ptr)) (tag (gettag firstword)))
 				(if (not (rshift tag 2))
 					(begin
