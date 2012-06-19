@@ -788,9 +788,9 @@ BINOPS = {
 	'*' : (lambda x, y : x * y),
 	'bitwise-and' : (lambda x, y : x & y),
 	'bitwise-or' : (lambda x, y : x | y),
+	'bitwise-xor' : (lambda x, y : x ^ y),
 	'and' : (lambda x, y : x and y),
 	'or'  : (lambda x, y : x or y),
-	'bitwise-xor' : (lambda x, y : x ^ y),
 	'lshift' : (lambda x, y : x << y),
 	'rshift' : (lambda x, y : x >> y),
 	'>' : (lambda x, y : 1 if x > y else 0),
@@ -802,8 +802,9 @@ BINOPS = {
 }
 
 UOPS = {
-	'~' : (lambda x : ~x),
-	'-' : (lambda x : -x)
+	'bitwise-not' : (lambda x : ~x),
+	'-' : (lambda x : -x),
+	'not' : (lambda x : 1 if x else 0)
 }
 
 #
