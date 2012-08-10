@@ -111,7 +111,6 @@ module testbench;
 			case (l.c.state)
 				l.c.STATE_DECODE: 			$write("DECODE");
 				l.c.STATE_GOT_NOS: 			$write("GOT_NOS");
-				l.c.STATE_LOAD_TOS1: 		$write("LOAD_TOS1");
 				l.c.STATE_PUSH_MEM_RESULT: 	$write("PUSH_MEM_RESULT");
 				l.c.STATE_GETLOCAL2: 		$write("GETLOCAL2");
 				l.c.STATE_RETURN2: 			$write("RETURN2");

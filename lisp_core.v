@@ -30,14 +30,13 @@ module lisp_core
 
 	localparam					STATE_DECODE = 0;
 	localparam					STATE_GOT_NOS = 1;
-	localparam					STATE_LOAD_TOS1 = 2;
-	localparam					STATE_PUSH_MEM_RESULT = 3;
-	localparam					STATE_GETLOCAL2 = 4;
-	localparam					STATE_RETURN2 = 5;
-	localparam					STATE_RETURN3 = 6;
-	localparam					STATE_GOT_STORE_VALUE = 7;
-	localparam					STATE_GOT_NEW_TAG = 8;
-	localparam					STATE_BFALSE2 = 9;
+	localparam					STATE_PUSH_MEM_RESULT = 2;
+	localparam					STATE_GETLOCAL2 = 3;
+	localparam					STATE_RETURN2 = 4;
+	localparam					STATE_RETURN3 = 5;
+	localparam					STATE_GOT_STORE_VALUE = 6;
+	localparam					STATE_GOT_NEW_TAG = 7;
+	localparam					STATE_BFALSE2 = 8;
 
 	localparam					OP_NOP = 5'd0;
 	localparam					OP_CALL = 5'd1;
@@ -512,7 +511,8 @@ module lisp_core
 						alu_op = OP_ADD;
 						data_mem_write_enable = 1;
 						mw_select = MW_TOP_OF_STACK;
-						state_next = STATE_LOAD_TOS1;
+						state_next = STATE_DECODE;
+						ip_select = IP_NEXT;
 					end
 					
 					OP_CLEANUP:
@@ -574,13 +574,6 @@ module lisp_core
 				// Fetch next instruction
 				ip_select = IP_NEXT;
 				state_next = STATE_DECODE;
-			end
-
-			STATE_LOAD_TOS1:
-			begin
-				ma_select = MA_STACK_POINTER;
-				stack_pointer_select = SP_INCREMENT;
-				state_next = STATE_PUSH_MEM_RESULT;
 			end
 
 			STATE_GETLOCAL2:

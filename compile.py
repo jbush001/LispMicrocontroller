@@ -510,13 +510,11 @@ class Compiler:
 	# 
 	# Set a variable (assign variable value)
 	# This will leave the value on the stack (the value of this expression),
-	# which is why there is a DUP here.
 	#
 	def compileAssign(self, expr):
 		variable = self.lookupSymbol(expr[1])
 		if variable.type == Symbol.LOCAL_VARIABLE:
 			self.compileExpression(expr[2])
-			self.currentFunction.emitInstruction(OP_DUP)
 			self.currentFunction.emitInstruction(OP_SETLOCAL, variable.index)
 		elif variable.type == Symbol.GLOBAL_VARIABLE:
 			self.compileExpression(expr[2])
@@ -774,6 +772,7 @@ class Compiler:
 			symbol.index = self.currentFunction.allocateLocal()
 			self.compileExpression(value)
 			self.currentFunction.emitInstruction(OP_SETLOCAL, symbol.index)
+			self.currentFunction.emitInstruction(OP_POP) # setlocal leaves on stack, remove it
 
 		# Now evaluate the predicate, which can be a sequence
 		self.compileSequence(expr[2:])
