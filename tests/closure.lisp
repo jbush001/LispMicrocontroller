@@ -14,9 +14,16 @@
 ; limitations under the License.
 ; 
 
+(function mkgtr (x)
+	(function (y) (> y x))
+)
 
+(assign gtr7 (mkgtr 7))
 
-(function gtr (x)
-	(lambda (y) (> y x))
+(for x 0 10 1
+	(begin
+		(if (gtr7 x) (printchar 84) (printchar 70))
+		(printchar 10)
+	)
 )
 

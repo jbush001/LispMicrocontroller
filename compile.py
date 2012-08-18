@@ -62,6 +62,7 @@ class Symbol:
 		self.index = -1
 		self.initialized = False	# For globals
 		self.function = None
+		self.upval = None
 
 # Labels are only visible inside the functions they are defined in.
 class Label:
@@ -73,20 +74,43 @@ class Function:
 	def __init__(self):
 		self.localFixups = []
 		self.baseAddress = 0
-		self.numLocals = 0
-		self.instructions = []		# Each entry is a word
 		self.referenced = False		# Used to strip dead functions
+		self.numLocalVariables = 0
+		self.instructions = []		# Each entry is a word
+		self.environment = [{}]		# Stack of scopes
+		self.closureVars = []
+		self.enclosingFunction = None
 
 		# Save a spot for an initial 'reserve' instruction
 		self.emitInstruction(OP_RESERVE, 0)
 
 	def generateLabel(self):
 		return Label()
+
+	def enterScope(self):
+		self.environment += [{}]
+
+	def exitScope(self):
+		self.environment.pop()
 		
-	def allocateLocal(self):
-		index = -(self.numLocals + 2)	# Skip return address and base pointer
-		self.numLocals += 1
-		return index
+	def lookupLocalVariable(self, name):
+		for scope in reversed(self.environment):
+			if name in scope:
+				return scope[name]
+				
+		return None
+		
+	def reserveLocalVariable(self, name):
+		sym = Symbol(Symbol.LOCAL_VARIABLE)
+		self.environment[-1][name] = sym
+		sym.index = -(self.numLocalVariables + 2)	# Skip return address and base pointer
+		self.numLocalVariables += 1
+		return sym
+
+	def reserveParameter(self, name, index):
+		sym = Symbol(Symbol.LOCAL_VARIABLE)
+		self.environment[-1][name] = sym
+		sym.index = index + 1
 
 	def getProgramAddress(self):
 		return len(self.instructions)
@@ -115,13 +139,12 @@ class Function:
 		self.instructions[offset] |= (value & 0xffff)
 
 	def performLocalFixups(self):
-		self.instructions[0] = (OP_RESERVE << 16) | (self.numLocals + 1)
+		self.instructions[0] = (OP_RESERVE << 16) | (self.numLocalVariables + 1)
 		for ip, label in self.localFixups:
 			if not label.defined:
 				raise Exception('undefined label')
 
 			self.patch(ip, self.baseAddress + label.address)
-
 
 #
 # The parser just converts ASCII data into a a python list that represents
@@ -186,9 +209,6 @@ class Parser:
 
 class Compiler:
 	def __init__(self):
-		# The environment is a stack of function defs (function definitions can be nested),
-		# each of which is a stack of  scopes, each of which is a  dictionary of symbols.  
-		self.environmentStack = [[{}]]
 		self.globals = {}
 		self.currentFunction = Function()
 		self.functionList = [ 0 ]		# We reserve a spot for 'main'
@@ -200,52 +220,65 @@ class Compiler:
 		# Each stores ( function, functionOffset, target )
 		self.globalFixups = []	
 
-	def enterScope(self):
-		self.environmentStack[-1] += [{}]
-
-	def exitScope(self):
-		self.environmentStack[-1].pop()
-
-	def enterFunctionDef(self):
-		self.environmentStack += [[{}]]
-		self.enterScope()
-
-	def exitFunctionDef(self):
-		self.environmentStack.pop()
-
 	# 
 	# Lookup a symbol, starting in the current scope and working backward
 	# to enclosing scopes.  If the symbol doesn't exist, create one in the global
 	# namespace.
 	#
 	def lookupSymbol(self, name):
-		isUpval = False
-		for functionContext in reversed(self.environmentStack):
-			for scope in reversed(functionContext):
-				if name in scope:
-					sym = scope[name]
-					if isUpval:
-						raise Exception(str(name) + ' is referenced inside a function def.  Not supported.')
-						
-					return sym
-				
-			isUpval = True
+		# Check for local variable
+		sym = self.currentFunction.lookupLocalVariable(name)
+		if sym != None:
+			return sym
 
+		# Is this an upval?
+		isUpval = False
+		func = self.currentFunction.enclosingFunction
+		while func != None:
+			sym = func.lookupLocalVariable(name)
+			if sym != None:
+				isUpval = True
+				break
+
+			func = func.enclosingFunction
+
+		if isUpval:
+			raise Exception('closures not implemented')
+#			# Create a new local variable
+#			sym = self.currentFunction.reserveLocalVariable(name)
+#			self.currentFunction.closureVars += [ sym ]
+#
+#			# Mark upvals, possibly through multiple functions
+#			dest = sym
+#			func = self.currentFunction.enclosingFunction
+#			while func != None:
+#				source = func.lookupLocalVariable(name)
+#				if source == None:
+#					# Note that, when we create an anonymous function, we will
+#					# open a new scope that will contain these temporaries.
+#					# They will go out of scope when we finish compiling the function
+#					# We DO want to be sure to create a named variable so we can
+#					# share the same instance if the outer variable is referenced
+#					# multiple times.  Eg:
+#					# (function foo (a) (function bar (b) (function baz(c) (+ c a))))
+#					# A temporary 'a' will be created in the outer scope of bar.
+#					#
+#					source = self.currentFunction.reserveLocalVariable(name)	
+#
+#				dest.upval = source
+#				func.closureVars += [ source ]
+#				func = func.enclosingFunction
+#				
+#			return sym
+
+		# Check for global variable
 		if name in self.globals:
 			return self.globals[name]
 
+		# Not found, create a new global variable implicitly
 		sym = Symbol(Symbol.GLOBAL_VARIABLE)
 		sym.index = len(self.globals)		# Allocate a storage slot for this
 		self.globals[name] = sym
-		return sym
-
-	#
-	# Allocate a new symbol, but make it in the local scope.  Use to create
-	# parameters and for (let ...)
-	#
-	def createLocalVariable(self, name):
-		sym = Symbol(Symbol.LOCAL_VARIABLE)
-		self.environmentStack[-1][-1][name] = sym
 		return sym
 
 	#
@@ -703,19 +736,17 @@ class Compiler:
 	def compileFunctionBody(self, params, body):
 		oldFunc = self.currentFunction
 		newFunction = Function()
+		newFunction.enclosingFunction = oldFunc
 		self.currentFunction = newFunction
-		self.enterFunctionDef()
 		
 		for index, paramName in enumerate(params):
-			var = self.createLocalVariable(paramName)
-			var.index = index + 1
+			self.currentFunction.reserveParameter(paramName, index)
 
 		self.currentFunction.numParams = len(params)
 	
 		# Compile top level expression.
 		self.compileExpression(body)
 		self.currentFunction.emitInstruction(OP_RETURN)
-		self.exitFunctionDef()
 		self.currentFunction = oldFunc
 
 		return newFunction
@@ -726,9 +757,13 @@ class Compiler:
 	# to that code in the current function.
 	#
 	def compileAnonymousFunction(self, expr):
+		# Note: we do an enterScope because we may create temporary variables to 
+		# represent upvals while compiling. See lookupSymbol for more information.
+		self.currentFunction.enterScope()
 		newFunction = self.compileFunctionBody(expr[1], expr[2])
 		newFunction.referenced = True
-		
+		self.currentFunction.exitScope()
+
 		# Now compile code that references the function object we created.  We'll
 		# set the tag to indicate this is a function.
 		self.currentFunction.emitInstruction(OP_PUSH, TAG_FUNCTION)
@@ -763,20 +798,19 @@ class Compiler:
 	def compileLet(self, expr):
 		# Reserve space on stack for local variables
 		variableCount = len(expr[1])
-		self.enterScope()
+		self.currentFunction.enterScope()
 
 		# Walk through each variable, define in scope, evaluate the initial value,
 		# and assign.
 		for variable, value in expr[1]:
-			symbol = self.createLocalVariable(variable)
-			symbol.index = self.currentFunction.allocateLocal()
+			symbol = self.currentFunction.reserveLocalVariable(variable)
 			self.compileExpression(value)
 			self.currentFunction.emitInstruction(OP_SETLOCAL, symbol.index)
 			self.currentFunction.emitInstruction(OP_POP) # setlocal leaves on stack, remove it
 
 		# Now evaluate the predicate, which can be a sequence
 		self.compileSequence(expr[2:])
-		self.exitScope()
+		self.currentFunction.exitScope()
 
 	def performGlobalFixups(self):
 		# Check if there are uninitialized globals
