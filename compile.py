@@ -55,7 +55,6 @@ class Symbol:
 	LOCAL_VARIABLE = 1
 	GLOBAL_VARIABLE = 2
 	FUNCTION = 3
-	CONSTANT = 4
 
 	def __init__(self, type):
 		self.type = type
@@ -72,6 +71,7 @@ class Label:
 
 class Function:
 	def __init__(self):
+		self.name = None
 		self.localFixups = []
 		self.baseAddress = 0
 		self.referenced = False		# Used to strip dead functions
@@ -288,6 +288,7 @@ class Compiler:
 	def compile(self, program):
 		self.currentFunction = Function()
 		self.currentFunction.referenced = True
+		self.currentFunction.name = '<main>'
 
 		# create a built-in variable that indicates where the heap starts
 		# (will be patched at the end of compilation with the proper address)
@@ -340,13 +341,11 @@ class Compiler:
 		listfile.write('Globals:\n')
 		for var in self.globals:
 			sym = self.globals[var]
-			if sym.type == Symbol.FUNCTION:
-				listfile.write(' ' + var + ' function@' + str(sym.function.baseAddress) + '\n')
-			else:
+			if sym.type != Symbol.FUNCTION:
 				listfile.write(' ' + var + ' var@' + str(sym.index) + '\n')
 
 		for func in self.functionList:
-			listfile.write('\nfunction @' + str(func.baseAddress) + '\n')
+			listfile.write('\nfunction ' + str(func.name) + '\n')
 			disassemble(listfile, func.instructions, func.baseAddress)
 
 		# Write out expanded expressions
@@ -367,6 +366,7 @@ class Compiler:
 	def compileFunction(self, expr):
 		function = self.compileFunctionBody(expr[2], expr[3])
 		self.functionList += [ function ]
+		function.name = expr[1]
 	
 		if expr[1] in self.globals:
 			# There was a forward reference to this function and it was 
@@ -440,8 +440,6 @@ class Compiler:
 			self.currentFunction.emitInstruction(OP_PUSH, 0)
 			self.globalFixups += [ ( self.currentFunction,
 				self.currentFunction.getProgramAddress() - 1, variable ) ]
-		elif variable.type == Symbol.CONSTANT:
-			self.currentFunction.emitInstruction(OP_PUSH, variable.index)
 		else:
 			raise Exception('internal error: symbol does not have a valid type', '')
 
@@ -763,6 +761,8 @@ class Compiler:
 		newFunction = self.compileFunctionBody(expr[1], expr[2])
 		newFunction.referenced = True
 		self.currentFunction.exitScope()
+
+		newFunction.name = '<anonymous function>'
 
 		# Now compile code that references the function object we created.  We'll
 		# set the tag to indicate this is a function.
