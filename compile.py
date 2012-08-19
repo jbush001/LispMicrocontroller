@@ -251,7 +251,8 @@ class Compiler:
 #			# Mark upvals, possibly through multiple functions
 #			dest = sym
 #			func = self.currentFunction.enclosingFunction
-#			while func != None:
+#			foundSource = False
+#			while func != None and not foundSource:
 #				source = func.lookupLocalVariable(name)
 #				if source == None:
 #					# Note that, when we create an anonymous function, we will
@@ -264,6 +265,8 @@ class Compiler:
 #					# A temporary 'a' will be created in the outer scope of bar.
 #					#
 #					source = self.currentFunction.reserveLocalVariable(name)	
+#				else:
+#					foundSource = True
 #
 #				dest.upval = source
 #				func.closureVars += [ source ]
