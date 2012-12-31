@@ -147,8 +147,8 @@ class Function:
 			self.patch(ip, self.baseAddress + label.address)
 
 #
-# The parser just converts ASCII data into a a python list that represents
-# the structure
+# The parser just converts ASCII data into a nested set of python lists that represent
+# the structure of the program.
 #
 class Parser:
 	def __init__(self):
@@ -244,6 +244,8 @@ class Compiler:
 
 		if isUpval:
 			raise Exception('closures not implemented')
+			
+#	XXX partial implementation of closure variables, currently disabled.	
 #			# Create a new local variable
 #			sym = self.currentFunction.reserveLocalVariable(name)
 #			self.currentFunction.closureVars += [ sym ]
@@ -364,7 +366,7 @@ class Compiler:
 		return instructions
 
 	#
-	# Compile function definition (function name (param param...) body)
+	# Compile named function definition (function name (param param...) body)
 	#
 	def compileFunction(self, expr):
 		function = self.compileFunctionBody(expr[2], expr[3])
@@ -402,10 +404,10 @@ class Compiler:
 		self.globals[expr[1]] = sym
 
 	#
-	# The mother compile function, from which all other things are compiled.
-	# Compiles an arbitrary lisp expression.  Each expression must consume
+	# The mother compile function, from which all useful things are compiled.
+	# Compiles an arbitrary lisp expression.  Each expression consumes
 	# all parameters, which will be pushed onto the stack from right to left,
-	# and leave a value on the stack.  All expressions have values in LISP.
+	# and leave a result value on the stack.  All expressions have values in LISP.
 	#
 	def compileExpression(self, expr):
 		if isinstance(expr, list):
@@ -426,7 +428,8 @@ class Compiler:
 		self.currentFunction.emitInstruction(OP_PUSH, expr)
 
 	# 
-	# Look up the variable in the current environment)
+	# Look up the variable in the current environment, push the contents
+	# of the variable onto the stack.
 	#
 	def compileIdentifier(self, expr):
 		variable = self.lookupSymbol(expr)
@@ -478,6 +481,7 @@ class Compiler:
 				self.compileBooleanExpression(expr)	
 			else:
 				# Anything that isn't a built in form falls through to here.
+				# (call to a user defined function)
 				self.compileFunctionCall(expr)
 		else:
 			self.compileFunctionCall(expr)
@@ -486,7 +490,7 @@ class Compiler:
 		self.currentFunction.emitInstruction(OP_GETLOCAL, 0)
 
 	#
-	# In order to handle quoted expressions, we need to set up a bunch of cons
+	# In order to handle quoted expressions, we need to emit a bunch of cons
 	# calls.
 	#
 	def compileQuote(self, expr):
@@ -543,7 +547,7 @@ class Compiler:
 
 	# 
 	# Set a variable (assign variable value)
-	# This will leave the value on the stack (the value of this expression),
+	# This will also leave the value of the expression on the stack
 	#
 	def compileAssign(self, expr):
 		variable = self.lookupSymbol(expr[1])
@@ -563,8 +567,8 @@ class Compiler:
 			raise Exception('Internal error: what kind of variable is ' + expr[1] + '?', '')
 
 	# 
-	# Compile a boolean value that is not part of an conditional form
-	# This will push the result on the stack.
+	# Compile a boolean expression that is not part of an conditional form like
+	# if or while. This will push the result (1 or 0) on the stack.
 	#
 	def compileBooleanExpression(self, expr):
 		falseLabel = self.currentFunction.generateLabel()
@@ -577,8 +581,9 @@ class Compiler:
 		self.currentFunction.emitLabel(doneLabel)
 
 	#
-	# Note that this won't alter the stack.  It instead sets up branches to the appropriate
-	# targets, performing short circuit evaluation where possible.
+	# Compile a boolean expression that is part of a control flow expression.
+	# If the expression is false, this will jump to the label 'falseTarget', otherwise
+	# it will fall through.  This performs short circuit evaluation where possible.
 	#
 	def compilePredicate(self, expr, falseTarget):
 		if isinstance(expr, list):
@@ -640,6 +645,7 @@ class Compiler:
 
 
 	#
+	# Basic loop construct
 	# (while condition body)
 	# Note that body is implitly a (begin... and can use a sequence
 	# If the loop terminates normally (the condition is false), the
@@ -716,6 +722,9 @@ class Compiler:
 			self.compileExpression(expr[1])
 			self.currentFunction.emitInstruction(opcode)
 
+	#
+	# Call to a user defined function
+	#
 	def compileFunctionCall(self, expr):
 		if isinstance(expr[0], int):
 			raise Exception('Cannot use integer as function')
@@ -731,7 +740,7 @@ class Compiler:
 			self.currentFunction.emitInstruction(OP_CLEANUP, len(expr) - 1)
 
 	#
-	# Actual guts of the function body
+	# Common code to compile body of the function definition (either anonymous or named)
 	# ((param param...) body)
 	#
 	def compileFunctionBody(self, params, body):
@@ -753,7 +762,7 @@ class Compiler:
 		return newFunction
 
 	#
-	# Expression will be of the form (function (param param...) (expr))
+	# Of the form (function (param param...) (expr))
 	# We generate the code in a separate function, then we will emit a reference
 	# to that code in the current function.
 	#
@@ -777,7 +786,7 @@ class Compiler:
 		self.functionList += [ newFunction ]
 
 	#
-	# A block of expressions
+	# A sequence of expressions.  The result will be the last expression evaluated.
 	#
 	def compileSequence(self, sequence):
 		# Execute a sequence of statements
