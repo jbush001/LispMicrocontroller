@@ -588,25 +588,28 @@ class Compiler:
 	def compilePredicate(self, expr, falseTarget):
 		if isinstance(expr, list):
 			if expr[0] == 'and':
-				if len(expr) != 3:
+				if len(expr) < 2:
 					raise Exception('wrong number of arguments for and')
 
-				# Note that we short circuit if the first condition is false and
+				# Note that we short circuit if any condition is false and
 				# jump directly to the false case
-				self.compilePredicate(expr[1], falseTarget)
-				self.compilePredicate(expr[2], falseTarget)
+				for cond in expr[1:]:
+					self.compilePredicate(cond, falseTarget)
+
 				return
 			elif expr[0] == 'or':
-				if len(expr) != 3:
+				if len(expr) < 2:
 					raise Exception('wrong number of arguments for or')
 
-				testSecond = self.currentFunction.generateLabel()
 				trueTarget = self.currentFunction.generateLabel()
+				for cond in expr[1:-1]:
+					testNext = self.currentFunction.generateLabel()		
+					self.compilePredicate(cond, testNext)
+					self.currentFunction.emitBranchInstruction(OP_GOTO, trueTarget)
+					self.currentFunction.emitLabel(testNext)
 
-				self.compilePredicate(expr[1], testSecond)
-				self.currentFunction.emitBranchInstruction(OP_GOTO, trueTarget)
-				self.currentFunction.emitLabel(testSecond)
-				self.compilePredicate(expr[2], falseTarget)
+				# Final test simply short circuits to false target
+				self.compilePredicate(expr[-1], falseTarget)
 				self.currentFunction.emitLabel(trueTarget)
 				return
 			elif expr[0] == 'not':
