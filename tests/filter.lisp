@@ -14,13 +14,28 @@
 ; limitations under the License.
 ; 
 
+(function filter (list func)
+	(if list
+		(if (func (first list))
+			(cons (first list) (filter (rest list) func))
+			(filter (rest list) func)
+		)
 
-; Case 1: will GC and free up nodes repeatedly
-(while 1
-	(cons 1 2)
+		nil
+	)
 )
 
-; Case 2: will run out of memory
-(while 1
-	(assign a (cons 1 a))
+; Show only odd numbers of a sequence
+(foreach i (filter '(1 2 3 4 5 6 7 8 9 10) (function (x) (bitwise-and x 1)))
+	(begin
+		(printhex i)
+		(printchar 10)
+	)
 )
+
+; Expected output
+; CHECK: 0001
+; CHECK: 0003
+; CHECK: 0005
+; CHECK: 0007
+; CHECK: 0009

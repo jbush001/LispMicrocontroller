@@ -26,5 +26,10 @@ IVFLAGS=-Wall -Winfloop -Wno-sensitivity-entire-array
 sim.vvp: $(VERILOG_SRCS)
 	iverilog -o $@ $(IVFLAGS) $(VERILOG_SRCS)
 
+test: sim.vvp FORCE
+	python tests/runtests.py
+
 clean:
 	rm sim.vvp
+
+FORCE:

@@ -14,29 +14,7 @@
 ; limitations under the License.
 ; 
 
-(function isprime (x)
-	(let ((p 1))
-		(for i 2 (sqrt x) 1
-			(if (mod x i)
-				()			
+(printstr "Hello World")
 
-				(begin
-					(assign p 0)
-					(break)
-				)
-			)
-		)
-
-		p
-	)
-)
-
-; Print a list of all prime numbers thru 100
-(for i 2 100 1
-	(if (isprime i)
-		(begin
-			(printdec i)
-			(printchar 10)
-		)
-	)
-)
+; Expected output:
+; CHECK: Hello World

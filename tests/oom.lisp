@@ -14,9 +14,7 @@
 ; limitations under the License.
 ; 
 
-(for i 0 31 1
-	(begin
-		(printdec i)
-		(printchar 10)
-	)
+; Will run out of memory.  Make sure runtime prints error.
+(while 1
+	(assign a (cons 1 a))
 )

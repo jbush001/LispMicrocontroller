@@ -24,7 +24,7 @@
 			(map-lookup (rest map) name)	; Lookup in remaining elements
 		)
 		
-		0
+		nil
 	)
 )
 
@@ -32,15 +32,15 @@
 (function map-set (map name value)
 	(if map	
 		(if (= name (first (first map)))
-			(cons (cons name (cons value 0)) (rest map)) ; Found a match, replace
+			(cons (cons name (cons value nil)) (rest map)) ; Found a match, replace
 			(cons (first map) (map-set (rest map) name value)) ; Search rest of list
 		)
 
-		(cons (cons name (cons value 0)) 0)	; No match, add new entry
+		(cons (cons name (cons value nil)) nil)	; No match, add new entry
 	)
 )
 
-(assign map 0)
+(assign map nil)
 (assign map (map-set map 1 7))
 (assign map (map-set map 2 9))
 (assign map (map-set map 3 5))
@@ -67,13 +67,13 @@
 (printchar 10)
 
 ; Expected output:
-; 0001 0007
-; 0002 0008
-; 0003 0005
-; 0007
-; 0008
-; 0005
-; 0000
+; CHECK: 0001 0007
+; CHECK: 0002 0008
+; CHECK: 0003 0005
+; CHECK: 0007
+; CHECK: 0008
+; CHECK: 0005
+; CHECK: 0000
 
 
 

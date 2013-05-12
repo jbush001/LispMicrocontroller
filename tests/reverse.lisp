@@ -22,9 +22,8 @@
 	)
 )
 
-; Expected output:
-; 0005
-; 0004
-; 0003
-; 0002
-; 0001
+; CHECK: 0005
+; CHECK: 0004
+; CHECK: 0003
+; CHECK: 0002
+; CHECK: 0001

@@ -14,7 +14,8 @@
 ; limitations under the License.
 ; 
 
-(printstr "Hello World")
+(assign a '(65 . 66))
+(printchar (first a))
+(printchar (rest a))
 
-; Expected output:
-; Hello World
+; CHECK: AB

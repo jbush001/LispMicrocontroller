@@ -420,6 +420,10 @@ class Compiler:
 			self.compileIntegerLiteral(expr)
 		elif expr[0] == '"':
 			self.compileString(expr[1:-1])
+		elif expr == 'nil' or expr == 'false':
+			self.currentFunction.emitInstruction(OP_PUSH, 0)
+		elif expr == 'true':
+			self.currentFunction.emitInstruction(OP_PUSH, 1)
 		else:
 			# This is a variable.
 			self.compileIdentifier(expr)

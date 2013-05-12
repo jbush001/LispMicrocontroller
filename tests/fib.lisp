@@ -14,28 +14,31 @@
 ; limitations under the License.
 ; 
 
-(function filter (list func)
-	(if list
-		(if (func (first list))
-			(cons (first list) (filter (rest list) func))
-			(filter (rest list) func)
-		)
+;
+; Recursive function call with conditional
+;
 
-		0
+(function fib (n)
+	(if (< n 2)
+		n
+		(+ (fib (- n 1)) (fib (- n 2)))
 	)
 )
 
-; Show only odd numbers of a sequence
-(foreach i (filter '(1 2 3 4 5 6 7 8 9 10) (function (x) (bitwise-and x 1)))
+(for i 0 10 1
 	(begin
-		(printhex i)
+		(printhex (fib i))
 		(printchar 10)
 	)
 )
 
-; Expected output
-; 0001
-; 0003
-; 0005
-; 0007
-; 0009
+; CHECK: 0000
+; CHECK: 0001
+; CHECK: 0001
+; CHECK: 0002
+; CHECK: 0003
+; CHECK: 0005
+; CHECK: 0008
+; CHECK: 000D
+; CHECK: 0015
+; CHECK: 0022

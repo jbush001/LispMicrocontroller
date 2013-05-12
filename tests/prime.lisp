@@ -14,7 +14,41 @@
 ; limitations under the License.
 ; 
 
-(assign a '(65 . 66))
-(printchar (first a))
-(printchar (rest a))
+(function isprime (x)
+	(let ((p true))
+		(for i 2 (+ (sqrt x) 1) 1
+			(if (mod x i)
+				()			
 
+				(begin
+					(assign p false)
+					(break)
+				)
+			)
+		)
+
+		p
+	)
+)
+
+; Print a list of all prime numbers below 40
+(for i 2 40 1
+	(if (isprime i)
+		(begin
+			(printdec i)
+		)
+	)
+)
+
+; CHECK: 2
+; CHECK: 3
+; CHECK: 5
+; CHECK: 7
+; CHECK: 11
+; CHECK: 13
+; CHECK: 17
+; CHECK: 19
+; CHECK: 23
+; CHECK: 29 
+; CHECK: 31
+; CHECK: 37

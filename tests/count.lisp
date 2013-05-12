@@ -14,20 +14,10 @@
 ; limitations under the License.
 ; 
 
-(assign a '(1 2 3 4 5 6))
+(for i 0 31 1
+	(begin
+		(printdec i)
+	)
+)
 
-(printhex (nth a 0))
-(printchar 10)
-(printhex (nth a 1))
-(printchar 10)
-(printhex (nth a 2))
-(printchar 10)
-(printhex (nth a 3))
-(printchar 10)
-(printhex (nth a 4))
-(printchar 10)
-(printhex (nth a 5))
-(printchar 10)
-(printhex (nth a 6))
-(printchar 10)
-
+; CHECK: 0123456789101112131415161718192021222324252627282930
