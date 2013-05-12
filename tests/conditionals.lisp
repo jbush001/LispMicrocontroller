@@ -61,3 +61,23 @@
 (if (or yes yes no) (printdec 1) (printdec 0)) ; CHECK: 1
 (if (or yes yes yes) (printdec 1) (printdec 0)) ; CHECK: 1
 
+(if (and (or no no) no) (printdec 1) (printdec 0)) ; CHECK: 0
+(if (and (or no no) yes) (printdec 1) (printdec 0)) ; CHECK: 0
+(if (and (or no yes) no) (printdec 1) (printdec 0)) ; CHECK: 0
+(if (and (or no yes) yes) (printdec 1) (printdec 0)) ; CHECK: 1
+(if (and (or yes no) no) (printdec 1) (printdec 0)) ; CHECK: 0
+(if (and (or yes no) yes) (printdec 1) (printdec 0)) ; CHECK: 1
+(if (and (or yes yes) no) (printdec 1) (printdec 0)) ; CHECK: 0
+(if (and (or yes yes) yes) (printdec 1) (printdec 0)) ; CHECK: 1
+
+(if (or (and no no) no) (printdec 1) (printdec 0)) ; CHECK: 0
+(if (or (and no no) yes) (printdec 1) (printdec 0)) ; CHECK: 1
+(if (or (and no yes) no) (printdec 1) (printdec 0)) ; CHECK: 0
+(if (or (and no yes) yes) (printdec 1) (printdec 0)) ; CHECK: 1
+(if (or (and yes no) no) (printdec 1) (printdec 0)) ; CHECK: 0
+(if (or (and yes no) yes) (printdec 1) (printdec 0)) ; CHECK: 1
+(if (or (and yes yes) no) (printdec 1) (printdec 0)) ; CHECK: 1
+(if (or (and yes yes) yes) (printdec 1) (printdec 0)) ; CHECK: 1
+
+
+
