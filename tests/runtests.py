@@ -1,6 +1,7 @@
 import subprocess
 
-TESTS = [ 
+TESTS = [
+	'breakloop.lisp',
 	'reverse.lisp',
 	'prime.lisp',
 	'pair.lisp',

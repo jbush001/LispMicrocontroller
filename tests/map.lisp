@@ -46,7 +46,12 @@
 (assign map (map-set map 3 5))
 (assign map (map-set map 2 8))		; Replace second entry
 
+;
 ; Print map contents
+; CHECK: 0001 0007
+; CHECK: 0002 0008
+; CHECK: 0003 0005
+
 (foreach entry map 
 	(begin
 		(printhex (first entry))
@@ -57,23 +62,9 @@
 )
 
 ; Do some lookups
-(printhex (map-lookup map 1))
-(printchar 10)
-(printhex (map-lookup map 2))
-(printchar 10)
-(printhex (map-lookup map 3))
-(printchar 10)
-(printhex (map-lookup map 4))		; Bad key, should return zero
-(printchar 10)
-
-; Expected output:
-; CHECK: 0001 0007
-; CHECK: 0002 0008
-; CHECK: 0003 0005
-; CHECK: 0007
-; CHECK: 0008
-; CHECK: 0005
-; CHECK: 0000
-
+(printhex (map-lookup map 1)) ; CHECK: 0007
+(printhex (map-lookup map 2)) ; CHECK: 0008
+(printhex (map-lookup map 3)) ; CHECK: 0005
+(printhex (map-lookup map 4)) ; CHECK: 0000
 
 
