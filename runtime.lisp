@@ -331,21 +331,31 @@
 
 ; Print a number in decimal format
 (function printdec (num)
-	(if num
-		; Not zero
-		(let ((str 0))
-			(while num
-				(assign str (cons (mod num 10) str))
-				(assign num (/ num 10))
-			)
-	
-			(foreach ch str
-				(printchar (+ 48 ch))
+	(begin
+		(if (< num 0)
+			(begin
+				; Negative number
+				(assign num (- 0 num))
+				(printchar 45)	; minus sign
 			)
 		)
 
-		; Is zero
-		(printchar 48)
+		(if num
+			; Not zero
+			(let ((str nil))
+				(while num
+					(assign str (cons (mod num 10) str))
+					(assign num (/ num 10))
+				)
+	
+				(foreach ch str
+					(printchar (+ 48 ch))
+				)
+			)
+
+			; Is zero
+			(printchar 48)
+		)
 	)
 )
 

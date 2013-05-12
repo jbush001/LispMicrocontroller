@@ -369,6 +369,9 @@ class Compiler:
 	# Compile named function definition (function name (param param...) body)
 	#
 	def compileFunction(self, expr):
+		if len(expr) > 4:
+			raise Exception('function should only have one expression in body')
+	
 		function = self.compileFunctionBody(expr[2], expr[3])
 		self.functionList += [ function ]
 		function.name = expr[1]

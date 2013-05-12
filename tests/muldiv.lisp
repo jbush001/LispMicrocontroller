@@ -15,49 +15,25 @@
 ; 
 
 
-(assign a 7)
-(assign b -7)
+(assign NEG -7)
+(assign POS 23)
 
-(printhex (* -231 a))		; negative times positive
-(printhex (* -231 b))		; negative times negative
-(printhex (* 231 a))		; positive times positive
-(printhex (* 231 b))		; positive times negative
-(printhex (* 0 a))			; zero identity
-(printhex (* a 0))			; zero identity
+(printdec (* NEG NEG))	; CHECK: 49
+(printdec (* NEG POS))	; CHECK: -161
+(printdec (* POS POS))	; CHECK: 529
+(printdec (* POS NEG))  ; CHECK: -161	
+(printdec (* 0 POS))	; CHECK: 0
+(printdec (* POS 0))	; CHECK: 0
 
-; CHECK: F9AF
-; CHECK: 0651
-; CHECK: 0651
-; CHECK: F9AF
-; CHECK: 0000
-; CHECK: 0000
+(printdec (/ -2317 POS)) ; CHECK: -100
+(printdec (/ -2317 NEG)) ; CHECK: 331
+(printdec (/ 2317 POS))	 ; CHECK: 100
+(printdec (/ 2317 NEG))	 ; CHECK: -331
+(printdec (/ POS 2317))	 ; CHECK: 0
+(printdec (/ 0 POS))	 ; CHECK: 0
 
-
-(printhex (/ -2317 a))		; negative / positive
-(printhex (/ -2317 b))		; negative / negative
-(printhex (/ 2317 a))		; positive / positive
-(printhex (/ 2317 b))		; positive / negative
-(printhex (/ a 2317))		; divisor < dividend
-(printhex (/ 0 a))			; zero identity
-
-; CHECK: FEB5
-; CHECK: 014B
-; CHECK: 014B
-; CHECK: FEB5
-; CHECK: 0000
-; CHECK: 0000
-
-
-(printhex (mod -2319 a))		; negative / positive
-(printhex (mod -2319 b))		; negative / negative
-(printhex (mod 2319 a))		; positive / positive
-(printhex (mod 2319 b))		; positive / negative
-
-; CHECK: 0002
-; CHECK: FFFE
-; CHECK: 0002
-; CHECK: FFFE
-
-(printhex (sqrt 1902))
-
-; CHECK: 002B
+(printdec (mod -2319 POS))	; CHECK: 19
+(printdec (mod -2319 NEG))	; CHECK: -2
+(printdec (mod 2319 POS)) 	; CHECK: 19
+(printdec (mod 2319 NEG))	; CHECK: -2
+(printdec (sqrt 1902))		; CHECK: 43
