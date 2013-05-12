@@ -1,6 +1,7 @@
 import subprocess, sys
 
 TESTS = [
+	'anagram.lisp',
 	'anonfunc.lisp',
 	'breakloop.lisp',
 	'reverse.lisp',
@@ -18,10 +19,9 @@ TESTS = [
 ]
 
 def runtest(filename):
-	# Compile test
-	args = [ 'python', 'compile.py', filename ]
-
 	try:
+		# Compile test
+		args = [ 'python', 'compile.py', filename ]
 		process = None
 		try:
 			process = subprocess.Popen(args)

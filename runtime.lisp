@@ -363,6 +363,17 @@
 	)
 )
 
+(function length (list)
+	(let ((len 0) (ptr list))
+		(while ptr
+			(assign len (+ len 1))
+			(assign ptr (rest ptr))
+		)
+
+		len
+	)
+)
+
 (function append (list element)
 	(if list
 		(cons (first list) (append (rest list) element))
