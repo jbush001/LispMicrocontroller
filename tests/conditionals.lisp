@@ -2,6 +2,9 @@
 (assign yes 1)
 (assign no 0)
 
+(if yes (printdec 1) (printdec 0)) ; CHECK: 1
+(if no (printdec 1) (printdec 0)) ; CHECK: 0
+
 (printdec (and no no)) ; CHECK: 0
 (printdec (and no yes)) ; CHECK: 0
 (printdec (and yes no)) ; CHECK: 0
@@ -57,3 +60,4 @@
 (if (or yes no yes) (printdec 1) (printdec 0)) ; CHECK: 1
 (if (or yes yes no) (printdec 1) (printdec 0)) ; CHECK: 1
 (if (or yes yes yes) (printdec 1) (printdec 0)) ; CHECK: 1
+

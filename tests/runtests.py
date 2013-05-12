@@ -1,6 +1,7 @@
 import subprocess, sys
 
 TESTS = [
+	'anonfunc.lisp',
 	'breakloop.lisp',
 	'reverse.lisp',
 	'prime.lisp',
