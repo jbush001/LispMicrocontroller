@@ -28,7 +28,6 @@
 (for i 0 10 1
 	(begin
 		(printhex (fib i))
-		(printchar 10)
 	)
 )
 

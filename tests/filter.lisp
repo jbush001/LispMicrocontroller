@@ -14,6 +14,13 @@
 ; limitations under the License.
 ; 
 
+(function sequence (first last)
+	(if (< first last)
+		(cons first (sequence (+ first 1) last))
+		(cons last nil)
+	)
+)
+
 (function filter (list func)
 	(if list
 		(if (func (first list))
@@ -26,16 +33,14 @@
 )
 
 ; Show only odd numbers of a sequence
-(foreach i (filter '(1 2 3 4 5 6 7 8 9 10) (function (x) (bitwise-and x 1)))
-	(begin
-		(printhex i)
-		(printchar 10)
-	)
+(foreach i (filter (sequence 0 10) (function (x) (bitwise-and x 1)))
+	(printdec i)
 )
 
 ; Expected output
-; CHECK: 0001
-; CHECK: 0003
-; CHECK: 0005
-; CHECK: 0007
-; CHECK: 0009
+; CHECK: 1
+; CHECK: 3
+; CHECK: 5
+; CHECK: 7
+; CHECK: 9
+

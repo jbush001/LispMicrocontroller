@@ -1,4 +1,4 @@
-import subprocess
+import subprocess, sys
 
 TESTS = [
 	'breakloop.lisp',
@@ -76,6 +76,9 @@ def runtest(filename):
 	except:
 		print 'FAIL: exception thrown'
 
-for filename in TESTS:
-	print filename, 
-	runtest('tests/' + filename)
+if len(sys.argv) > 1:
+	runtest('tests/' + sys.argv[1])
+else:
+	for filename in TESTS:
+		print filename, 
+		runtest('tests/' + filename)
