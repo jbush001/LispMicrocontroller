@@ -14,7 +14,7 @@
 ; limitations under the License.
 ; 
 
-(printdec
+(print
 	(while (< j 10)
 		(if (= j 7)
 			(break 37)

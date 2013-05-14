@@ -34,7 +34,7 @@
 
 ; Show only odd numbers of a sequence
 (foreach i (filter (sequence 0 10) (function (x) (bitwise-and x 1)))
-	(printdec i)
+	(print i)
 )
 
 ; Expected output

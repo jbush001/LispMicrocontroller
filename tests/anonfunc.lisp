@@ -14,9 +14,9 @@
 ; limitations under the License.
 ; 
 
-(printhex ((function (x y) (+ x y)) 2 3))
-; CHECK: 0005
+(print ((function (x y) (+ x y)) 2 3))
+; CHECK: 5
 
 (function mkcomp () (function (z) (+ z 13)))
-(printhex ((mkcomp) 19))
-; CHECK: 0020
+(print ((mkcomp) 19))
+; CHECK: 32

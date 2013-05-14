@@ -16,11 +16,11 @@
 
 (assign a '(1 2 3 4 5 6))
 
-(printdec (nth a 0)) ; CHECK: 1
-(printdec (nth a 1)) ; CHECK: 2
-(printdec (nth a 2)) ; CHECK: 3
-(printdec (nth a 3)) ; CHECK: 4
-(printdec (nth a 4)) ; CHECK: 5
-(printdec (nth a 5)) ; CHECK: 6
-(printdec (nth a 6)) ; CHECK: 0
+(print (nth a 0)) ; CHECK: 1
+(print (nth a 1)) ; CHECK: 2
+(print (nth a 2)) ; CHECK: 3
+(print (nth a 3)) ; CHECK: 4
+(print (nth a 4)) ; CHECK: 5
+(print (nth a 5)) ; CHECK: 6
+(print (nth a 6)) ; CHECK: 0
 

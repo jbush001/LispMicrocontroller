@@ -15,23 +15,26 @@
 ; 
 
 (function removenth (list index)
-	(if (and index list)
+	(if (and index (rest list))
+		; Then
 		(cons (first list) (removenth (rest list) (- index 1)))
 		
-		; At the index, return the next after
+		; Else. At the index, return the next after
 		(rest list)
 	)
 )
 
 (function anagram (prefix suffix)
 	(if suffix
+		; Then 
 		(for x 0 (length suffix) 1
 			(anagram (append prefix (nth suffix x)) (removenth suffix x))
 		)
 
+		; Else
 		(begin
-			(printstr prefix)
-			(printchar 10)
+			($printstr prefix)
+			($printchar 10)
 		)
 	)
 )

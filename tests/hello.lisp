@@ -14,7 +14,7 @@
 ; limitations under the License.
 ; 
 
-(printstr "Hello World")
+($printstr "Hello World")
 
 ; Expected output:
 ; CHECK: Hello World

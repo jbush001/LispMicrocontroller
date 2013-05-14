@@ -48,23 +48,22 @@
 
 ;
 ; Print map contents
-; CHECK: 0001 0007
-; CHECK: 0002 0008
-; CHECK: 0003 0005
+; CHECK: 1 7
+; CHECK: 2 8
+; CHECK: 3 5
 
 (foreach entry map 
 	(begin
-		(printhex (first entry))
-		(printchar 32)
-		(printhex (first (rest entry)))
-		(printchar 10)
+		(print (first entry))
+		($printchar 32)
+		(print (first (rest entry)))
 	)
 )
 
 ; Do some lookups
-(printhex (map-lookup map 1)) ; CHECK: 0007
-(printhex (map-lookup map 2)) ; CHECK: 0008
-(printhex (map-lookup map 3)) ; CHECK: 0005
-(printhex (map-lookup map 4)) ; CHECK: 0000
+(print (map-lookup map 1)) ; CHECK: 7
+(print (map-lookup map 2)) ; CHECK: 8
+(print (map-lookup map 3)) ; CHECK: 5
+(print (map-lookup map 4)) ; CHECK: 0
 
 

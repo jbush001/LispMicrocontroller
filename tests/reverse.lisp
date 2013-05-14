@@ -15,15 +15,5 @@
 ; 
 
 
-(foreach node (reverse '(1 2 3 4 5))
-	(begin
-		(printhex node)
-		(printchar 10)
-	)
-)
-
-; CHECK: 0005
-; CHECK: 0004
-; CHECK: 0003
-; CHECK: 0002
-; CHECK: 0001
+(print (reverse '(1 2 3 4 5)))
+; CHECK: (5 4 3 2 1)

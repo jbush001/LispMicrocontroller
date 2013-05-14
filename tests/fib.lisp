@@ -27,17 +27,17 @@
 
 (for i 0 10 1
 	(begin
-		(printhex (fib i))
+		(print (fib i))
 	)
 )
 
-; CHECK: 0000
-; CHECK: 0001
-; CHECK: 0001
-; CHECK: 0002
-; CHECK: 0003
-; CHECK: 0005
-; CHECK: 0008
-; CHECK: 000D
-; CHECK: 0015
-; CHECK: 0022
+; CHECK: 0
+; CHECK: 1
+; CHECK: 1
+; CHECK: 2
+; CHECK: 3
+; CHECK: 5
+; CHECK: 8
+; CHECK: 13
+; CHECK: 21
+; CHECK: 34

@@ -18,8 +18,8 @@
 
 (function foo (a b)
 	(begin
-		(printhex a)
-		(printhex b)
+		(print a)
+		(print b)
 	)
 )
 
@@ -27,8 +27,8 @@
 
 ;
 ;  With a fix, it prints
-;  CHECK: 0FFC
-;  CHECK: 0005
+;  CHECK: 4092
+;  CHECK: 5
 ; When the bug is present, the second variable is zero
 ;
    

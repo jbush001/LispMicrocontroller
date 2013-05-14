@@ -35,7 +35,7 @@
 (for i 2 40 1
 	(if (isprime i)
 		(begin
-			(printdec i)
+			(print i)
 		)
 	)
 )

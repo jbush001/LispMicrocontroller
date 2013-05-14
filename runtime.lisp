@@ -59,9 +59,9 @@
 ; For debugging, uncomment the printchar lines to log GC actions
 (defmacro gclog (prefix address)
 	`(begin
-;		(printchar ,prefix)
-;		(printhex ,address)
-;		(printchar 10)
+;		($printchar ,prefix)
+;		($printhex ,address)
+;		($printchar 10)
 	)
 )
 
@@ -147,10 +147,10 @@
 
 (function $oom ()
 	(begin
-		(printchar 79)
-		(printchar 79)
-		(printchar 77)
-		(printchar 10)
+		($printchar 79)
+		($printchar 79)
+		($printchar 77)
+		($printchar 10)
 		(while 1 ())
 	)
 )
@@ -308,35 +308,24 @@
 	)
 )
 
-(function printchar (x)
+(function $printchar (x)
 	(write-register 0 x)
 )
 
-(function printstr (x)
+(function $printstr (x)
 	(foreach ch x
-		(printchar ch)
-	)
-)
-
-(function printhex (num)
-	(for idx 0 16 4
-		(let ((digit (bitwise-and (rshift num (- 12 idx)) 15)))
-			(if (< digit 10)
-				(printchar (+ digit 48))
-				(printchar (+ digit 55))	; - 10 + 'A'
-			)
-		)
+		($printchar ch)
 	)
 )
 
 ; Print a number in decimal format
-(function printdec (num)
+(function $printdec (num)
 	(begin
 		(if (< num 0)
 			(begin
 				; Negative number
 				(assign num (- 0 num))
-				(printchar 45)	; minus sign
+				($printchar 45)	; minus sign
 			)
 		)
 
@@ -349,12 +338,61 @@
 				)
 	
 				(foreach ch str
-					(printchar (+ 48 ch))
+					($printchar (+ 48 ch))
 				)
 			)
 
 			; Is zero
-			(printchar 48)
+			($printchar 48)
+		)
+	)
+)
+
+(function $printhex (num)
+	(for idx 0 16 4
+		(let ((digit (bitwise-and (rshift num (- 12 idx)) 15)))
+			(if (< digit 10)
+				($printchar (+ digit 48))
+				($printchar (+ digit 55))	; - 10 + 'A'
+			)
+		)
+	)
+)
+
+(function print (x)
+	(begin
+		(if (list? x)
+			;; This is a list
+			(begin
+				($printchar 40)	; Open paren
+				(let ((needspace false))
+					(foreach element x
+						(begin
+							(if needspace
+								($printchar 32)
+								(assign needspace true)
+							)
+				
+							(print element)
+						)
+					)
+				)
+		
+				($printchar 41)		; Close paren
+			)
+		)
+
+		(if (atom? x)
+			;; This is a number
+			($printdec x)
+		)
+	
+		(if (function? x)
+			;; This is a function
+			(begin
+				($printstr "function")
+				($printhex x) 
+			)
 		)
 	)
 )

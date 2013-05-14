@@ -18,22 +18,22 @@
 (assign NEG -7)
 (assign POS 23)
 
-(printdec (* NEG NEG))	; CHECK: 49
-(printdec (* NEG POS))	; CHECK: -161
-(printdec (* POS POS))	; CHECK: 529
-(printdec (* POS NEG))  ; CHECK: -161	
-(printdec (* 0 POS))	; CHECK: 0
-(printdec (* POS 0))	; CHECK: 0
+(print (* NEG NEG))	; CHECK: 49
+(print (* NEG POS))	; CHECK: -161
+(print (* POS POS))	; CHECK: 529
+(print (* POS NEG))  ; CHECK: -161	
+(print (* 0 POS))	; CHECK: 0
+(print (* POS 0))	; CHECK: 0
 
-(printdec (/ -2317 POS)) ; CHECK: -100
-(printdec (/ -2317 NEG)) ; CHECK: 331
-(printdec (/ 2317 POS))	 ; CHECK: 100
-(printdec (/ 2317 NEG))	 ; CHECK: -331
-(printdec (/ POS 2317))	 ; CHECK: 0
-(printdec (/ 0 POS))	 ; CHECK: 0
+(print (/ -2317 POS)) ; CHECK: -100
+(print (/ -2317 NEG)) ; CHECK: 331
+(print (/ 2317 POS))	 ; CHECK: 100
+(print (/ 2317 NEG))	 ; CHECK: -331
+(print (/ POS 2317))	 ; CHECK: 0
+(print (/ 0 POS))	 ; CHECK: 0
 
-(printdec (mod -2319 POS))	; CHECK: 19
-(printdec (mod -2319 NEG))	; CHECK: -2
-(printdec (mod 2319 POS)) 	; CHECK: 19
-(printdec (mod 2319 NEG))	; CHECK: -2
-(printdec (sqrt 1902))		; CHECK: 43
+(print (mod -2319 POS))	; CHECK: 19
+(print (mod -2319 NEG))	; CHECK: -2
+(print (mod 2319 POS)) 	; CHECK: 19
+(print (mod 2319 NEG))	; CHECK: -2
+(print (sqrt 1902))		; CHECK: 43

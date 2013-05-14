@@ -15,7 +15,5 @@
 ; 
 
 (assign a '(65 . 66))
-(printchar (first a))
-(printchar (rest a))
-
-; CHECK: AB
+(print (first a))	; CHECK: 65
+(print (rest a))	; CHECK: 66
