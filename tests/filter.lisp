@@ -16,31 +16,31 @@
 
 (function sequence (first last)
 	(if (< first last)
+		; Then
 		(cons first (sequence (+ first 1) last))
+
+		; Else (end of list)
 		(cons last nil)
 	)
 )
 
 (function filter (list func)
 	(if list
+		; Then
 		(if (func (first list))
+			; Then (filter returns true, this is member of list)
 			(cons (first list) (filter (rest list) func))
+			
+			; Else (this should be excluded from list)
 			(filter (rest list) func)
 		)
 
+		; Else (end of list)
 		nil
 	)
 )
 
 ; Show only odd numbers of a sequence
-(foreach i (filter (sequence 0 10) (function (x) (bitwise-and x 1)))
-	(print i)
-)
-
-; Expected output
-; CHECK: 1
-; CHECK: 3
-; CHECK: 5
-; CHECK: 7
-; CHECK: 9
+(print (filter (sequence 0 10) (function (x) (bitwise-and x 1))))
+; CHECK: (1 3 5 7 9)
 

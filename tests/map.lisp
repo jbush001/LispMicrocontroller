@@ -19,11 +19,16 @@
 ; Find an item in a map
 (function map-lookup (map name)
 	(if map
+		; Then
 		(if (= name (first (first map)))
-			(first (rest (first map)))		; Match, return value
-			(map-lookup (rest map) name)	; Lookup in remaining elements
+			; Then match, return value
+			(first (rest (first map)))	
+
+			; Else lookup in remaining elements
+			(map-lookup (rest map) name)
 		)
 		
+		; Else (not found)
 		nil
 	)
 )
@@ -31,34 +36,28 @@
 ; Enter an item into a map
 (function map-set (map name value)
 	(if map	
+		; Then 
 		(if (= name (first (first map)))
-			(cons (cons name (cons value nil)) (rest map)) ; Found a match, replace
-			(cons (first map) (map-set (rest map) name value)) ; Search rest of list
+			; Then found a match, replace
+			(cons (cons name (cons value nil)) (rest map))
+
+			; Else search rest of list
+			(cons (first map) (map-set (rest map) name value))
 		)
 
-		(cons (cons name (cons value nil)) nil)	; No match, add new entry
+		; Else no match, add new entry
+		(cons (cons name (cons value nil)) nil) 
 	)
 )
 
+; Add some entries
 (assign map nil)
 (assign map (map-set map 1 7))
 (assign map (map-set map 2 9))
 (assign map (map-set map 3 5))
 (assign map (map-set map 2 8))		; Replace second entry
 
-;
-; Print map contents
-; CHECK: 1 7
-; CHECK: 2 8
-; CHECK: 3 5
-
-(foreach entry map 
-	(begin
-		(print (first entry))
-		($printchar 32)
-		(print (first (rest entry)))
-	)
-)
+(print map) ; CHECK: ((1 7) (2 8) (3 5))
 
 ; Do some lookups
 (print (map-lookup map 1)) ; CHECK: 7
