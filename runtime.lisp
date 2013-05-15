@@ -83,28 +83,32 @@
 (assign $wilderness-start $heapstart)
 (assign $stacktop (getbp))	; This is called from top level main, so BP will be top of stack
 (assign $max-heap (- $stacktop 1024)) 	
-(assign $freelist 0)
+(assign $freelist nil)
 
 (function $mark-recursive (ptr)
-	(while (and ptr (list? ptr))	; Check if this is a cons and is not null
-		(let ((firstword (load ptr)) (tag (gettag firstword)))
-			(if (not (rshift tag 2))
-				(begin
-					; An unmarked cons cell, mark it and continue
-					(gclog 77 ptr)	; M
-					(store ptr (settag firstword (bitwise-or tag 4)))
+	(if (and ptr (list? ptr))	; Check if this is a cons and is not null
+		(begin
+			(let ((firstword (load ptr)) (tag (gettag firstword)))
+				(if (not (rshift tag 2))
+					(begin
+						; An unmarked cons cell, mark it and continue
+						(gclog 77 ptr)	; M
+						(store ptr (settag firstword (bitwise-or tag 4)))
 
-					; Check if we need to mark the first pointer
-					($mark-recursive (first ptr))
+						; Check if we need to mark the first pointer
+						($mark-recursive (first ptr))
+					)
 				)
 			)
-		)
 
-		; Check next node
-		(assign ptr (rest ptr))
-		(assign tag (gettag ptr))
+			($mark-recursive (rest ptr))
+		)
 	)
 )
+
+;
+; Garbage collect, using mark-sweep algorithm
+;
 
 (function $gc ()
 	(begin
@@ -112,25 +116,26 @@
 
 		; Mark phase ;;;;;;;;;;;;;
 
-		; clear flags 
+		; Clear GC flags 
 		(for ptr $heapstart $wilderness-start 2
 			(let ((val (load ptr)) (tag (gettag val)))
 				(store ptr (settag val (bitwise-and tag 3)))
 			)
 		)
 		
-		; Walk globals
+		; Walk globals and mark all
 		(for ptr 0 $heapstart 1
 			($mark-recursive (load ptr))
 		)
 
-		; Walk stack
+		; Walk stack and mark all
 		(for ptr (getbp) $stacktop 1
 			($mark-recursive (load ptr))		
 		)
 		
-		; Sweep ;;;;;;;;;;;;;
-		(assign $freelist 0)	; First clear the freelist so we don't double-add
+		; Sweep phase ;;;;;;;;;;;;;
+		
+		(assign $freelist nil)	; First clear the freelist so we don't double-add
 		(for ptr $heapstart $wilderness-start 2
 			(if (not (bitwise-and (gettag (load ptr)) 4))
 				(begin
@@ -159,7 +164,7 @@
 ; Allocate a new cell and return a pointer to it
 ;
 (function cons (first rest)
-	(let ((ptr 0))
+	(let ((ptr nil))
 		(if $freelist
 
 			; There are nodes on freelist, grab one.
@@ -177,18 +182,18 @@
 						(assign $wilderness-start (+ $wilderness-start 2))
 					)
 
-					; No more space available, need to GC
+					; No more space available, need to garbage collect
 					(begin
 						($gc)
-						(if (= $freelist 0)
-							; GC gave us nothing, give up.
-							($oom)
-						
-							; Got a block, assign it
+						(if $freelist
+							; Then: got a block, assign it
 							(begin
 								(assign ptr $freelist)
 								(assign $freelist (rest ptr))
 							)
+
+							; Else: GC gave us nothing, give up.
+							($oom)
 						)
 					)
 				)
