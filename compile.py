@@ -83,9 +83,16 @@ class Function:
 
 		# Save a spot for an initial 'reserve' instruction
 		self.emitInstruction(OP_RESERVE, 0)
+		
+		# Entry label comes after reserve
+		self.entry = self.generateLabel()
+		self.emitLabel(self.entry)
 
 	def generateLabel(self):
 		return Label()
+
+	def getEntryLabel(self):
+		return self.entry
 
 	def enterScope(self):
 		self.environment += [{}]
@@ -372,9 +379,8 @@ class Compiler:
 		if len(expr) > 4:
 			raise Exception('function should only have one expression in body')
 	
-		function = self.compileFunctionBody(expr[2], expr[3])
+		function = self.compileFunctionBody(expr[1], expr[2], expr[3])
 		self.functionList += [ function ]
-		function.name = expr[1]
 	
 		if expr[1] in self.globals:
 			# There was a forward reference to this function and it was 
@@ -412,13 +418,17 @@ class Compiler:
 	# all parameters, which will be pushed onto the stack from right to left,
 	# and leave a result value on the stack.  All expressions have values in LISP.
 	#
-	def compileExpression(self, expr):
+	# Determining if something is a tail call is fairly simple in S-Expression form.
+	# The outermost form is generally a tail call.  This propagates through control
+	# flow forms and to the last expression in a sequence.
+	#
+	def compileExpression(self, expr, isTailCall=False):
 		if isinstance(expr, list):
 			if len(expr) == 0:
 				# Empty expression
 				self.currentFunction.emitInstruction(OP_PUSH, 0)
 			else:
-				self.compileCombination(expr)
+				self.compileCombination(expr, isTailCall)
 		elif isinstance(expr, int):
 			self.compileIntegerLiteral(expr)
 		elif expr[0] == '"':
@@ -461,7 +471,7 @@ class Compiler:
 	# This may be a special form or a function call.
 	# Anything that isn't an atom or a number is going to be compiled here.
 	#
-	def compileCombination(self, expr):
+	def compileCombination(self, expr, isTailCall=False):
 		if isinstance(expr[0], str):
 			functionName = expr[0]
 			if functionName in self.BUILT_IN_FUNCTIONS:
@@ -469,13 +479,13 @@ class Compiler:
 			elif functionName == 'function':
 				self.compileAnonymousFunction(expr)
 			elif functionName == 'begin':
-				self.compileSequence(expr[1:])
+				self.compileSequence(expr[1:], isTailCall)
 			elif functionName == 'while':
 				self.compileWhile(expr)
 			elif functionName == 'break':
 				self.compileBreak(expr)
 			elif functionName == 'if':		# Special forms handling starts here
-				self.compileIf(expr)
+				self.compileIf(expr, isTailCall)
 			elif functionName == 'assign':
 				self.compileAssign(expr)
 			elif functionName == 'quote':
@@ -489,7 +499,7 @@ class Compiler:
 			else:
 				# Anything that isn't a built in form falls through to here.
 				# (call to a user defined function)
-				self.compileFunctionCall(expr)
+				self.compileFunctionCall(expr, isTailCall)
 		else:
 			self.compileFunctionCall(expr)
 
@@ -636,18 +646,18 @@ class Compiler:
 	# Conditional execution of the form
 	# (if expr true [false])
 	#
-	def compileIf(self, expr):
+	def compileIf(self, expr, isTailCall=False):
 		falseLabel = self.currentFunction.generateLabel()
 		doneLabel = self.currentFunction.generateLabel()
 
 		self.compilePredicate(expr[1], falseLabel)
-		self.compileExpression(expr[2])	# True part
+		self.compileExpression(expr[2], isTailCall)	# True part
 		self.currentFunction.emitBranchInstruction(OP_GOTO, doneLabel);
 		self.currentFunction.emitLabel(falseLabel)
 		
 		# False part
 		if len(expr) > 3:
-			self.compileExpression(expr[3])	
+			self.compileExpression(expr[3], isTailCall)	
 		else:
 			self.currentFunction.emitInstruction(OP_PUSH, 0)
 		
@@ -735,27 +745,36 @@ class Compiler:
 	#
 	# Call to a user defined function
 	#
-	def compileFunctionCall(self, expr):
+	def compileFunctionCall(self, expr, isTailCall = False):
 		if isinstance(expr[0], int):
 			raise Exception('Cannot use integer as function')
 
-		# User defined function call.  Create a new frame.
-		# evaluate parameter expressions and stash results into frame
-		# for next call.
-		for paramExpr in reversed(expr):
+		# Push arguments
+		for paramExpr in reversed(expr[1:]):
 			self.compileExpression(paramExpr)
-		
-		self.currentFunction.emitInstruction(OP_CALL)
-		if len(expr) > 1:
-			self.currentFunction.emitInstruction(OP_CLEANUP, len(expr) - 1)
+
+		if self.currentFunction.name == expr[0] and isTailCall:
+			# This is a recursive call.  Copy parameters back into frame and
+			# then jump to entry
+			for x in range(len(expr) - 1):
+				self.currentFunction.emitInstruction(OP_SETLOCAL, x + 1)
+				self.currentFunction.emitInstruction(OP_POP)
+			
+			self.currentFunction.emitBranchInstruction(OP_GOTO, self.currentFunction.getEntryLabel())
+		else:
+			self.compileExpression(expr[0])
+			self.currentFunction.emitInstruction(OP_CALL)
+			if len(expr) > 1:
+				self.currentFunction.emitInstruction(OP_CLEANUP, len(expr) - 1)
 
 	#
 	# Common code to compile body of the function definition (either anonymous or named)
 	# ((param param...) body)
 	#
-	def compileFunctionBody(self, params, body):
+	def compileFunctionBody(self, name, params, body):
 		oldFunc = self.currentFunction
 		newFunction = Function()
+		newFunction.name = name
 		newFunction.enclosingFunction = oldFunc
 		self.currentFunction = newFunction
 		
@@ -765,7 +784,7 @@ class Compiler:
 		self.currentFunction.numParams = len(params)
 	
 		# Compile top level expression.
-		self.compileExpression(body)
+		self.compileExpression(body, isTailCall=True)
 		self.currentFunction.emitInstruction(OP_RETURN)
 		self.currentFunction = oldFunc
 
@@ -780,7 +799,7 @@ class Compiler:
 		# Note: we do an enterScope because we may create temporary variables to 
 		# represent upvals while compiling. See lookupSymbol for more information.
 		self.currentFunction.enterScope()
-		newFunction = self.compileFunctionBody(expr[1], expr[2])
+		newFunction = self.compileFunctionBody(None, expr[1], expr[2])
 		newFunction.referenced = True
 		self.currentFunction.exitScope()
 
@@ -798,26 +817,24 @@ class Compiler:
 	#
 	# A sequence of expressions.  The result will be the last expression evaluated.
 	#
-	def compileSequence(self, sequence):
+	def compileSequence(self, sequence, isTailCall=False):
 		# Execute a sequence of statements
 		# ...stmt1 stmt2 stmt3...)
 		if len(sequence) == 0:
 			self.currentFunction.emitInstruction(OP_PUSH, 0)	# Need to have at least one stmt
 		else:
-			first = True
-			for expr in sequence:
-				if not first:
-					self.currentFunction.emitInstruction(OP_POP) # Clean up stack
-	
-				first = False
-				self.compileExpression(expr)
+			for expr in sequence[:-1]:
+				self.compileExpression(expr, isTailCall=False)
+				self.currentFunction.emitInstruction(OP_POP) # Clean up stack
+
+			self.compileExpression(sequence[-1], isTailCall)
 
 
 	#
 	# Of the form (let ((variable value) (variable value) (variable value)...) expr)
 	# Reserve local variables and assign initial values to them.
 	#
-	def compileLet(self, expr):
+	def compileLet(self, expr, isTailCall=False):
 		# Reserve space on stack for local variables
 		variableCount = len(expr[1])
 		self.currentFunction.enterScope()
@@ -831,7 +848,7 @@ class Compiler:
 			self.currentFunction.emitInstruction(OP_POP) # setlocal leaves on stack, remove it
 
 		# Now evaluate the predicate, which can be a sequence
-		self.compileSequence(expr[2:])
+		self.compileSequence(expr[2:], isTailCall)
 		self.currentFunction.exitScope()
 
 	def performGlobalFixups(self):

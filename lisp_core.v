@@ -503,8 +503,7 @@ module lisp_core
 					
 					OP_SETLOCAL:
 					begin
-						// Write TOS value to appropriate local slot, then
-						// fetch new TOS.
+						// Write TOS value to appropriate local slot, leave on stack.
 						ma_select = MA_ALU;
 						alu_op0_select = OP0_BASE_POINTER;
 						alu_op1_select = OP1_PARAM;
