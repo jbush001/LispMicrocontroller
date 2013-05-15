@@ -429,9 +429,13 @@
 	)
 )
 
-(function reverse (list)
-	(if list
-		(append (reverse (rest list)) (first list))
-		nil
+(function $$reverse_recursive (forward backward)
+	(if forward
+		($$reverse_recursive (rest forward) (cons (first forward) backward))
+		backward
 	)
+)
+
+(function reverse (list)
+	($$reverse_recursive list nil)
 )
