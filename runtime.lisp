@@ -398,16 +398,15 @@
 )
 
 (function nth (list index)
-	(begin
-		(while (and (> index 0) (<> list 0))
-			(assign list (rest list))
-			(assign index (- index 1))
+	(if list
+		; then
+		(if index 
+			(nth (rest list) (- index 1))
+			(first list)	
 		)
-	
-		(if list
-			(first list)
-			nil
-		)
+
+		; else
+		nil
 	)
 )
 
