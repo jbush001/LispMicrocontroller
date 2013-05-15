@@ -16,22 +16,19 @@
 
 (function removenth (list index)
 	(if (and index (rest list))
-		; Then
-		(cons (first list) (removenth (rest list) (- index 1)))
-		
-		; Else. At the index, return the next after
-		(rest list)
+		(cons (first list) (removenth (rest list) (- index 1))) ; then keep searching
+		(rest list)	 ; else at index or end of list, return the next after
 	)
 )
 
 (function anagram (prefix suffix)
 	(if suffix
-		; Then 
+		; then select next letter 
 		(for x 0 (length suffix) 1
 			(anagram (append prefix (nth suffix x)) (removenth suffix x))
 		)
 
-		; Else
+		; else print the final value
 		(begin
 			($printstr prefix)
 			($printchar 10)

@@ -16,37 +16,28 @@
 
 ; A map consists of ((name value) (name value) (name value))
 
-; Find an item in a map
+; Find an item in a map.  Return nil if it is not present.
+
 (function map-lookup (map name)
 	(if map
-		; Then
-		(if (= name (first (first map)))
-			; Then match, return value
-			(first (rest (first map)))	
-
-			; Else lookup in remaining elements
-			(map-lookup (rest map) name)
+		(if (= name (first (first map))) ; then check if key matches
+			(first (rest (first map)))	; then match, return value
+			(map-lookup (rest map) name) ; else lookup in remaining elements
 		)
 		
-		; Else (not found)
-		nil
+		nil ; else not found
 	)
 )
 
 ; Enter an item into a map
 (function map-set (map name value)
 	(if map	
-		; Then 
-		(if (= name (first (first map)))
-			; Then found a match, replace
-			(cons (cons name (cons value nil)) (rest map))
-
-			; Else search rest of list
-			(cons (first map) (map-set (rest map) name value))
+		(if (= name (first (first map))) ; then check if key matches
+			(cons (cons name (cons value nil)) (rest map)) ; then key exists, replace
+			(cons (first map) (map-set (rest map) name value))	; else search rest of list
 		)
-
-		; Else no match, add new entry
-		(cons (cons name (cons value nil)) nil) 
+		
+		(cons (cons name (cons value nil)) nil) ; else no match, add new entry
 	)
 )
 

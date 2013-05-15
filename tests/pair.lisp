@@ -14,6 +14,14 @@
 ; limitations under the License.
 ; 
 
+; Test dot notation for creating cons cells directly
+
 (assign a '(65 . 66))
 (print (first a))	; CHECK: 65
 (print (rest a))	; CHECK: 66
+
+(assign b '((12 . 22) . (47 . 59)))
+(print (first (first b)))	; CHECK: 12
+(print (rest (first b)))	; CHECK: 22
+(print (first (rest b)))	; CHECK: 47
+(print (rest (rest b)))		; CHECK: 59

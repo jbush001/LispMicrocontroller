@@ -16,17 +16,14 @@
 
 (function sequence (first last)
 	(if (< first last)
-		; Then
-		(cons first (sequence (+ first 1) last))
-
-		; Else (end of list)
-		(cons last nil)
+		(cons first (sequence (+ first 1) last)) ; then append next value
+		(cons last nil) ; else end of list
 	)
 )
 
 (function filter (list func)
 	(if list
-		; Then
+		; then
 		(if (func (first list))
 			; Then (filter returns true, this is member of list)
 			(cons (first list) (filter (rest list) func))
@@ -35,8 +32,7 @@
 			(filter (rest list) func)
 		)
 
-		; Else (end of list)
-		nil
+		nil ; else end of list
 	)
 )
 

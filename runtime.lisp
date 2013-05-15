@@ -163,7 +163,7 @@
 ;
 ; Allocate a new cell and return a pointer to it
 ;
-(function cons (first rest)
+(function cons (_first _rest)
 	(let ((ptr nil))
 		(if $freelist
 
@@ -203,8 +203,8 @@
 		; Debug: print cell that has been allocated
 		(gclog 65 ptr) 	; 'A'
 
-		(store ptr first)
-		(store (+ ptr 1) rest)
+		(store ptr _first)
+		(store (+ ptr 1) _rest)
 		(settag ptr 1)	; Mark this as a cons cell and return
 	)
 )

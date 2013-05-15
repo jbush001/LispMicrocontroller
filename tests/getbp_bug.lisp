@@ -15,21 +15,11 @@
 ; 
 
 
-
 (function foo (a b)
-	(begin
-		(print a)
-		(print b)
-	)
+	(print b)
 )
 
-(foo (getbp) 5)
+(foo (getbp) 5) ;  CHECK: 5
 
-;
-;  With a fix, it prints
-;  CHECK: 4092
-;  CHECK: 5
-; When the bug is present, the second variable is zero
-;
-   
+; When the bug was present, it printed 0   
 

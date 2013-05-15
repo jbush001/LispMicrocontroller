@@ -15,7 +15,8 @@
 ; 
 
 ;
-; Garbage collector test  
+; Garbage collector test.  This can't be run automatically.  I enable
+; GC logs in runtime.lisp, then manually analyze the sequence of allocs/frees.
 ;
 
 ; Hold references to these in global variables

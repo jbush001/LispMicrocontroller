@@ -16,7 +16,8 @@
 
 
 ; Extended GC test, should repeatedly free up nodes.  Make sure there isn't
-; an eventual leak.
+; an eventual leak.  Need to modify testbench.v to run infinitely and enable
+; gclogs to ensure the same number of objects are freed each gc.
 (while 1
 	(cons 1 2)
 )

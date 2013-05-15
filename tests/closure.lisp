@@ -14,6 +14,9 @@
 ; limitations under the License.
 ; 
 
+; Upvals are not fully implemented yet. Right now, this will return a compilation 
+; error.
+
 (function mkgtr (x)
 	(function (y) (> y x))
 )

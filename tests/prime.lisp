@@ -14,29 +14,25 @@
 ; limitations under the License.
 ; 
 
-(function isprime (x)
-	(let ((p true))
-		(for i 2 (+ (sqrt x) 1) 1
-			(if (mod x i)
-				()			
-
-				(begin
-					(assign p false)
-					(break)
-				)
-			)
+(function testfactor (n fact max)
+	(if (<= fact max)
+		(if (mod n fact)
+			(testfactor n (+ fact 1) max)   ; then: does not divide, check next
+			false   ; else divides evenly, is not a prime
 		)
-
-		p
+	
+		true	; else did not find any divisors
 	)
+)
+
+(function isprime (n)
+	(testfactor n 2 (rshift n 1))
 )
 
 ; Print a list of all prime numbers below 40
 (for i 2 40 1
 	(if (isprime i)
-		(begin
-			(print i)
-		)
+		(print i)
 	)
 )
 
