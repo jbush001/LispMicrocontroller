@@ -14,14 +14,14 @@
 ; limitations under the License.
 ; 
 
-; A map consists of ((name value) (name value) (name value))
+; A map consists of ((name . value) (name . value) (name . value))
 
 ; Find an item in a map.  Return nil if it is not present.
 
 (function map-lookup (map name)
 	(if map
 		(if (= name (first (first map))) ; then check if key matches
-			(first (rest (first map)))	; then match, return value
+			(rest (first map))	; then match, return value
 			(map-lookup (rest map) name) ; else lookup in remaining elements
 		)
 		
@@ -33,11 +33,11 @@
 (function map-set (map name value)
 	(if map	
 		(if (= name (first (first map))) ; then check if key matches
-			(cons (cons name (cons value nil)) (rest map)) ; then key exists, replace
+			(cons (cons name value) (rest map)) ; then key exists, replace
 			(cons (first map) (map-set (rest map) name value))	; else search rest of list
 		)
 		
-		(cons (cons name (cons value nil)) nil) ; else no match, add new entry
+		(cons (cons name value) nil) ; else no match, add new entry
 	)
 )
 
@@ -48,7 +48,16 @@
 (assign map (map-set map 3 5))
 (assign map (map-set map 2 8))		; Replace second entry
 
-(print map) ; CHECK: ((1 7) (2 8) (3 5))
+(foreach i map
+	(begin
+		(print (first i))
+		(print (rest i))
+	)
+)
+
+; CHECK: 17
+; CHECK: 28
+; CHECK: 35
 
 ; Do some lookups
 (print (map-lookup map 1)) ; CHECK: 7

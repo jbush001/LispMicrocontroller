@@ -1,6 +1,7 @@
 import subprocess, sys
 
 TESTS = [
+	'zip.lisp',
 	'anagram.lisp',
 	'anonfunc.lisp',
 	'breakloop.lisp',
