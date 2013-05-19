@@ -712,6 +712,7 @@ class Compiler:
 		'store'		: (OP_STORE, 2),
 		'first'		: (OP_LOAD, 1),
 		'rest' 		: (OP_REST, 1),
+		'second'	: (OP_REST, 1),	# Alias for rest
 		'settag'	: (OP_SETTAG, 2),
 		'gettag'	: (OP_GETTAG, 1),
 		'bitwise-and' : (OP_AND, 2),

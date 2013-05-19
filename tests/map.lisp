@@ -21,7 +21,7 @@
 (function map-lookup (map name)
 	(if map
 		(if (= name (first (first map))) ; then check if key matches
-			(rest (first map))	; then match, return value
+			(second (first map))	; then match, return value
 			(map-lookup (rest map) name) ; else lookup in remaining elements
 		)
 		
@@ -47,7 +47,7 @@
 (foreach i map
 	(begin
 		(print (first i))
-		(print (rest i))))
+		(print (second i))))
 
 ; CHECK: 17
 ; CHECK: 28

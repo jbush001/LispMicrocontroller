@@ -23,7 +23,7 @@
 (foreach i (zip '(1 2 3 4 5) '(11 13 15 17 19))
 	(begin
 		(print (first i))
-		(print (rest i))))
+		(print (second i))))
 
 ; Result should be ((1 . 11) (2 . 13) (3 . 15) (4 . 17) (5 . 19))
 ; CHECK: 1

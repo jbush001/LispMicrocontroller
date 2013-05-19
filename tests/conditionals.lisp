@@ -85,3 +85,10 @@
 ; Make sure the value of the if expression itself is correct
 (print (if yes 37 21)) ; CHECK: 37
 (print (if no 51 72)) ; CHECK: 72
+
+; Validate short circuit evaluation.
+(and yes (print 97))	; CHECK: 97
+(and no (print 1))
+(or yes (print 1))
+(or no (print 34))	; CHECK: 34
+
