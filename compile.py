@@ -492,7 +492,7 @@ class Compiler:
 			elif functionName == 'quote':
 				self.compileQuote(expr[1])
 			elif functionName == 'let':
-				self.compileLet(expr)
+				self.compileLet(expr, isTailCall)
 			elif functionName == 'getbp':
 				self.currentFunction.emitInstruction(OP_GETBP)
 			elif functionName == 'and' or functionName == 'or' or functionName == 'not':

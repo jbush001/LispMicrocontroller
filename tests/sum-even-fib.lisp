@@ -14,20 +14,18 @@
 ; limitations under the License.
 ; 
 
-(print
-	(while (< j 10)
-		(print j)
-		(if (= j 7)
-			(break 37))
+;
+; Modified Project Euler problem #2: Sum even fibonacci terms below 1000.
+;
 
-		(assign j (+ j 1))))
+(function sum-even-fib (a b max total)
+	(let ((next-sum (+ a b)))
+		(if (< next-sum max)
+			(sum-even-fib b next-sum max
+				(if (bitwise-and next-sum 1)
+					total  ; Odd
+					(+ total next-sum))) ; Even
+			total)))
 
-; CHECK: 0
-; CHECK: 1
-; CHECK: 2
-; CHECK: 3
-; CHECK: 4
-; CHECK: 5
-; CHECK: 6
-; CHECK: 7
-; CHECK: 37
+(print (sum-even-fib 1 1 1000 0)) ; CHECK: 798
+

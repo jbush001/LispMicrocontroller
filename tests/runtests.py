@@ -1,6 +1,7 @@
 import subprocess, sys
 
 TESTS = [
+	'sum-even-fib.lisp',
 	'optimizer.lisp',
 	'zip.lisp',
 	'anagram.lisp',
