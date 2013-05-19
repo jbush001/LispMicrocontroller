@@ -16,6 +16,7 @@
 
 (assign a '(1 2 3 4 5 6))
 
+(print (length a)) ; CHECK: 6
 (print (nth a 0)) ; CHECK: 1
 (print (nth a 1)) ; CHECK: 2
 (print (nth a 2)) ; CHECK: 3

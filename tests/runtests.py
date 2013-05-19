@@ -9,7 +9,7 @@ TESTS = [
 	'prime.lisp',
 	'pair.lisp',
 	'conditionals.lisp', 
-	'count.lisp', 
+	'forloop.lisp', 
 	'fib.lisp', 
 	'filter.lisp',
 	'getbp_bug.lisp',

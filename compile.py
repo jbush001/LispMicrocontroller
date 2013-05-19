@@ -254,7 +254,7 @@ class Compiler:
 			func = func.enclosingFunction
 
 		if isUpval:
-			raise Exception('closures not implemented')
+			raise Exception('closures not implemented: variable ' + name + ' defined in enclosing function')
 			
 #	XXX partial implementation of closure variables, currently disabled.	
 #			# Create a new local variable

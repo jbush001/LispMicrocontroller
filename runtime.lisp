@@ -163,8 +163,7 @@
 							; Else: GC gave us nothing, give up.
 							($oom))))))
 
-		; Debug: print cell that has been allocated
-		(gclog 65 ptr) 	; 'A'
+		(gclog 65 ptr) 	; 'A' Debug: print cell that has been allocated
 		(store ptr _first)
 		(store (+ ptr 1) _rest)
 		(settag ptr 1)))	; Mark this as a cons cell and return
@@ -307,20 +306,18 @@
 
 (function nth (list index)
 	(if list
-		; then
 		(if index 
-			(nth (rest list) (- index 1))
-			(first list))
+			(nth (rest list) (- index 1)) ; Keep traversing
+			(first list))                 ; Found item at index
+		nil))	                          ; Index is beyond length of list
 
-		; else
-		nil))
+(function $$length-helper (list length)
+	(if list
+		($$length-helper (rest list) (+ length 1))
+		length))
 
 (function length (list)
-	(let ((len 0) (ptr list))
-		(while ptr
-			(assign len (+ len 1))
-			(assign ptr (rest ptr)))
-		len))
+	($$length-helper list 0))
 
 (function append (list element)
 	(if list
