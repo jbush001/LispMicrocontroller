@@ -21,15 +21,11 @@
 (function fib (n)
 	(if (< n 2)
 		n
-		(+ (fib (- n 1)) (fib (- n 2)))
-	)
-)
+		(+ (fib (- n 1)) (fib (- n 2)))))
 
 (for i 0 10 1
 	(begin
-		(print (fib i))
-	)
-)
+		(print (fib i))))
 
 ; CHECK: 0
 ; CHECK: 1

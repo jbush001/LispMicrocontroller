@@ -25,9 +25,7 @@
 
 (function foo ()
 	(let ((c '(9 10 11 12)) (d '(13 14 15 16)))	; Reference on the stack, won't be collected
-		($gc)
-	)
-)
+		($gc)))
 
 (foo)
 ($gc)	; We should get element 'c' and 'd' back now

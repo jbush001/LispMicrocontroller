@@ -25,9 +25,7 @@
 			(map-lookup (rest map) name) ; else lookup in remaining elements
 		)
 		
-		nil ; else not found
-	)
-)
+		nil)) ; else not found
 
 ; Enter an item into a map
 (function map-set (map name value)
@@ -37,9 +35,7 @@
 			(cons (first map) (map-set (rest map) name value))	; else search rest of list
 		)
 		
-		(cons (cons name value) nil) ; else no match, add new entry
-	)
-)
+		(cons (cons name value) nil))) ; else no match, add new entry
 
 ; Add some entries
 (assign map nil)
@@ -51,9 +47,7 @@
 (foreach i map
 	(begin
 		(print (first i))
-		(print (rest i))
-	)
-)
+		(print (rest i))))
 
 ; CHECK: 17
 ; CHECK: 28

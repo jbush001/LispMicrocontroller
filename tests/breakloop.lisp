@@ -20,8 +20,6 @@
 			(break 37)
 		)
 
-		(assign j (+ j 1))
-	)
-)
+		(assign j (+ j 1))))
 
 ; CHECK: 37

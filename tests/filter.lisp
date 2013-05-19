@@ -17,9 +17,7 @@
 (function sequence (first last)
 	(if (< first last)
 		(cons first (sequence (+ first 1) last)) ; then append next value
-		(cons last nil) ; else end of list
-	)
-)
+		(cons last nil))) ; else end of list
 
 (function filter (list func)
 	(if list
@@ -27,14 +25,11 @@
 		(if (func (first list))
 			; Then (filter returns true, this is member of list)
 			(cons (first list) (filter (rest list) func))
-			
-			; Else (this should be excluded from list)
-			(filter (rest list) func)
-		)
 
-		nil ; else end of list
-	)
-)
+			; Else (this should be excluded from list)
+			(filter (rest list) func))
+
+		nil)) ; else end of list
 
 ; Show only odd numbers of a sequence
 (print (filter (sequence 0 10) (function (x) (bitwise-and x 1))))

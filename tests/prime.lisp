@@ -21,20 +21,15 @@
 			false   ; else divides evenly, is not a prime
 		)
 	
-		true	; else did not find any divisors
-	)
-)
+		true))	; else did not find any divisors
 
 (function isprime (n)
-	(testfactor n 2 (rshift n 1))
-)
+	(testfactor n 2 (rshift n 1)))
 
 ; Print a list of all prime numbers below 40
 (for i 2 40 1
 	(if (isprime i)
-		(print i)
-	)
-)
+		(print i)))
 
 ; CHECK: 2
 ; CHECK: 3

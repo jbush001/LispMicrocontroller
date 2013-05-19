@@ -23,10 +23,7 @@
 		(while nodePtr
 			(assign ,var (first nodePtr))
 			,expr
-			(assign nodePtr (rest nodePtr))
-		)
-	)
-)
+			(assign nodePtr (rest nodePtr)))))
 
 (defmacro for (var start end step expr)
 	`(if (< ,step 0)
@@ -34,27 +31,19 @@
 		(let ((,var ,start) (__endval ,end))
 			(while (> ,var __endval) 
 				,expr
-				(assign ,var (+ ,var ,step))
-			)
-		)
+				(assign ,var (+ ,var ,step))))
 
 		; Incrementing
 		(let ((,var ,start)(__endval ,end))
 			(while (< ,var __endval) 
 				,expr
-				(assign ,var (+ ,var ,step))
-			)
-		)
-	)
-)
+				(assign ,var (+ ,var ,step))))))
 
 (defmacro write-register (index value)
-	`(store (- ,index 4096) ,value)
-)
+	`(store (- ,index 4096) ,value))
 
 (defmacro read-register (index)
-	`(load (- ,index 4096))
-)
+	`(load (- ,index 4096)))
 
 ; For debugging, uncomment the printchar lines to log GC actions
 (defmacro gclog (prefix address)
@@ -62,8 +51,7 @@
 ;		($printchar ,prefix)
 ;		($printhex ,address)
 ;		($printchar 10)
-	)
-)
+	))
 
 (defmacro atom? (ptr)
 	`(= (bitwise-and (gettag ,ptr) 3) 0)
@@ -96,16 +84,9 @@
 						(store ptr (settag firstword (bitwise-or tag 4)))
 
 						; Check if we need to mark the first pointer
-						($mark-recursive (first ptr))
-					)
-				)
-			)
+						($mark-recursive (first ptr)))))
 
-			($mark-recursive (rest ptr))
-		)
-	)
-)
-
+			($mark-recursive (rest ptr)))))
 ;
 ; Garbage collect, using mark-sweep algorithm
 ;
@@ -119,19 +100,15 @@
 		; Clear GC flags 
 		(for ptr $heapstart $wilderness-start 2
 			(let ((val (load ptr)) (tag (gettag val)))
-				(store ptr (settag val (bitwise-and tag 3)))
-			)
-		)
+				(store ptr (settag val (bitwise-and tag 3)))))
 		
 		; Walk globals and mark all
 		(for ptr 0 $heapstart 1
-			($mark-recursive (load ptr))
-		)
+			($mark-recursive (load ptr)))
 
 		; Walk stack and mark all
 		(for ptr (getbp) $stacktop 1
-			($mark-recursive (load ptr))		
-		)
+			($mark-recursive (load ptr)))
 		
 		; Sweep phase ;;;;;;;;;;;;;
 		
@@ -143,12 +120,7 @@
 
 					; This is not used, stick it back in the free list.
 					(store (+ 1 ptr) $freelist)
-					(assign $freelist ptr)
-				)
-			)
-		)
-	)
-)
+					(assign $freelist ptr))))))
 
 (function $oom ()
 	(begin
@@ -156,9 +128,7 @@
 		($printchar 79)
 		($printchar 77)
 		($printchar 10)
-		(while 1 ())
-	)
-)
+		(while 1 ())))
 
 ;
 ; Allocate a new cell and return a pointer to it
@@ -170,8 +140,7 @@
 			; There are nodes on freelist, grab one.
 			(begin
 				(assign ptr $freelist)
-				(assign $freelist (rest ptr))
-			)
+				(assign $freelist (rest ptr)))
 
 			; Nothing on freelist, try to expand frontier
 			(begin
@@ -179,8 +148,7 @@
 					; Space is available in frontier, snag from there.
 					(begin
 						(assign ptr $wilderness-start)
-						(assign $wilderness-start (+ $wilderness-start 2))
-					)
+						(assign $wilderness-start (+ $wilderness-start 2)))
 
 					; No more space available, need to garbage collect
 					(begin
@@ -189,56 +157,38 @@
 							; Then: got a block, assign it
 							(begin
 								(assign ptr $freelist)
-								(assign $freelist (rest ptr))
-							)
+								(assign $freelist (rest ptr)))
 
 							; Else: GC gave us nothing, give up.
-							($oom)
-						)
-					)
-				)
-			)
-		)
+							($oom))))))
 
 		; Debug: print cell that has been allocated
 		(gclog 65 ptr) 	; 'A'
-
 		(store ptr _first)
 		(store (+ ptr 1) _rest)
-		(settag ptr 1)	; Mark this as a cons cell and return
-	)
-)
+		(settag ptr 1)))	; Mark this as a cons cell and return
 
 (function abs (x)
 	(if (< x 0)
 		(- 0 x)
-		x
-	)
-)
+		x))
 
 (function $umul (multiplicand multiplier)
 	(let ((product 0))
 		(while multiplier
 			(if (bitwise-and multiplier 1)
-				(assign product (+ product multiplicand))
-			)
+				(assign product (+ product multiplicand)))
 
 			(assign multiplier (rshift multiplier 1))
-			(assign multiplicand (lshift multiplicand 1))
-		)
-		
-		product
-	)
-)
+			(assign multiplicand (lshift multiplicand 1)))
+			
+		product))
 
 (function * (multiplicand multiplier)
 	(let ((uprod ($umul (abs multiplicand) (abs multiplier))))
 		(if (= (< multiplicand 0) (< multiplier 0))
 			uprod			; same sign
-			(- 0 uprod)		; different signs
-		)
-	)
-)
+			(- 0 uprod))))	; different signs
 
 ;
 ; Unsigned divide.  If getrem is 1, this will return the remainder.  Otherwise
@@ -250,8 +200,7 @@
 		; be zero
 		(if getrem
 			divisor
-			0
-		)
+			0)
 
 		; Need to do division
 		(let ((quotient 0) (dnext dividend) (numbits 0))
@@ -259,8 +208,7 @@
 			(while (<= dnext divisor)
 				(assign dividend dnext)
 				(assign numbits (+ numbits 1))
-				(assign dnext (lshift dnext 1))
-			)
+				(assign dnext (lshift dnext 1)))
 	
 			; Divide
 			(while numbits
@@ -268,60 +216,40 @@
 				(if (>= divisor dividend)
 					(begin
 						(assign divisor (- divisor dividend))
-						(assign quotient (bitwise-or quotient 1))
-					)
-				)
+						(assign quotient (bitwise-or quotient 1))))
 			
 				(assign dividend (rshift dividend 1))
-				(assign numbits (- numbits 1))		
-			)
+				(assign numbits (- numbits 1)))
 	
 			(if getrem
 				divisor
-				quotient
-			)
-		)
-	)
-)
+				quotient))))
 
 (function / (divisor dividend)
 	(let ((uquotient ($udiv (abs divisor) (abs dividend) 0)))
 		(if (= (< divisor 0) (< dividend 0))
 			uquotient			; same sign
-			(- 0 uquotient)		; different signs
-		)
-	)
-)
+			(- 0 uquotient))))	; different signs
 
 (function mod (divisor dividend)
 	(let ((uremainder ($udiv (abs divisor) (abs dividend) 1)))
 		(if (< dividend 0)
 			(- 0 uremainder)	
-			uremainder
-		)
-	)
-)
+			uremainder)))
 
 (function sqrt (num)
 	(let ((guess num) (lastguess (+ num 3)))
 		(while (> (- lastguess guess) 2)
 			(assign lastguess guess)
-			(assign guess (/ (+ guess (/ num guess)) 2))
-		)
-		
-		guess
-	)
-)
+			(assign guess (/ (+ guess (/ num guess)) 2)))
+		guess))
 
 (function $printchar (x)
-	(write-register 0 x)
-)
+	(write-register 0 x))
 
 (function $printstr (x)
 	(foreach ch x
-		($printchar ch)
-	)
-)
+		($printchar ch)))
 
 ; Print a number in decimal format
 (function $printdec (num)
@@ -330,39 +258,27 @@
 			(begin
 				; Negative number
 				(assign num (- 0 num))
-				($printchar 45)	; minus sign
-			)
-		)
+				($printchar 45)))	; minus sign
 
 		(if num
 			; Not zero
 			(let ((str nil))
 				(while num
 					(assign str (cons (mod num 10) str))
-					(assign num (/ num 10))
-				)
+					(assign num (/ num 10)))
 	
 				(foreach ch str
-					($printchar (+ 48 ch))
-				)
-			)
+					($printchar (+ 48 ch))))
 
 			; Is zero
-			($printchar 48)
-		)
-	)
-)
+			($printchar 48))))
 
 (function $printhex (num)
 	(for idx 0 16 4
 		(let ((digit (bitwise-and (rshift num (- 12 idx)) 15)))
 			(if (< digit 10)
 				($printchar (+ digit 48))
-				($printchar (+ digit 55))	; - 10 + 'A'
-			)
-		)
-	)
-)
+				($printchar (+ digit 55))))))	; - 10 + 'A'
 
 (function print (x)
 	(begin
@@ -375,71 +291,47 @@
 						(begin
 							(if needspace
 								($printchar 32)
-								(assign needspace true)
-							)
-				
-							(print element)
-						)
-					)
-				)
+								(assign needspace true))
+							(print element))))
 		
-				($printchar 41)		; Close paren
-			)
-		)
+				($printchar 41)))		; Close paren
 
 		(if (atom? x)
 			;; This is a number
-			($printdec x)
-		)
+			($printdec x))
 	
 		(if (function? x)
 			;; This is a function
 			(begin
 				($printstr "function")
-				($printhex x) 
-			)
-		)
-	)
-)
+				($printhex x)))))
 
 (function nth (list index)
 	(if list
 		; then
 		(if index 
 			(nth (rest list) (- index 1))
-			(first list)	
-		)
+			(first list))
 
 		; else
-		nil
-	)
-)
+		nil))
 
 (function length (list)
 	(let ((len 0) (ptr list))
 		(while ptr
 			(assign len (+ len 1))
-			(assign ptr (rest ptr))
-		)
-
-		len
-	)
-)
+			(assign ptr (rest ptr)))
+		len))
 
 (function append (list element)
 	(if list
 		(cons (first list) (append (rest list) element))
-		(cons element nil)
-	)
-)
+		(cons element nil)))
 
 (function $$reverse_recursive (forward backward)
 	(if forward
 		($$reverse_recursive (rest forward) (cons (first forward) backward))
-		backward
-	)
-)
+		backward))
 
 (function reverse (list)
-	($$reverse_recursive list nil)
-)
+	($$reverse_recursive list nil))

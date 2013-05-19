@@ -18,16 +18,12 @@
 (function zip (a b)
 	(if (and a b)
 		(cons (cons (first a) (first b)) (zip (rest a) (rest b)))
-		nil		; else end of list	
-	)
-)
+		nil))		; else end of list	
 
 (foreach i (zip '(1 2 3 4 5) '(11 13 15 17 19))
 	(begin
 		(print (first i))
-		(print (rest i))	
-	)
-)
+		(print (rest i))))
 
 ; Result should be ((1 . 11) (2 . 13) (3 . 15) (4 . 17) (5 . 19))
 ; CHECK: 1

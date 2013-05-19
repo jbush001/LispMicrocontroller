@@ -17,24 +17,18 @@
 (function removenth (list index)
 	(if (and index (rest list))
 		(cons (first list) (removenth (rest list) (- index 1))) ; then keep searching
-		(rest list)	 ; else at index or end of list, return the next after
-	)
-)
+		(rest list)))	 ; else at index or end of list, return the next after
 
 (function anagram (prefix suffix)
 	(if suffix
 		; then select next letter 
 		(for x 0 (length suffix) 1
-			(anagram (append prefix (nth suffix x)) (removenth suffix x))
-		)
+			(anagram (append prefix (nth suffix x)) (removenth suffix x)))
 
 		; else print the final value
 		(begin
 			($printstr prefix)
-			($printchar 10)
-		)
-	)
-)
+			($printchar 10))))
 
 (anagram () "lisp")
  
