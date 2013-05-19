@@ -17,8 +17,7 @@
 (print
 	(while (< j 10)
 		(if (= j 7)
-			(break 37)
-		)
+			(break 37))
 
 		(assign j (+ j 1))))
 

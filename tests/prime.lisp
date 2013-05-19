@@ -18,8 +18,7 @@
 	(if (<= fact max)
 		(if (mod n fact)
 			(testfactor n (+ fact 1) max)   ; then: does not divide, check next
-			false   ; else divides evenly, is not a prime
-		)
+			false)   ; else divides evenly, is not a prime
 	
 		true))	; else did not find any divisors
 

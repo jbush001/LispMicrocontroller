@@ -161,8 +161,10 @@ class Parser:
 	def __init__(self):
 		self.lexer = None
 		self.program = []
+		self.filename = None
 
 	def parseFile(self, filename):
+		self.filename = filename
 		stream = open(filename, 'r')
 		self.lexer = shlex.shlex(stream)
 		self.lexer.commenters = ';'
@@ -198,7 +200,7 @@ class Parser:
 		if token == '':
 			return ''
 		
-		if token == '\'':
+		elif token == '\'':
 			return [ 'quote', self.parseExpr() ]
 		elif token == '`':
 			return [ 'backquote', self.parseExpr() ]
@@ -208,6 +210,8 @@ class Parser:
 			return self.parseParenList()
 		elif token.isdigit() or (token[0] == '-' and len(token) > 1):
 			return int(token)
+		elif token == ')':
+			raise Exception('unmatched ), ' + self.filename + ':' + str(self.lexer.lineno))
 		else:
 			return token
 			
@@ -376,10 +380,7 @@ class Compiler:
 	# Compile named function definition (function name (param param...) body)
 	#
 	def compileFunction(self, expr):
-		if len(expr) > 4:
-			raise Exception('function should only have one expression in body')
-	
-		function = self.compileFunctionBody(expr[1], expr[2], expr[3])
+		function = self.compileFunctionBody(expr[1], expr[2], expr[3:])
 		self.functionList += [ function ]
 	
 		if expr[1] in self.globals:
@@ -784,7 +785,7 @@ class Compiler:
 		self.currentFunction.numParams = len(params)
 	
 		# Compile top level expression.
-		self.compileExpression(body, isTailCall=True)
+		self.compileSequence(body, isTailCall=True)
 		self.currentFunction.emitInstruction(OP_RETURN)
 		self.currentFunction = oldFunc
 
@@ -799,7 +800,7 @@ class Compiler:
 		# Note: we do an enterScope because we may create temporary variables to 
 		# represent upvals while compiling. See lookupSymbol for more information.
 		self.currentFunction.enterScope()
-		newFunction = self.compileFunctionBody(None, expr[1], expr[2])
+		newFunction = self.compileFunctionBody(None, expr[1], expr[2:])
 		newFunction.referenced = True
 		self.currentFunction.exitScope()
 

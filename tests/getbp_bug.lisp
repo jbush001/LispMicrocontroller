@@ -16,8 +16,7 @@
 
 
 (function foo (a b)
-	(print b)
-)
+	(print b))
 
 (foo (getbp) 5) ;  CHECK: 5
 

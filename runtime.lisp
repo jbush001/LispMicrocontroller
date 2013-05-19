@@ -73,6 +73,7 @@
 (assign $max-heap (- $stacktop 1024)) 	
 (assign $freelist nil)
 
+; Mark a pointer, following links if it is a pair
 (function $mark-recursive (ptr)
 	(if (and ptr (list? ptr))	; Check if this is a cons and is not null
 		(begin
@@ -87,48 +88,51 @@
 						($mark-recursive (first ptr)))))
 
 			($mark-recursive (rest ptr)))))
+
+; Mark a range of contiguous addresses.
+(function $mark-range (start end)
+	($mark-recursive start)
+	(if (< start end)
+		($mark-range (+ start 1) end)))
+
 ;
 ; Garbage collect, using mark-sweep algorithm
 ;
 
 (function $gc ()
-	(begin
-		(gclog 71 $wilderness-start)
+	(gclog 71 $wilderness-start)
 
-		; Mark phase ;;;;;;;;;;;;;
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	; Mark phase
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-		; Clear GC flags 
-		(for ptr $heapstart $wilderness-start 2
-			(let ((val (load ptr)) (tag (gettag val)))
-				(store ptr (settag val (bitwise-and tag 3)))))
-		
-		; Walk globals and mark all
-		(for ptr 0 $heapstart 1
-			($mark-recursive (load ptr)))
+	; Clear GC flags 
+	(for ptr $heapstart $wilderness-start 2
+		(let ((val (load ptr)) (tag (gettag val)))
+			(store ptr (settag val (bitwise-and tag 3)))))
+	
+	($mark-range 0 $heapstart)      ; Mark global variables
+	($mark-range (getbp) $stacktop) ; Mark stack
+	
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	; Sweep phase 
+	;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-		; Walk stack and mark all
-		(for ptr (getbp) $stacktop 1
-			($mark-recursive (load ptr)))
-		
-		; Sweep phase ;;;;;;;;;;;;;
-		
-		(assign $freelist nil)	; First clear the freelist so we don't double-add
-		(for ptr $heapstart $wilderness-start 2
-			(if (not (bitwise-and (gettag (load ptr)) 4))
-				(begin
-					(gclog 70 ptr) 	; 'F'
-
-					; This is not used, stick it back in the free list.
-					(store (+ 1 ptr) $freelist)
-					(assign $freelist ptr))))))
+	(assign $freelist nil)	; First clear the freelist so we don't double-add
+	(for ptr $heapstart $wilderness-start 2
+		(if (not (bitwise-and (gettag (load ptr)) 4))
+			(begin
+				; This is not used, stick it back in the free list.
+				(store (+ 1 ptr) $freelist)
+				(assign $freelist ptr)
+				(gclog 70 ptr))))) 	; 'F'
 
 (function $oom ()
-	(begin
-		($printchar 79)
-		($printchar 79)
-		($printchar 77)
-		($printchar 10)
-		(while 1 ())))
+	($printchar 79)
+	($printchar 79)
+	($printchar 77)
+	($printchar 10)
+	(while 1 ()))
 
 ;
 ; Allocate a new cell and return a pointer to it
@@ -253,25 +257,24 @@
 
 ; Print a number in decimal format
 (function $printdec (num)
-	(begin
-		(if (< num 0)
-			(begin
-				; Negative number
-				(assign num (- 0 num))
-				($printchar 45)))	; minus sign
+	(if (< num 0)
+		(begin
+			; Negative number
+			(assign num (- 0 num))
+			($printchar 45)))	; minus sign
 
-		(if num
-			; Not zero
-			(let ((str nil))
-				(while num
-					(assign str (cons (mod num 10) str))
-					(assign num (/ num 10)))
-	
-				(foreach ch str
-					($printchar (+ 48 ch))))
+	(if num
+		; Not zero
+		(let ((str nil))
+			(while num
+				(assign str (cons (mod num 10) str))
+				(assign num (/ num 10)))
 
-			; Is zero
-			($printchar 48))))
+			(foreach ch str
+				($printchar (+ 48 ch))))
+
+		; Is zero
+		($printchar 48)))
 
 (function $printhex (num)
 	(for idx 0 16 4
@@ -281,30 +284,29 @@
 				($printchar (+ digit 55))))))	; - 10 + 'A'
 
 (function print (x)
-	(begin
-		(if (list? x)
-			;; This is a list
-			(begin
-				($printchar 40)	; Open paren
-				(let ((needspace false))
-					(foreach element x
-						(begin
-							(if needspace
-								($printchar 32)
-								(assign needspace true))
-							(print element))))
-		
-				($printchar 41)))		; Close paren
-
-		(if (atom? x)
-			;; This is a number
-			($printdec x))
+	(if (list? x)
+		;; This is a list
+		(begin
+			($printchar 40)	; Open paren
+			(let ((needspace false))
+				(foreach element x
+					(begin
+						(if needspace
+							($printchar 32)
+							(assign needspace true))
+						(print element))))
 	
-		(if (function? x)
-			;; This is a function
-			(begin
-				($printstr "function")
-				($printhex x)))))
+			($printchar 41)))		; Close paren
+
+	(if (atom? x)
+		;; This is a number
+		($printdec x))
+
+	(if (function? x)
+		;; This is a function
+		(begin
+			($printstr "function")
+			($printhex x))))
 
 (function nth (list index)
 	(if list

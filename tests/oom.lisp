@@ -16,5 +16,5 @@
 
 ; Will run out of memory.  Make sure runtime prints error.  Not run automatically:
 ; need to modify testbench.v to run extra cycles.
-(while 1
+(while true
 	(assign a (cons 1 a)))
