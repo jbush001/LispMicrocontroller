@@ -54,16 +54,13 @@
 	))
 
 (defmacro atom? (ptr)
-	`(= (bitwise-and (gettag ,ptr) 3) 0)
-)
+	`(= (bitwise-and (gettag ,ptr) 3) 0))
 
 (defmacro list? (ptr)
-	`(= (bitwise-and (gettag ,ptr) 3) 1)
-)
+	`(= (bitwise-and (gettag ,ptr) 3) 1))
 
 (defmacro function? (ptr)
-	`(= (bitwise-and (gettag ,ptr) 3) 2)
-)
+	`(= (bitwise-and (gettag ,ptr) 3) 2))
 
 ; Note that $heapstart is a variable created automatically
 ; by the compiler.  Wilderness is memory that has never been allocated and
@@ -91,7 +88,7 @@
 
 ; Mark a range of contiguous addresses.
 (function $mark-range (start end)
-	($mark-recursive start)
+	($mark-recursive (load start))
 	(if (< start end)
 		($mark-range (+ start 1) end)))
 
