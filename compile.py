@@ -146,7 +146,7 @@ class Function:
 		self.instructions[offset] |= (value & 0xffff)
 
 	def performLocalFixups(self):
-		self.instructions[0] = (OP_RESERVE << 16) | (self.numLocalVariables + 1)
+		self.instructions[0] = (OP_RESERVE << 16) | self.numLocalVariables
 		for ip, label in self.localFixups:
 			if not label.defined:
 				raise Exception('undefined label')
