@@ -1030,6 +1030,9 @@ def disassemble(outfile, instructions, baseAddress):
 
 def prettyPrintSExpr(listfile, expr, indent = 0):
 	if isinstance(expr, list):
+		if len(expr) > 0 and expr[0] == 'function':
+			listfile.write('\n')
+
 		listfile.write('\n')
 		for x in range(indent):
 			listfile.write('  ')
@@ -1041,9 +1044,7 @@ def prettyPrintSExpr(listfile, expr, indent = 0):
 
 			prettyPrintSExpr(listfile, elem, indent + 1)
 			
-		listfile.write(')\n')
-		for x in range(indent - 1):
-			listfile.write('  ')
+		listfile.write(')')
 	else:
 		listfile.write(str(expr))
 

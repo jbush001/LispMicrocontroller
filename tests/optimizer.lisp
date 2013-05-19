@@ -79,4 +79,18 @@
 (print (or 1 1 0)) ; CHECK: 1
 (print (or 1 1 1)) ; CHECK: 1
 
+(print (and (or 0 0) (or 0 0))) ; CHECK: 0
+(print (and (or 0 0) (or 1 0))) ; CHECK: 0
+(print (and (or 0 1) (or 0 0))) ; CHECK: 0
+(print (and (or 1 0) (or 0 1))) ; CHECK: 1
+
+(print (or (and 0 0) (and 0 0))) ; CHECK: 0 
+(print (or (and 1 0) (and 0 0))) ; CHECK: 0
+(print (or (and 0 0) (and 1 0))) ; CHECK: 0
+(print (or (and 1 1) (and 0 0))) ; CHECK: 1
+(print (or (and 0 1) (and 1 1))) ; CHECK: 1
+
+
+
+
 
