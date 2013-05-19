@@ -15,7 +15,7 @@
 # limitations under the License.
 # 
 
-import sys, shlex, copy
+import sys, shlex, copy, math
 
 TAG_INTEGER = 0		# Make this zero because types default to this when pushed
 TAG_CONS = 1
@@ -870,7 +870,7 @@ class Compiler:
 			else:
 				raise Exception('unknown global fixup type')
 
-BINOPS = {
+OPTIMIZE_BINOPS = {
 	'+' : (lambda x, y : x + y),
 	'-' : (lambda x, y : x - y),
 	'/' : (lambda x, y : x / y),
@@ -878,8 +878,6 @@ BINOPS = {
 	'bitwise-and' : (lambda x, y : x & y),
 	'bitwise-or' : (lambda x, y : x | y),
 	'bitwise-xor' : (lambda x, y : x ^ y),
-	'and' : (lambda x, y : x and y),
-	'or'  : (lambda x, y : x or y),
 	'lshift' : (lambda x, y : x << y),
 	'rshift' : (lambda x, y : x >> y),
 	'>' : (lambda x, y : 1 if x > y else 0),
@@ -890,40 +888,91 @@ BINOPS = {
 	'<>' : (lambda x, y : 1 if x != y else 0)
 }
 
-UOPS = {
+OPTIMIZE_UOPS = {
 	'bitwise-not' : (lambda x : ~x),
 	'-' : (lambda x : -x),
 	'not' : (lambda x : 1 if x else 0)
 }
 
+def isPowerOfTwo(x):
+	return (x & (x - 1)) == 0
+
+def makeLegalConstant(x):
+	x &= 0xFFFF
+	if x & 0x8000:
+		return -((~x + 1) & 0xffff)
+	else:
+		return x
 #
 # Simple arithmetic constant folding on the S-Expression data structure.
 #
-def foldConstants(expr):
+def optimize(expr):
 	if isinstance(expr, list) and len(expr) > 0:
 		if expr[0] == 'quote':
-			return expr			# Ignore everything in quotes
+			return expr			# Copy everything unaltered in quotes
 		else:
 			# Fold arithmetic expressions if possible
-			optimizedParams = [ foldConstants(sub) for sub in expr[1:] ]
-			if not isinstance(expr[0], list) and expr[0] in BINOPS \
+			optimizedParams = [ optimize(sub) for sub in expr[1:] ]
+			if not isinstance(expr[0], list) and expr[0] in OPTIMIZE_BINOPS \
 				and len(expr) == 3 and isinstance(optimizedParams[0], int) \
 				and isinstance(optimizedParams[1], int):
-				return BINOPS[expr[0]](optimizedParams[0], optimizedParams[1])
+				return makeLegalConstant(OPTIMIZE_BINOPS[expr[0]](optimizedParams[0], optimizedParams[1]))
 			
-			if not isinstance(expr[0], list) and expr[0] in UOPS \
+			if not isinstance(expr[0], list) and expr[0] in OPTIMIZE_UOPS \
 				and len(expr) == 2 and isinstance(optimizedParams[0], int):
-				return UOPS[expr[0]](optimizedParams[0])
+				return makeLegalConstant(OPTIMIZE_UOPS[expr[0]](optimizedParams[0]))
 				
-			# If an if form has a constant expression, only include the
+			# Short circuit.  If any parameters are constant 0, the whole thing is zero
+			if expr[0] == 'and':
+				allOnes = True
+				for param in optimizedParams:
+					if isinstance(param, int):
+						if param == 0:
+							return 0
+					else:
+						allOnes = False
+
+				if allOnes:
+					return 1
+
+				# Could not optimize
+				return [ expr[0] ] + optimizedParams				
+			
+			# Short circuit.  If any parameters are constant 1, the whole thing is 1
+			if expr[0] == 'or':
+				allZeroes = True
+				for param in optimizedParams:
+					if isinstance(param, int):
+						if param != 0:
+							return 1
+					else:
+						allZeroes = False
+
+				if allZeroes:
+					return 0
+
+				# Could not optimize
+				return [ expr[0] ] + optimizedParams				
+				
+			# If a conditional form has a constant expression, include only the
 			# appropriate clause
 			if not isinstance(expr[0], list) and expr[0] == 'if' \
 				and isinstance(optimizedParams[0], int):
 				if optimizedParams[0] != 0:
 					return optimizedParams[1]
-				else:
+				elif len(optimizedParams) > 2:
 					return optimizedParams[2]
+				else:
+					return 0	# Did not have an else, this is an empty expression
 
+			# Strength reduction for power of two multiplies and divides
+			if len(optimizedParams) > 1 and isinstance(optimizedParams[1], int) \
+				and isPowerOfTwo(optimizedParams[1]) and optimizedParams[1] > 0  \
+				and (expr[0] == '*' or expr[0] == '/'):
+				return [ 'lshift' if expr[0] == '*' else 'rshift', optimizedParams[0], 
+					int(math.log(int(optimizedParams[1]), 2)) ]
+
+			# Nothing to optimize, return the expression as is
 			return [ expr[0] ] + optimizedParams
 	else:
 		return expr
@@ -1040,8 +1089,8 @@ class MacroProcessor:
 				return self.expandBackquote(expr[1], env)
 			elif func == 'cons':
 				return [ self.eval(expr[1], env) ] + [ self.eval(expr[2], env) ]
-			elif func in BINOPS:
-				return BINOPS[func](self.eval(expr[1], env), self.eval(expr[2], env) )
+			elif func in OPTIMIZE_BINOPS:
+				return OPTIMIZE_BINOPS[func](self.eval(expr[1], env), self.eval(expr[2], env) )
 			elif func in self.macroList:
 				# Invoke a sub-macro
 				newEnv = copy.copy(env)
@@ -1106,7 +1155,7 @@ for filename in sys.argv[1:]:
 macro = MacroProcessor()
 expanded = macro.macroPreProcess(parser.getProgram())
 
-optimized = [ foldConstants(sub) for sub in expanded ]
+optimized = [ optimize(sub) for sub in expanded ]
 
 compiler = Compiler()
 code = compiler.compile(optimized)

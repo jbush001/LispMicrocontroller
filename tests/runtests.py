@@ -1,6 +1,7 @@
 import subprocess, sys
 
 TESTS = [
+	'optimizer.lisp',
 	'zip.lisp',
 	'anagram.lisp',
 	'anonfunc.lisp',
