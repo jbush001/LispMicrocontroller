@@ -20,6 +20,7 @@ module lisp_core
 	#(parameter 				DATA_MEM_SIZE = 8192)
 
 	(input 						clk,
+	input						reset,
 	
 	output [15:0]				instr_mem_address,
 	input [20:0] 				instr_mem_read_value,
@@ -68,11 +69,11 @@ module lisp_core
 	localparam					OP_SETLOCAL = 5'd30;
 	localparam					OP_CLEANUP = 5'd31;
 
-	reg[3:0]					state = STATE_DECODE;
-	reg[18:0]			 		top_of_stack = 0;
-	reg[15:0] 					stack_pointer = DATA_MEM_SIZE - 16'd8;
-	reg[15:0] 					base_pointer = DATA_MEM_SIZE - 16'd4;
-	reg[15:0] 					instruction_pointer = 16'hffff;
+	reg[3:0]					state;
+	reg[18:0]			 		top_of_stack;
+	reg[15:0] 					stack_pointer;
+	reg[15:0] 					base_pointer;
+	reg[15:0] 					instruction_pointer;
 
 	//
 	// Instruction fields
@@ -624,13 +625,24 @@ module lisp_core
 		endcase
 	end
 
-	always @(posedge clk)
+	always @(posedge reset, posedge clk)
 	begin
-		instruction_pointer <= instruction_pointer_next;
-		state <= state_next;
-		top_of_stack <= top_of_stack_next;
-		stack_pointer <= stack_pointer_next;
-		base_pointer <= base_pointer_next;
+		if (reset)
+		begin
+			state <= STATE_DECODE;
+			top_of_stack <= 0;
+			stack_pointer <= DATA_MEM_SIZE - 16'd8;
+			base_pointer <= DATA_MEM_SIZE - 16'd4;
+			instruction_pointer <= 16'hffff;
+		end
+		else
+		begin
+			instruction_pointer <= instruction_pointer_next;
+			state <= state_next;
+			top_of_stack <= top_of_stack_next;
+			stack_pointer <= stack_pointer_next;
+			base_pointer <= base_pointer_next;
+		end
 	end
 endmodule
 

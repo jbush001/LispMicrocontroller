@@ -30,7 +30,9 @@ module top(
 	reg[15:0]			register_read_value = 0;
 	reg[3:0]			buttons_sync0 = 0;
 	reg[3:0]			buttons_sync1 = 0;
-	reg				clk = 0;
+	reg					clk = 0;
+	reg					reset = 1;
+	reg[3:0]			reset_count = 7;
 	
 	// Divide 50 Mhz clock down to 25 Mhz
 	always @(posedge clk50)
@@ -38,6 +40,7 @@ module top(
 	
 	ulisp l(
 		.clk(clk),
+		.reset(reset),
 		.register_index(register_index),
 		.register_read(register_read),
 		.register_write(register_write),
@@ -46,6 +49,11 @@ module top(
 	
 	always @(posedge clk)
 	begin
+		if (reset_count == 0)
+			reset <= 0;
+		else
+			reset_count <= reset_count - 1;
+	
 		if (register_write)
 		begin
 			case (register_index)

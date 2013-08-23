@@ -21,6 +21,7 @@
 module testbench;
 
 	reg 				clk;
+	reg					reset;
 	integer 			i;
 	integer 			j;
 	wire[11:0]			register_index;
@@ -31,6 +32,7 @@ module testbench;
 	
 	ulisp l(
 		.clk(clk),
+		.reset(reset),
 		.register_index(register_index),
 		.register_read(register_read),
 		.register_write(register_write),
@@ -40,6 +42,8 @@ module testbench;
 	initial
 	begin
 		clk = 0;
+		#5 reset = 1;
+		#5 reset = 0;
 
 		$dumpfile("trace.vcd");
 		$dumpvars(100, l);

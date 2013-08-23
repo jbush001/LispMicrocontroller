@@ -18,6 +18,7 @@
 
 module ulisp(
 	input 					clk,
+	input					reset,
 	output [11:0]			register_index,
 	output					register_read,
 	output					register_write,
@@ -51,6 +52,7 @@ module ulisp(
 
 	lisp_core #(MEM_SIZE) c(
 		.clk(clk),
+		.reset(reset),
 		.instr_mem_address(instr_mem_address),
 		.instr_mem_read_value(instr_mem_read_value),
 		.data_mem_address(data_mem_address),
@@ -72,5 +74,4 @@ module ulisp(
 
 	always @(posedge clk)
 		last_was_register_access <= is_hardware_register_access;
-
 endmodule
