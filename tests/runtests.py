@@ -1,4 +1,4 @@
-import subprocess, sys
+import subprocess, sys, re
 
 TESTS = [
 	'sum-even-fib.lisp',
@@ -21,6 +21,33 @@ TESTS = [
 	'nth.lisp'
 ]
 
+def checkOutput(output, checkFilename):
+    resultOffset = 0
+    lineNo = 1
+    foundCheckLines = False
+    f = open(checkFilename, 'r')
+    for line in f.readlines():
+    	chkoffs = line.find('CHECK: ')
+    	if chkoffs != -1:
+    		foundCheckLines = True
+    		expected = line[chkoffs + 7:].strip()
+    		regexp = re.compile(expected)
+    		got = regexp.search(output, resultOffset)
+    		if got:
+    			resultOffset = got.end()
+    		else:
+    			print 'FAIL: line ' + str(lineNo) + ' expected string ' + expected + ' was not found'
+    			print 'searching here:' + result[resultOffset:]
+    			return False
+			
+    	lineNo += 1
+
+    if not foundCheckLines:
+    	print 'FAIL: no lines with CHECK: were found'    
+        return False
+        
+    return True
+    
 def runtest(filename):
 	try:
 		# Compile test
@@ -36,49 +63,28 @@ def runtest(filename):
 		
 			raise
 		
-		# Read expected results
-		checkval = ''
-		f = open(filename, 'r')
-		for line in f.readlines():
-			offs = line.find('CHECK: ')
-			if offs != -1:
-				checkval += line[offs + 7:].strip()
-		
-		checkval.strip()
-	
 		# Run test
 		args = [ 'vvp', 'sim.vvp' ]
 		process = None
+		output = None
 		try:
 			process = subprocess.Popen(args, stdout=subprocess.PIPE)
 			output = process.communicate()[0].strip()
 		except:
-			print 'execute failed'
 			if process:
 				process.kill()
 
 			raise
 
-		result = ''
-		for line in output.split('\n'):
-			if line.find('Not enough words in the file for the requested range') != -1:
-				continue
-			
-			if line.find('VCD info') != -1:
-				continue
-			
-			result += line.strip()
-
-		if result != checkval:
-			print 'FAIL:'
-			print 'expected: ' + checkval
-			print 'actual: ' + result
-		else:
-			print 'PASS'	
+		if output:
+			if checkOutput(output, filename):
+				print 'PASS'
+				
 	except KeyboardInterrupt:
 		raise
 	except:
 		print 'FAIL: exception thrown'
+		raise
 
 if len(sys.argv) > 1:
 	runtest('tests/' + sys.argv[1])
