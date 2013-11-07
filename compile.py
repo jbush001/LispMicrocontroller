@@ -261,7 +261,7 @@ class Compiler:
 #			sym = self.currentFunction.reserveLocalVariable(name)
 #			self.currentFunction.closureVars += [ sym ]
 #
-#			# Mark upvals, possibly through multiple functions
+#			# Mark free variables, possibly through multiple functions
 #			dest = sym
 #			func = self.currentFunction.enclosingFunction
 #			foundSource = False
@@ -475,8 +475,8 @@ class Compiler:
 	def compileCombination(self, expr, isTailCall=False):
 		if isinstance(expr[0], str):
 			functionName = expr[0]
-			if functionName in self.BUILT_IN_FUNCTIONS:
-				self.compileBuiltInFunction(expr)
+			if functionName in self.PRIMITIVES:
+				self.compilePrimitive(expr)
 			elif functionName == 'function':
 				self.compileAnonymousFunction(expr)
 			elif functionName == 'begin':
@@ -600,10 +600,10 @@ class Compiler:
 
 	#
 	# Compile a boolean expression that is part of a control flow expression.
-	# If the expression is false, this will jump to the label 'falseTarget', otherwise
+	# If the expression is false, this will jump to the label 'falseLabel', otherwise
 	# it will fall through.  This performs short circuit evaluation where possible.
 	#
-	def compilePredicate(self, expr, falseTarget):
+	def compilePredicate(self, expr, falseLabel):
 		if isinstance(expr, list):
 			if expr[0] == 'and':
 				if len(expr) < 2:
@@ -612,7 +612,7 @@ class Compiler:
 				# Note that we short circuit if any condition is false and
 				# jump directly to the false case
 				for cond in expr[1:]:
-					self.compilePredicate(cond, falseTarget)
+					self.compilePredicate(cond, falseLabel)
 
 				return
 			elif expr[0] == 'or':
@@ -627,7 +627,7 @@ class Compiler:
 					self.currentFunction.emitLabel(testNext)
 
 				# Final test simply short circuits to false target
-				self.compilePredicate(expr[-1], falseTarget)
+				self.compilePredicate(expr[-1], falseLabel)
 				self.currentFunction.emitLabel(trueTarget)
 				return
 			elif expr[0] == 'not':
@@ -636,12 +636,12 @@ class Compiler:
 
 				skipTo = self.currentFunction.generateLabel()
 				self.compilePredicate(expr[1], skipTo)
-				self.currentFunction.emitBranchInstruction(OP_GOTO, falseTarget)
+				self.currentFunction.emitBranchInstruction(OP_GOTO, falseLabel)
 				self.currentFunction.emitLabel(skipTo)
 				return
 
 		self.compileExpression(expr)
-		self.currentFunction.emitBranchInstruction(OP_BFALSE, falseTarget)
+		self.currentFunction.emitBranchInstruction(OP_BFALSE, falseLabel)
 
 	#
 	# Conditional execution of the form
@@ -698,8 +698,8 @@ class Compiler:
 
 		self.currentFunction.emitBranchInstruction(OP_GOTO, label)
 
-	# Built in functions are map directly to opcodes
- 	BUILT_IN_FUNCTIONS = {
+	# Primitives look like function calls, but map directly to machine instructions
+ 	PRIMITIVES = {
 		'+' 		: ( OP_ADD, 2),
 		'-' 		: ( OP_SUB, 2),
 		'>'			: ( OP_GTR, 2),
@@ -722,8 +722,8 @@ class Compiler:
 		'lshift'	: (OP_LSHIFT, 2)
  	}
 
-	def compileBuiltInFunction(self, expr):
-		opcode, nargs = self.BUILT_IN_FUNCTIONS[expr[0]]
+	def compilePrimitive(self, expr):
+		opcode, nargs = self.PRIMITIVES[expr[0]]
 	
 		if len(expr) - 1 != nargs:
 			raise Exception('wrong number of arguments for', expr[0])
@@ -745,7 +745,7 @@ class Compiler:
 			self.currentFunction.emitInstruction(opcode)
 
 	#
-	# Call to a user defined function
+	# Call a function
 	#
 	def compileFunctionCall(self, expr, isTailCall = False):
 		if isinstance(expr[0], int):
@@ -794,12 +794,12 @@ class Compiler:
 
 	#
 	# Of the form (function (param param...) (expr))
-	# We generate the code in a separate function, then we will emit a reference
-	# to that code in the current function.
+	# We generate the code in a separate top level, global function, then we will 
+	# emit a reference to that code in the current function.
 	#
 	def compileAnonymousFunction(self, expr):
 		# Note: we do an enterScope because we may create temporary variables to 
-		# represent upvals while compiling. See lookupSymbol for more information.
+		# represent free variables while compiling. See lookupSymbol for more information.
 		self.currentFunction.enterScope()
 		newFunction = self.compileFunctionBody(None, expr[1], expr[2:])
 		newFunction.referenced = True
