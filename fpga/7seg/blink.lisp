@@ -24,8 +24,5 @@
 	(write-register 1 a)
 	(for j 0 10 1
 		(for i 0 16000 1
-			()
-		)
-	)
-)
+			())))
 

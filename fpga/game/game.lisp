@@ -23,8 +23,7 @@
 (while 1
 	; Wait for start of vblank
 	(while (<> (read-register 1) 1)
-		()
-	)
+		())
 
 	; Set up sprite 0
 	(write-register 3 x0)	; X coord
@@ -38,22 +37,17 @@
 
 	; Wait for end of vblank
 	(while (read-register 1)
-		()
-	)
+		())
 
 	; Left?
 	(if (<> (bitwise-and (read-register 0) 1) 0)
 		(if (> x0 3)
-			(assign x0 (- x0 3))
-		)
-	)
+			(assign x0 (- x0 3))))
 
 	; Move right?
 	(if (<> (bitwise-and (read-register 0) 2) 0)
 		(if (< x0 (- 320 (+ 16 3)))
-			(assign x0 (+ x0 3))
-		)
-	)
+			(assign x0 (+ x0 3))))
 
 	; Update missile
 	(if missile-active
@@ -61,29 +55,21 @@
 		(begin
 			(assign missile-y (- missile-y 2))
 			(if (< missile-y -16)
-				(assign missile-active 0)		; Missile off top of screen
-			)
-		)
+				(assign missile-active 0)))		; Missile off top of screen
 
 		; Missile is not active, test for firing
 		(if (= (bitwise-and (read-register 0) 4) 0)	; Not clear why this is inverted
 			(begin
 				(assign missile-active 1)
 				(assign missile-y (- 240 32))
-				(assign missile-x x0)
-			)
-		)
-	)
+				(assign missile-x x0))))
 	
 	; Animate
 	(if (= animation-delay 0)
 		; Animate jet exhaust
 		(begin
 			(assign animationFrame (- 1 animationFrame))
-			(assign animation-delay 3)
-		)
-		(assign animation-delay (- animation-delay 1))
-	)
-)
+			(assign animation-delay 3))
+		(assign animation-delay (- animation-delay 1))))
 
 

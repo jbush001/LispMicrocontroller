@@ -25,17 +25,12 @@
 	(for register 2 6 1
 		(begin
 			(write-register register (nth segments (mod num 10)))
-			(assign num (/ num 10))
-		)
-	)
-)
+			(assign num (/ num 10)))))
 
 (function fib (n)
     (if (< n 2)
         n
-        (+ (fib (- n 1)) (fib (- n 2)))
-    )
-)
+        (+ (fib (- n 1)) (fib (- n 2)))))
 
 (assign a 0)
 (while 1
@@ -44,11 +39,9 @@
 
 	; Wait for key release
 	(while (bitwise-and (read-register 6) 1)
-		()
-	)
+		())
 
 	; Wait for key press
 	(while (= (bitwise-and (read-register 6) 1) 0)
-		()
-	)
-)
+		()))
+
