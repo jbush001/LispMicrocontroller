@@ -1,6 +1,9 @@
+#!/usr/bin/env python
+
 import subprocess, sys, re
 
 TESTS = [
+	'map-reduce.lisp',
 	'sum-even-fib.lisp',
 	'optimizer.lisp',
 	'zip.lisp',
@@ -16,7 +19,7 @@ TESTS = [
 	'filter.lisp',
 	'getbp_bug.lisp',
 	'hello.lisp',
-	'map.lisp',
+	'dict.lisp',
 	'muldiv.lisp',
 	'nth.lisp'
 ]

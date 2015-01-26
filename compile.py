@@ -513,7 +513,7 @@ class Compiler:
 	#
 	def compileQuote(self, expr):
 		if isinstance(expr, list):
-			if expr[1] == '.' and len(expr) == 3:
+			if len(expr) == 3 and expr[1] == '.':
 				# This is a pair of the for ( expr . expr )
 				# Create a single cons cell for it.
 				self.compileQuote(expr[2])
@@ -524,6 +524,9 @@ class Compiler:
 				self.compileIdentifier('cons')
 				self.currentFunction.emitInstruction(OP_CALL)
 				self.currentFunction.emitInstruction(OP_CLEANUP, 2)
+			elif len(expr) == 0:
+				# Empty list
+				self.compileIntegerLiteral(0)
 			else:
 				# List, create a chain of cons calls
 				self.compileQuotedList(expr)
