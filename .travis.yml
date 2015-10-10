@@ -3,6 +3,6 @@ sudo: false
 addons:
   apt:
     packages:
-      -iverilog
+      - iverilog
 script:
 - make test
