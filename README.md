@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/jbush001/LispMicrocontroller.svg?branch=master)](https://travis-ci.org/jbush001/LispMicrocontroller)
+
 This is a simple microcontroller that runs a compiled LISP dialect.  Details of operation are in the [wiki](https://github.com/jbush001/LispMicrocontroller/wiki).
 
 ## Running in simulation
