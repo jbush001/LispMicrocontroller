@@ -45,17 +45,13 @@ under the fpga/ directory:
 These are located in the project directory, but must be compiled from the top directory.
 For example, from LispMicrocontroller/
 
-<pre>
-     ./compile.py fpga/game/game.lisp
-</pre>
+        ./compile.py fpga/game/game.lisp
 
-rom.hex will be created in the top level LispMicrocontroller/ directory.
+    rom.hex will be created in the top level LispMicrocontroller/ directory.
 
 * Synthesize the design 
-
 Open the program file (for example, fpga/game/game.qpf).  Note that the synthesis tools will 
-read rom.hex to create the values for program ROM.  If you recompile the LISP sources (thereby changing rom.hex), the 
-design must be re-synthesized.
+read rom.hex to create the values for program ROM.  If you recompile the LISP sources (thereby changing rom.hex), the design must be re-synthesized.
 
 * Run using the programmer included with Quartus.
 
