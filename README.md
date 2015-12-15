@@ -37,7 +37,7 @@ under the fpga/ directory:
 These are located in the project directory, but must be compiled from the top directory.
 For example, from LispMicrocontroller/
 
- ./compile.py fpga/game/game.lisp
+        ./compile.py fpga/game/game.lisp
 
     rom.hex will be created in the top level LispMicrocontroller/ directory.
 
