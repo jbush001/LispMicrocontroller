@@ -15,14 +15,14 @@ The test runner searches files for patterns that begin with 'CHECK:'. The output
 * Compile the LISP sources.  
 This produces two files: program.hex, which has the raw program machine code and is loaded by the simulator, and program.lst, which is informational and shows details of the generated code.  For example:
 
-    ./compile.py tests/test1.lisp
+        ./compile.py tests/test1.lisp
 
 Note that any writes to register index 0 will be printed to standard out by the simulation test harness, which is how most simulation tests work.
 
 * Run simulation.  
 The simulator will read rom.hex each time it starts.
 
-    vvp sim.vvp
+        vvp sim.vvp
 
 ## Running in hardware
 
