@@ -87,9 +87,9 @@
 (print (if no 51 72)) ; CHECK: 72
 
 ; Validate short circuit evaluation.
-(and yes (print 97))	; CHECK: 97
+(and yes (print 97))    ; CHECK: 97
 (and no (print 1))
 (or yes (print 1))
-(or no (print 34))	; CHECK: 34
+(or no (print 34))    ; CHECK: 34
 
 
