@@ -15,17 +15,17 @@
 # limitations under the License.
 #
 
-#
-# Read a set of LISP source files and compile to machine code in HEX
-# format. Output file is 'program.hex'
-#
-#  ./compile.py <source file 1> [<source file 2>] ...
-#
+'''
+Read LISP source files and compile to machine code in hex
+format. Output file is 'program.hex'
 
-import sys
-import shlex
+ ./compile.py <source file 1> [<source file 2>] ...
+'''
+
 import copy
 import math
+import shlex
+import sys
 
 TAG_INTEGER = 0  # Make this zero because types default to this when pushed
 TAG_CONS = 1
@@ -62,94 +62,91 @@ OP_SETLOCAL = 30
 OP_CLEANUP = 31
 
 
-class Symbol:
+class Symbol(object):
     LOCAL_VARIABLE = 1
     GLOBAL_VARIABLE = 2
     FUNCTION = 3
 
-    def __init__(self, type):
-        self.type = type
+    def __init__(self, symtype):
+        self.type = symtype
         self.index = -1
         self.initialized = False    # For globals
         self.function = None
         self.upval = None
 
-# Labels are only visible inside the functions they are defined in.
 
-
-class Label:
+class Label(object):
+    '''
+    A label represents a branch destination.
+    Labels are only visible inside the functions they are defined in.
+    '''
 
     def __init__(self):
         self.defined = False
         self.address = 0
 
 
-class Function:
+class Function(object):
 
     def __init__(self):
         self.name = None
-        self.localFixups = []
-        self.baseAddress = 0
-        self.numLocalVariables = 0
-        self.instructions = []          # Each entry is a word
+        self.local_fixups = []
+        self.base_address = 0
+        self.num_local_variables = 0
+        self.instructions = []
         self.environment = [{}]         # Stack of scopes
-        self.closureVars = []
-        self.enclosingFunction = None
-        self.referencedFunctions = []
+        self.closure_vars = []
+        self.enclosing_function = None
+        self.referenced_functions = []
         self.referenced = False         # Used to strip dead functions
+        self.num_params = 0
 
         # Save a spot for an initial 'reserve' instruction
-        self.emitInstruction(OP_RESERVE, 0)
+        self.emit_instruction(OP_RESERVE, 0)
 
         # Entry label comes after reserve
-        self.entry = self.generateLabel()
-        self.emitLabel(self.entry)
+        self.entry = Label()
+        self.emit_label(self.entry)
 
-    def generateLabel(self):
-        return Label()
-
-    def getEntryLabel(self):
-        return self.entry
-
-    def enterScope(self):
+    def enter_scope(self):
         self.environment += [{}]
 
-    def exitScope(self):
+    def exit_scope(self):
         self.environment.pop()
 
-    def lookupLocalVariable(self, name):
+    def lookup_local_variable(self, name):
         for scope in reversed(self.environment):
             if name in scope:
                 return scope[name]
 
         return None
 
-    def reserveLocalVariable(self, name):
+    def reserve_local_variable(self, name):
         sym = Symbol(Symbol.LOCAL_VARIABLE)
         self.environment[-1][name] = sym
         # Skip return address and base pointer
-        sym.index = -(self.numLocalVariables + 2)
-        self.numLocalVariables += 1
+        sym.index = -(self.num_local_variables + 2)
+        self.num_local_variables += 1
         return sym
 
-    def reserveParameter(self, name, index):
+    def reserve_parameter(self, name, index):
         sym = Symbol(Symbol.LOCAL_VARIABLE)
         self.environment[-1][name] = sym
         sym.index = index + 1
 
-    def getProgramAddress(self):
+    def get_program_address(self):
         return len(self.instructions)
 
-    def emitLabel(self, label):
+    def emit_label(self, label):
         assert not label.defined
         label.defined = True
-        label.address = self.getProgramAddress()
+        label.address = self.get_program_address()
 
-    def emitBranchInstruction(self, op, label):
-        self.emitInstruction(op, 0)
-        self.localFixups += [(self.getProgramAddress() - 1, label)]
+    def emit_branch_instruction(self, op, label):
+        self.emit_instruction(op, 0)
+        self.local_fixups += [(self.get_program_address() - 1, label)]
 
-    def emitInstruction(self, op, param=0):
+    def emit_instruction(self, op, param=0):
         if param > 32767 or param < -32768:
             raise Exception('param out of range ' + str(param))
 
@@ -163,69 +160,66 @@ class Function:
         self.instructions[offset] &= ~0xffff
         self.instructions[offset] |= (value & 0xffff)
 
-    def performLocalFixups(self):
-        self.instructions[0] = (OP_RESERVE << 16) | self.numLocalVariables
-        for ip, label in self.localFixups:
+    def perform_local_fixups(self):
+        self.instructions[0] = (OP_RESERVE << 16) | self.num_local_variables
+        for pc, label in self.local_fixups:
             if not label.defined:
                 raise Exception('undefined label')
 
-            self.patch(ip, self.baseAddress + label.address)
+            self.patch(pc, self.base_address + label.address)
 
-#
-# The parser converts text LISP source into a nested set of python lists
-#
-class Parser:
+
+class Parser(object):
+
+    '''Converts text LISP source into a nested set of python lists'''
 
     def __init__(self):
         self.lexer = None
         self.program = []
         self.filename = None
 
-    def parseFile(self, filename):
+    def parse_file(self, filename):
         self.filename = filename
-        stream = open(filename, 'r')
-        self.lexer = shlex.shlex(stream)
-        self.lexer.commenters = ';'
-        self.lexer.quotes = '"'
-        self.lexer.wordchars += '?+<>!@#$%^&*;:.=-_'
+        with open(filename, 'r') as stream:
+            self.lexer = shlex.shlex(stream)
+            self.lexer.commenters = ';'
+            self.lexer.quotes = '"'
+            self.lexer.wordchars += '?+<>!@#$%^&*;:.=-_'
 
-        while True:
-            expr = self.parseExpr()
-            if expr == '':
-                break
+            while True:
+                expr = self.parse_expr()
+                if expr == '':
+                    break
 
-            self.program += [expr]
+                self.program += [expr]
 
-        stream.close()
-
-    def parseParenList(self):
-        list = []
+    def parse_paren_list(self):
+        parenlist = []
         while True:
             lookahead = self.lexer.get_token()
             if lookahead == '':
-                print 'missing )'
+                print('missing )')
                 break
             elif lookahead == ')':
                 break
 
             self.lexer.push_token(lookahead)
-            list += [self.parseExpr()]
+            parenlist += [self.parse_expr()]
 
-        return list
+        return parenlist
 
-    def parseExpr(self):
+    def parse_expr(self):
         token = self.lexer.get_token()
         if token == '':
             return ''
-
         elif token == '\'':
-            return ['quote', self.parseExpr()]
+            return ['quote', self.parse_expr()]
         elif token == '`':
-            return ['backquote', self.parseExpr()]
+            return ['backquote', self.parse_expr()]
         elif token == ',':
-            return ['unquote', self.parseExpr()]
+            return ['unquote', self.parse_expr()]
         elif token == '(':
-            return self.parseParenList()
+            return self.parse_paren_list()
         elif token.isdigit() or (token[0] == '-' and len(token) > 1):
             return int(token)
         elif token == ')':
@@ -234,62 +228,61 @@ class Parser:
         else:
             return token
 
-    def getProgram(self):
-        return self.program
 
-
-class Compiler:
+class Compiler(object):
 
     def __init__(self):
         self.globals = {}
-        self.currentFunction = Function()
-        self.functionList = [0]        # We reserve a spot for 'main'
-        self.breakStack = []
+        self.current_function = Function()
+        self.function_list = [None]        # Reserve a spot for 'main'
+        self.break_stack = []
+        self.code_length = 0
 
         # Can be a fixup for:
         #   - A global variable
         #   - A function pointer
-        # Each stores ( function, functionOffset, target )
-        self.globalFixups = []
+        # Each stores ( function, function_offset, target )
+        self.global_fixups = []
 
-    #
-    # Lookup a symbol, starting in the current scope and working outward
-    # to enclosing scopes. If the symbol doesn't exist, create one in the
-    # global scope.
-    #
-    def lookupSymbol(self, name):
+    def lookup_symbol(self, name):
+        '''
+        Lookup a symbol, starting in the current scope and working outward
+        to enclosing scopes. If the symbol doesn't exist, create it in the
+        global scope.
+        '''
+
         # Check for local variable
-        sym = self.currentFunction.lookupLocalVariable(name)
+        sym = self.current_function.lookup_local_variable(name)
         if sym is not None:
             return sym
 
         # Is this an upval?
-        isUpval = False
-        func = self.currentFunction.enclosingFunction
+        is_upval = False
+        func = self.current_function.enclosing_function
         while func is not None:
-            sym = func.lookupLocalVariable(name)
+            sym = func.lookup_local_variable(name)
             if sym is not None:
-                isUpval = True
+                is_upval = True
                 break
 
-            func = func.enclosingFunction
+            func = func.enclosing_function
 
-        if isUpval:
+        if is_upval:
             raise Exception('closures not implemented: variable ' +
                             name + ' defined in enclosing function')
 
 #    XXX partial implementation of closure variables, currently disabled.
 #            # Create a new local variable
-#            sym = self.currentFunction.reserveLocalVariable(name)
-#            self.currentFunction.closureVars += [ sym ]
+#            sym = self.current_function.reserve_local_variable(name)
+#            self.current_function.closure_vars += [ sym ]
 #
 #            # Mark free variables, possibly through multiple functions
 #            dest = sym
-#            func = self.currentFunction.enclosingFunction
-#            foundSource = False
-#            while func != None and not foundSource:
-#                source = func.lookupLocalVariable(name)
-#                if source == None:
+#            func = self.current_function.enclosing_function
+#            found_source = False
+#            while func and not found_source:
+#                source = func.lookup_local_variable(name)
+#                if source is None:
 #                    # Note that, when we create an anonymous function, we will
 #                    # open a new scope that will contain these temporaries.
 #                    # They will go out of scope when we finish compiling the function
@@ -299,13 +292,13 @@ class Compiler:
 #                    # (function foo (a) (function bar (b) (function baz(c) (+ c a))))
 #                    # A temporary 'a' will be created in the outer scope of bar.
 #                    #
-#                    source = self.currentFunction.reserveLocalVariable(name)
+#                    source = self.current_function.reserve_local_variable(name)
 #                else:
-#                    foundSource = True
+#                    found_source = True
 #
 #                dest.upval = source
-#                func.closureVars += [ source ]
-#                func = func.enclosingFunction
+#                func.closure_vars += [ source ]
+#                func = func.enclosing_function
 #
 #            return sym
 
@@ -319,91 +312,92 @@ class Compiler:
         self.globals[name] = sym
         return sym
 
-    #
-    # Top level compile function. All code not in function blocks will be
-    # emitted into an implicitly created dummy function 'main'
-    #
     def compile(self, program):
-        self.currentFunction = Function()
-        self.currentFunction.referenced = True
-        self.currentFunction.name = '<main>'
+        '''
+        Top level compile function. All code not in function blocks will be
+        emitted into an implicitly created dummy function 'main'
+        '''
+        self.current_function = Function()
+        self.current_function.referenced = True
+        self.current_function.name = 'main'
 
-        # create a built-in variable that indicates where the heap starts
+        # Create a built-in variable that indicates where the heap starts
         # (will be patched at the end of compilation with the proper address)
-        heapstart = self.lookupSymbol('$heapstart')
+        heapstart = self.lookup_symbol('$heapstart')
         heapstart.initialized = True
-        self.currentFunction.emitInstruction(OP_PUSH, 0)
-        self.currentFunction.emitInstruction(OP_PUSH, 0)
-        self.currentFunction.emitInstruction(OP_STORE)
-        self.currentFunction.emitInstruction(OP_POP)
+        self.current_function.emit_instruction(OP_PUSH, 0)
+        self.current_function.emit_instruction(OP_PUSH, 0)
+        self.current_function.emit_instruction(OP_STORE)
+        self.current_function.emit_instruction(OP_POP)
 
         for expr in program:
             if expr[0] == 'function':
-                self.compileFunction(expr)
+                self.compile_function(expr)
             else:
-                self.compileExpression(expr)
-                self.currentFunction.emitInstruction(OP_POP)  # Clean up stack
+                self.compile_expression(expr)
+                self.current_function.emit_instruction(
+                    OP_POP)  # Clean up stack
 
         # Put an infinite loop at the end
-        forever = self.currentFunction.generateLabel()
-        self.currentFunction.emitLabel(forever)
-        self.currentFunction.emitBranchInstruction(OP_GOTO, forever)
+        forever = Label()
+        self.current_function.emit_label(forever)
+        self.current_function.emit_branch_instruction(OP_GOTO, forever)
 
         # The top level code (which looks like a function) is the first code
         # emitted, since that's where execution will start
-        self.functionList[0] = self.currentFunction
+        self.function_list[0] = self.current_function
 
         # Strip out functions that aren't called
-        self.functionList = filter(lambda x: x.referenced, self.functionList)
+        self.function_list = [
+            func for func in self.function_list if func.referenced]
 
         # Need to determine where functions are in memory
-        self.codeLength = 0
-        for func in self.functionList:
-            func.baseAddress = self.codeLength
-            self.codeLength += len(func.instructions)
+        self.code_length = 0
+        for func in self.function_list:
+            func.base_address = self.code_length
+            self.code_length += len(func.instructions)
 
         # Do fixups
-        for function in self.functionList:
-            function.performLocalFixups()        # Replace labels with offsets
+        for function in self.function_list:
+            function.perform_local_fixups()        # Replace labels with offsets
 
-        self.performGlobalFixups()
+        self.perform_global_fixups()
 
         # Fix up the global variable size table (we know it is the push right
         # after reserve)
-        self.functionList[0].patch(1, len(self.globals))
+        self.function_list[0].patch(1, len(self.globals))
 
         # For debugging: create a listing of the instructions used.
-        listfile = open('program.lst', 'wb')
+        with open('program.lst', 'wb') as listfile:
+            # Write out table of global variables
+            listfile.write('Globals:\n')
+            for var in self.globals:
+                sym = self.globals[var]
+                if sym.type != Symbol.FUNCTION:
+                    listfile.write(' {} var@{}\n'.format(var, sym.index))
 
-        # Write out table of global variables
-        listfile.write('Globals:\n')
-        for var in self.globals:
-            sym = self.globals[var]
-            if sym.type != Symbol.FUNCTION:
-                listfile.write(' ' + var + ' var@' + str(sym.index) + '\n')
+            for func in self.function_list:
+                listfile.write('\nfunction {}\n'.format(func.name))
+                disassemble(listfile, func.instructions, func.base_address)
 
-        for func in self.functionList:
-            listfile.write('\nfunction ' + str(func.name) + '\n')
-            disassemble(listfile, func.instructions, func.baseAddress)
-
-        # Write out expanded expressions
-        prettyPrintSExpr(listfile, program, 0)
-
-        listfile.close()
+            # Write out expanded expressions
+            pretty_print_sexpr(listfile, program, 0)
 
         # Now consolidate the functions
         instructions = []
-        for func in self.functionList:
+        for func in self.function_list:
             instructions += func.instructions
 
         return instructions
 
-    #
-    # Compile named function definition (function name (param param...) body)
-    #
-    def compileFunction(self, expr):
-        function = self.compileFunctionBody(expr[1], expr[2], expr[3:])
-        self.functionList += [function]
+    def compile_function(self, expr):
+        '''
+        Compile named function definition
+        (function name (param param...) body)
+        '''
+
+        function = self.compile_function_body(expr[1], expr[2], expr[3:])
+        self.function_list += [function]
 
         if expr[1] in self.globals:
             # There was a forward reference to this function and it was
@@ -416,18 +410,18 @@ class Compiler:
                                 expr[1] + ' redefined as function')
 
             # Function address, to be fixed up
-            self.currentFunction.emitInstruction(OP_PUSH, 0)
-            self.globalFixups += [(self.currentFunction,
-                                   self.currentFunction.getProgramAddress() - 1,
-                                   function)]
+            self.current_function.emit_instruction(OP_PUSH, 0)
+            self.global_fixups += [(self.current_function,
+                                    self.current_function.get_program_address() - 1,
+                                    function)]
 
             # Global variable offset, to be fixed up
-            self.currentFunction.emitInstruction(OP_PUSH, 0)
-            self.globalFixups += [(self.currentFunction,
-                                   self.currentFunction.getProgramAddress() - 1,
-                                   sym)]
-            self.currentFunction.emitInstruction(OP_STORE)
-            self.currentFunction.emitInstruction(OP_POP)
+            self.current_function.emit_instruction(OP_PUSH, 0)
+            self.global_fixups += [(self.current_function,
+                                    self.current_function.get_program_address() - 1,
+                                    sym)]
+            self.current_function.emit_instruction(OP_STORE)
+            self.current_function.emit_instruction(OP_POP)
             sym.initialized = True
             function.referenced = True
         else:
@@ -437,302 +431,310 @@ class Compiler:
 
         self.globals[expr[1]] = sym
 
-    #
-    # The mother compile function, from which all useful things are compiled.
-    # Compiles an arbitrary lisp expression. Each expression consumes
-    # all parameters, which will be pushed onto the stack from right to left,
-    # and leave a result value on the stack. All expressions have values in LISP.
-    #
-    # Determining if something is a tail call is straightforward in
-    # S-Expression form. The outermost function call is a tail call.
-    # This may be wrapped in control flow form. If a sequence is outermost,
-    # the last function call will be a tail call.
-    #
-    def compileExpression(self, expr, isTailCall=False):
+    def compile_expression(self, expr, is_tail_call=False):
+        '''
+        The mother compile function, from which all useful things are compiled.
+        Compiles an arbitrary lisp expression. Each expression consumes
+        all parameters, which will be pushed onto the stack from right to left,
+        and leave a result value on the stack. All expressions have values in LISP.
+
+        Determining if something is a tail call is straightforward in
+        S-Expression form. The outermost function call is a tail call.
+        This may be wrapped in control flow form. If a sequence is outermost,
+        the last function call will be a tail call.
+        '''
+
         if isinstance(expr, list):
             if len(expr) == 0:
                 # Empty expression
-                self.currentFunction.emitInstruction(OP_PUSH, 0)
+                self.current_function.emit_instruction(OP_PUSH, 0)
             else:
-                self.compileCombination(expr, isTailCall)
+                self.compile_combination(expr, is_tail_call)
         elif isinstance(expr, int):
-            self.compileIntegerLiteral(expr)
+            self.compile_integer_literal(expr)
         elif expr[0] == '"':
-            self.compileString(expr[1:-1])
+            self.compile_string(expr[1:-1])
         elif expr == 'nil' or expr == 'false':
-            self.currentFunction.emitInstruction(OP_PUSH, 0)
+            self.current_function.emit_instruction(OP_PUSH, 0)
         elif expr == 'true':
-            self.currentFunction.emitInstruction(OP_PUSH, 1)
+            self.current_function.emit_instruction(OP_PUSH, 1)
         else:
             # This is a variable.
-            self.compileIdentifier(expr)
+            self.compile_identifier(expr)
 
-    def compileIntegerLiteral(self, expr):
-        self.currentFunction.emitInstruction(OP_PUSH, expr)
+    def compile_integer_literal(self, expr):
+        self.current_function.emit_instruction(OP_PUSH, expr)
 
-    #
-    # Look up the variable in the current environment and push the contents
-    # of the variable onto the stack.
-    #
-    def compileIdentifier(self, expr):
-        variable = self.lookupSymbol(expr)
+    def compile_identifier(self, expr):
+        '''
+        Look up the variable in the current environment and push its value
+        onto the stack.
+        '''
+
+        variable = self.lookup_symbol(expr)
         if variable.type == Symbol.LOCAL_VARIABLE:
-            self.currentFunction.emitInstruction(OP_GETLOCAL,
-                                                 variable.index)
+            self.current_function.emit_instruction(OP_GETLOCAL,
+                                                   variable.index)
         elif variable.type == Symbol.GLOBAL_VARIABLE:
-            self.currentFunction.emitInstruction(OP_PUSH, 0)
-            self.globalFixups += [(self.currentFunction,
-                                   self.currentFunction.getProgramAddress() - 1,
-                                   variable)]
-            self.currentFunction.emitInstruction(OP_LOAD)
+            self.current_function.emit_instruction(OP_PUSH, 0)
+            self.global_fixups += [(self.current_function,
+                                    self.current_function.get_program_address() - 1,
+                                    variable)]
+            self.current_function.emit_instruction(OP_LOAD)
         elif variable.type == Symbol.FUNCTION:
             variable.function.referenced = True
-            self.currentFunction.emitInstruction(OP_PUSH, 0)
-            self.globalFixups += [(self.currentFunction,
-                                   self.currentFunction.getProgramAddress() - 1,
-                                   variable)]
+            self.current_function.emit_instruction(OP_PUSH, 0)
+            self.global_fixups += [(self.current_function,
+                                    self.current_function.get_program_address() - 1,
+                                    variable)]
         else:
             raise Exception(
                 'internal error: symbol does not have a valid type', '')
 
-    #
-    # A combination is a list expression (op param param...)
-    # This may be a special form (like if) or a function call.
-    # Anything that isn't an atom or a number is going to be compiled here.
-    #
-    def compileCombination(self, expr, isTailCall=False):
+    def compile_combination(self, expr, is_tail_call=False):
+        '''
+        A combination is a list expression (op param param...)
+        This may be a special form (like if) or a function call.
+        Anything that isn't an atom or a number will be compiled here.
+        '''
+
         if isinstance(expr[0], str):
-            functionName = expr[0]
-            if functionName in self.PRIMITIVES:
-                self.compilePrimitive(expr)
-            elif functionName == 'function':
-                self.compileAnonymousFunction(expr)
-            elif functionName == 'begin':
-                self.compileSequence(expr[1:], isTailCall)
-            elif functionName == 'while':
-                self.compileWhile(expr)
-            elif functionName == 'break':
-                self.compileBreak(expr)
-            elif functionName == 'if':
-                self.compileIf(expr, isTailCall)
-            elif functionName == 'assign':
-                self.compileAssign(expr)
-            elif functionName == 'quote':
-                self.compileQuote(expr[1])
-            elif functionName == 'let':
-                self.compileLet(expr, isTailCall)
-            elif functionName == 'getbp':
-                self.currentFunction.emitInstruction(OP_GETBP)
-            elif functionName == 'and' or functionName == 'or' or functionName == 'not':
-                self.compileBooleanExpression(expr)
+            function_name = expr[0]
+            if function_name in self.PRIMITIVES:
+                self.compile_primitive(expr)
+            elif function_name == 'function':
+                self.compile_anonymous_function(expr)
+            elif function_name == 'begin':
+                self.compile_sequence(expr[1:], is_tail_call)
+            elif function_name == 'while':
+                self.compile_while(expr)
+            elif function_name == 'break':
+                self.compile_break(expr)
+            elif function_name == 'if':
+                self.compile_if(expr, is_tail_call)
+            elif function_name == 'assign':
+                self.compile_assign(expr)
+            elif function_name == 'quote':
+                self.compile_quote(expr[1])
+            elif function_name == 'let':
+                self.compile_let(expr, is_tail_call)
+            elif function_name == 'getbp':
+                self.current_function.emit_instruction(OP_GETBP)
+            elif function_name == 'and' or function_name == 'or' or function_name == 'not':
+                self.compile_boolean_expression(expr)
             else:
                 # Call to a user defined function.
-                self.compileFunctionCall(expr, isTailCall)
+                self.compile_function_call(expr, is_tail_call)
         else:
-            self.compileFunctionCall(expr)
+            self.compile_function_call(expr)
 
-    def compileBasePointer(self, expr):
-        self.currentFunction.emitInstruction(OP_GETLOCAL, 0)
+    def compile_quote(self, expr):
+        '''
+         Quoted expressions compile to a series of cons calls.
+        '''
 
-    #
-    # Quoted expressions compile to a series of cons calls.
-    #
-    def compileQuote(self, expr):
         if isinstance(expr, list):
             if len(expr) == 3 and expr[1] == '.':
                 # This is a pair, which has special syntax: ( expr . expr )
                 # Create a single cons cell for it.
-                self.compileQuote(expr[2])
-                self.compileQuote(expr[0])
+                self.compile_quote(expr[2])
+                self.compile_quote(expr[0])
 
                 # Emit a call to the cons library function
-                self.compileIdentifier('cons')
-                self.currentFunction.emitInstruction(OP_CALL)
-                self.currentFunction.emitInstruction(OP_CLEANUP, 2)
+                self.compile_identifier('cons')
+                self.current_function.emit_instruction(OP_CALL)
+                self.current_function.emit_instruction(OP_CLEANUP, 2)
             elif len(expr) == 0:
                 # Empty list
-                self.compileIntegerLiteral(0)
+                self.compile_integer_literal(0)
             else:
                 # List, create a chain of cons calls
-                self.compileQuotedList(expr)
+                self.compile_quoted_list(expr)
         elif isinstance(expr, int):
-            self.compileIntegerLiteral(expr)
+            self.compile_integer_literal(expr)
         else:
-            self.compileString(expr)
+            self.compile_string(expr)
 
-    def compileQuotedList(self, tail):
+    def compile_quoted_list(self, tail):
         if len(tail) == 1:
-            self.compileIntegerLiteral(0)
+            self.compile_integer_literal(0)
         else:
             # Do the tail first to avoid allocating a bunch of temporaries
-            self.compileQuotedList(tail[1:])
+            self.compile_quoted_list(tail[1:])
 
-        self.compileQuote(tail[0])
+        self.compile_quote(tail[0])
 
         # Emit a call to the cons library function
-        self.compileIdentifier('cons')
-        self.currentFunction.emitInstruction(OP_CALL)
-        self.currentFunction.emitInstruction(OP_CLEANUP, 2)
+        self.compile_identifier('cons')
+        self.current_function.emit_instruction(OP_CALL)
+        self.current_function.emit_instruction(OP_CLEANUP, 2)
 
-    #
-    # String literals compile to a cons call for each character, since
-    # there is not a native string type.
-    #
-    def compileString(self, string):
+    def compile_string(self, string):
+        '''
+        String literals compile to a cons call for each character, since
+        there is not a native string type.
+        '''
+
         if len(string) == 1:
-            self.compileIntegerLiteral(0)
+            self.compile_integer_literal(0)
         else:
-            self.compileString(string[1:])
+            self.compile_string(string[1:])
 
-        self.compileIntegerLiteral(ord(string[0]))
+        self.compile_integer_literal(ord(string[0]))
 
         # Emit a call to the cons library function
-        self.compileIdentifier('cons')
-        self.currentFunction.emitInstruction(OP_CALL)
-        self.currentFunction.emitInstruction(OP_CLEANUP, 2)
+        self.compile_identifier('cons')
+        self.current_function.emit_instruction(OP_CALL)
+        self.current_function.emit_instruction(OP_CLEANUP, 2)
 
-    #
-    # Set a variable (assign variable value)
-    # This will leave the value of the expression on the stack, since all
-    # expressions do that.
-    #
-    def compileAssign(self, expr):
-        variable = self.lookupSymbol(expr[1])
+    def compile_assign(self, expr):
+        '''
+        Set a variable (assign variable value)
+        This will leave the value of the expression on the stack, since all
+        expressions do that.
+        '''
+
+        variable = self.lookup_symbol(expr[1])
         if variable.type == Symbol.LOCAL_VARIABLE:
-            self.compileExpression(expr[2])
-            self.currentFunction.emitInstruction(OP_SETLOCAL, variable.index)
+            self.compile_expression(expr[2])
+            self.current_function.emit_instruction(OP_SETLOCAL, variable.index)
         elif variable.type == Symbol.GLOBAL_VARIABLE:
-            self.compileExpression(expr[2])
-            self.currentFunction.emitInstruction(OP_PUSH, 0)
-            self.globalFixups += [(self.currentFunction,
-                                   self.currentFunction.getProgramAddress() - 1,
-                                   variable)]
-            self.currentFunction.emitInstruction(OP_STORE)
+            self.compile_expression(expr[2])
+            self.current_function.emit_instruction(OP_PUSH, 0)
+            self.global_fixups += [(self.current_function,
+                                    self.current_function.get_program_address() - 1,
+                                    variable)]
+            self.current_function.emit_instruction(OP_STORE)
             variable.initialized = True
         elif variable.type == Symbol.FUNCTION:
             raise Exception('Error: cannot assign function ' + expr[1])
         else:
             raise Exception(
                 'Internal error: what kind of variable is ' +
-                expr[1] +
-                '?',
-                '')
+                expr[1] + '?', '')
 
-    #
-    # Compile a boolean expression that is not part of an conditional form like
-    # if or while. This will push the result (1 or 0) on the stack.
-    #
-    def compileBooleanExpression(self, expr):
-        falseLabel = self.currentFunction.generateLabel()
-        doneLabel = self.currentFunction.generateLabel()
-        self.compilePredicate(expr, falseLabel)
-        self.currentFunction.emitInstruction(OP_PUSH, 1)
-        self.currentFunction.emitBranchInstruction(OP_GOTO, doneLabel)
-        self.currentFunction.emitLabel(falseLabel)
-        self.currentFunction.emitInstruction(OP_PUSH, 0)
-        self.currentFunction.emitLabel(doneLabel)
+    def compile_boolean_expression(self, expr):
+        '''
+        Compile a boolean expression that is not part of an conditional form like
+        if or while. This will push the result (1 or 0) on the stack.
+        '''
 
-    #
-    # Compile a boolean expression that is part of a control flow expression.
-    # If the expression is false, this will jump to the label 'falseLabel', otherwise
-    # it will fall through. This performs short circuit evaluation where possible.
-    #
-    def compilePredicate(self, expr, falseLabel):
+        false_label = Label()
+        done_label = Label()
+        self.compile_predicate(expr, false_label)
+        self.current_function.emit_instruction(OP_PUSH, 1)
+        self.current_function.emit_branch_instruction(OP_GOTO, done_label)
+        self.current_function.emit_label(false_label)
+        self.current_function.emit_instruction(OP_PUSH, 0)
+        self.current_function.emit_label(done_label)
+
+    def compile_predicate(self, expr, false_label):
+        '''
+        Compile a boolean expression that is part of a control flow expression.
+        If the expression is false, this will jump to the label 'false_label', otherwise
+        it will fall through. This performs short circuit evaluation where possible.
+        '''
+
         if isinstance(expr, list):
             if expr[0] == 'and':
                 if len(expr) < 2:
                     raise Exception('wrong number of arguments for and')
 
-                # Note that we short circuit if any condition is false and
-                # jump directly to the false case
+                # Short circuit if any condition is false
                 for cond in expr[1:]:
-                    self.compilePredicate(cond, falseLabel)
+                    self.compile_predicate(cond, false_label)
 
                 return
             elif expr[0] == 'or':
                 if len(expr) < 2:
                     raise Exception('wrong number of arguments for or')
 
-                trueTarget = self.currentFunction.generateLabel()
+                true_target = Label()
                 for cond in expr[1:-1]:
-                    testNext = self.currentFunction.generateLabel()
-                    self.compilePredicate(cond, testNext)
-                    self.currentFunction.emitBranchInstruction(
-                        OP_GOTO, trueTarget)
-                    self.currentFunction.emitLabel(testNext)
+                    test_next = Label()
+                    self.compile_predicate(cond, test_next)
+                    self.current_function.emit_branch_instruction(
+                        OP_GOTO, true_target)
+                    self.current_function.emit_label(test_next)
 
-                # Final test simply short circuits to false target
-                self.compilePredicate(expr[-1], falseLabel)
-                self.currentFunction.emitLabel(trueTarget)
+                # Final test short circuits to false target
+                self.compile_predicate(expr[-1], false_label)
+                self.current_function.emit_label(true_target)
                 return
             elif expr[0] == 'not':
                 if len(expr) != 2:
                     raise Exception('wrong number of arguments for not')
 
-                skipTo = self.currentFunction.generateLabel()
-                self.compilePredicate(expr[1], skipTo)
-                self.currentFunction.emitBranchInstruction(OP_GOTO, falseLabel)
-                self.currentFunction.emitLabel(skipTo)
+                skip_to = Label()
+                self.compile_predicate(expr[1], skip_to)
+                self.current_function.emit_branch_instruction(
+                    OP_GOTO, false_label)
+                self.current_function.emit_label(skip_to)
                 return
 
-        self.compileExpression(expr)
-        self.currentFunction.emitBranchInstruction(OP_BFALSE, falseLabel)
+        self.compile_expression(expr)
+        self.current_function.emit_branch_instruction(OP_BFALSE, false_label)
 
-    #
-    # Conditional execution of the form
-    # (if expr true [false])
-    #
-    def compileIf(self, expr, isTailCall=False):
-        falseLabel = self.currentFunction.generateLabel()
-        doneLabel = self.currentFunction.generateLabel()
+    def compile_if(self, expr, is_tail_call=False):
+        '''
+        Conditional execution
+        (if expr true [false])
+        '''
 
-        self.compilePredicate(expr[1], falseLabel)
-        self.compileExpression(expr[2], isTailCall)    # True part
-        self.currentFunction.emitBranchInstruction(OP_GOTO, doneLabel)
-        self.currentFunction.emitLabel(falseLabel)
+        false_label = Label()
+        done_label = Label()
 
-        # False part
+        self.compile_predicate(expr[1], false_label)
+        self.compile_expression(expr[2], is_tail_call)    # True clause
+        self.current_function.emit_branch_instruction(OP_GOTO, done_label)
+        self.current_function.emit_label(false_label)
+
+        # False clause
         if len(expr) > 3:
-            self.compileExpression(expr[3], isTailCall)
+            self.compile_expression(expr[3], is_tail_call)
         else:
-            self.currentFunction.emitInstruction(OP_PUSH, 0)
+            self.current_function.emit_instruction(OP_PUSH, 0)
 
-        self.currentFunction.emitLabel(doneLabel)
+        self.current_function.emit_label(done_label)
 
-    #
-    # Loop construct
-    # (while condition body)
-    # That body is implitly a (begin... and can use a sequence
-    # If the loop terminates normally (the condition is false), the
-    # result is zero. If (break val) is called, 'val' will be the result.
-    #
-    def compileWhile(self, expr):
-        topOfLoop = self.currentFunction.generateLabel()
-        bottomOfLoop = self.currentFunction.generateLabel()
-        breakLoop = self.currentFunction.generateLabel()
-        self.breakStack += [breakLoop]
-        self.currentFunction.emitLabel(topOfLoop)
-        self.compilePredicate(expr[1], bottomOfLoop)
-        self.compileSequence(expr[2:])
-        self.currentFunction.emitInstruction(OP_POP)  # Clean up stack
-        self.currentFunction.emitBranchInstruction(OP_GOTO, topOfLoop)
-        self.currentFunction.emitLabel(bottomOfLoop)
-        self.breakStack.pop()
-        self.currentFunction.emitInstruction(OP_PUSH, 0)    # Default value
-        self.currentFunction.emitLabel(breakLoop)
+    def compile_while(self, expr):
+        '''
+        Loop construct
+        (while condition body)
+        That body is implitly a (begin... and can use a sequence
+        If the loop terminates normally (the condition is false), the
+        result is zero. If (break val) is called, 'val' will be the result.
+        '''
 
-    # break out of the current loop
-    # (break [value])
-    def compileBreak(self, expr):
-        label = self.breakStack[-1]
+        top_of_loop = Label()
+        bottom_of_loop = Label()
+        break_loop = Label()
+        self.break_stack += [break_loop]
+        self.current_function.emit_label(top_of_loop)
+        self.compile_predicate(expr[1], bottom_of_loop)
+        self.compile_sequence(expr[2:])
+        self.current_function.emit_instruction(OP_POP)  # Clean up stack
+        self.current_function.emit_branch_instruction(OP_GOTO, top_of_loop)
+        self.current_function.emit_label(bottom_of_loop)
+        self.break_stack.pop()
+        self.current_function.emit_instruction(OP_PUSH, 0)    # Default value
+        self.current_function.emit_label(break_loop)
+
+    def compile_break(self, expr):
+        '''
+        break out of the current loop
+        (break [value])
+        '''
+
+        label = self.break_stack[-1]
         if len(expr) > 1:
-            self.compileExpression(expr[1])    # Push value on stack
+            self.compile_expression(expr[1])    # Push value on stack
         else:
-            self.currentFunction.emitInstruction(OP_PUSH, 0)
+            self.current_function.emit_instruction(OP_PUSH, 0)
 
-        self.currentFunction.emitBranchInstruction(OP_GOTO, label)
+        self.current_function.emit_branch_instruction(OP_GOTO, label)
 
-    # Primitives look like function calls, but map directly to machine
+    # Primitives look like function calls, but map to machine
     # instructions
     PRIMITIVES = {
         '+': (OP_ADD, 2),
@@ -757,7 +759,7 @@ class Compiler:
         'lshift': (OP_LSHIFT, 2)
     }
 
-    def compilePrimitive(self, expr):
+    def compile_primitive(self, expr):
         opcode, nargs = self.PRIMITIVES[expr[0]]
 
         if len(expr) - 1 != nargs:
@@ -766,147 +768,154 @@ class Compiler:
         # Synthesize lt and lte operators by switching order and using the
         # opposite operators
         if expr[0] == '<':
-            self.compileExpression(expr[1])
-            self.compileExpression(expr[2])
-            self.currentFunction.emitInstruction(OP_GTR)
+            self.compile_expression(expr[1])
+            self.compile_expression(expr[2])
+            self.current_function.emit_instruction(OP_GTR)
         elif expr[0] == '<=':
-            self.compileExpression(expr[1])
-            self.compileExpression(expr[2])
-            self.currentFunction.emitInstruction(OP_GTE)
+            self.compile_expression(expr[1])
+            self.compile_expression(expr[2])
+            self.current_function.emit_instruction(OP_GTE)
         else:
             if len(expr) > 2:
-                self.compileExpression(expr[2])
+                self.compile_expression(expr[2])
 
-            self.compileExpression(expr[1])
-            self.currentFunction.emitInstruction(opcode)
+            self.compile_expression(expr[1])
+            self.current_function.emit_instruction(opcode)
 
-    #
-    # Call a function
-    #
-    def compileFunctionCall(self, expr, isTailCall=False):
+    def compile_function_call(self, expr, is_tail_call=False):
+        '''Call a function'''
+
         if isinstance(expr[0], int):
             raise Exception('Cannot use integer as function')
 
         # Push arguments
-        for paramExpr in reversed(expr[1:]):
-            self.compileExpression(paramExpr)
+        for param_expr in reversed(expr[1:]):
+            self.compile_expression(param_expr)
 
-        if self.currentFunction.name == expr[0] and isTailCall:
+        if self.current_function.name == expr[0] and is_tail_call:
             # This is a recursive call. Copy parameters back into frame and
             # then jump to entry
-            for x in range(len(expr) - 1):
-                self.currentFunction.emitInstruction(OP_SETLOCAL, x + 1)
-                self.currentFunction.emitInstruction(OP_POP)
+            for opnum in range(len(expr) - 1):
+                self.current_function.emit_instruction(OP_SETLOCAL, opnum + 1)
+                self.current_function.emit_instruction(OP_POP)
 
-            self.currentFunction.emitBranchInstruction(
-                OP_GOTO, self.currentFunction.getEntryLabel())
+            self.current_function.emit_branch_instruction(
+                OP_GOTO, self.current_function.entry)
         else:
-            self.compileExpression(expr[0])
-            self.currentFunction.emitInstruction(OP_CALL)
+            self.compile_expression(expr[0])
+            self.current_function.emit_instruction(OP_CALL)
             if len(expr) > 1:
-                self.currentFunction.emitInstruction(OP_CLEANUP, len(expr) - 1)
+                self.current_function.emit_instruction(
+                    OP_CLEANUP, len(expr) - 1)
 
-    #
-    # Common code to compile body of the function definition (either anonymous or named)
-    # ((param param...) body)
-    #
-    def compileFunctionBody(self, name, params, body):
-        oldFunc = self.currentFunction
-        newFunction = Function()
-        newFunction.name = name
-        newFunction.enclosingFunction = oldFunc
-        self.currentFunction = newFunction
+    def compile_function_body(self, name, params, body):
+        '''
+        Common code to compile body of the function definition (either anonymous or named)
+        ((param param...) body)
+        '''
 
-        for index, paramName in enumerate(params):
-            self.currentFunction.reserveParameter(paramName, index)
+        old_func = self.current_function
+        new_function = Function()
+        new_function.name = name
+        new_function.enclosing_function = old_func
+        self.current_function = new_function
 
-        self.currentFunction.numParams = len(params)
+        for index, param_name in enumerate(params):
+            self.current_function.reserve_parameter(param_name, index)
+
+        self.current_function.num_params = len(params)
 
         # Compile top level expression.
-        self.compileSequence(body, isTailCall=True)
-        self.currentFunction.emitInstruction(OP_RETURN)
-        self.currentFunction = oldFunc
+        self.compile_sequence(body, is_tail_call=True)
+        self.current_function.emit_instruction(OP_RETURN)
+        self.current_function = old_func
 
-        return newFunction
+        return new_function
 
-    #
-    # Anonymous function of the form (function (param param...) (expr))
-    # Generate the code in a separate global function, then emit a push
-    # of the reference to it in the current function.
-    #
-    def compileAnonymousFunction(self, expr):
-        # Note: we do an enterScope because we may create temporary variables to
-        # represent free variables while compiling. See lookupSymbol for more
+    def compile_anonymous_function(self, expr):
+        '''
+        Anonymous function
+        (function (param param...) (expr))
+        Generate the code in a separate global function, then emit a push
+        of the reference to it in the current function.
+        '''
+
+        # Do an enter_scope because we may create temporary variables to
+        # represent free variables while compiling. See lookup_symbol for more
         # information.
-        self.currentFunction.enterScope()
-        newFunction = self.compileFunctionBody(None, expr[1], expr[2:])
-        newFunction.referenced = True
-        self.currentFunction.exitScope()
+        self.current_function.enter_scope()
+        new_function = self.compile_function_body(None, expr[1], expr[2:])
+        new_function.referenced = True
+        self.current_function.exit_scope()
 
-        newFunction.name = '<anonymous function>'
+        new_function.name = '<anonymous function>'
 
         # Compile code that references the function object we created. We'll
         # set the tag to indicate this is a function.
-        self.currentFunction.emitInstruction(OP_PUSH, TAG_FUNCTION)
-        self.currentFunction.emitInstruction(OP_PUSH, 0)
-        self.globalFixups += [(self.currentFunction,
-                               self.currentFunction.getProgramAddress() - 1,
-                               newFunction)]
-        self.currentFunction.emitInstruction(OP_SETTAG)
-        self.functionList += [newFunction]
+        self.current_function.emit_instruction(OP_PUSH, TAG_FUNCTION)
+        self.current_function.emit_instruction(OP_PUSH, 0)
+        self.global_fixups += [(self.current_function,
+                                self.current_function.get_program_address() - 1,
+                                new_function)]
+        self.current_function.emit_instruction(OP_SETTAG)
+        self.function_list += [new_function]
 
-    #
-    # A sequence of expressions. The result will be the last expression evaluated.
-    #
-    def compileSequence(self, sequence, isTailCall=False):
-        # Execute a sequence of statements
-        # ...stmt1 stmt2 stmt3...)
+    def compile_sequence(self, sequence, is_tail_call=False):
+        '''
+        A sequence of expressions. The result will be the last expression evaluated.
+        (sequence stmt1 stmt2 ... stmtn)
+        '''
+
         if len(sequence) == 0:
-            self.currentFunction.emitInstruction(
-                OP_PUSH, 0)    # Need to have at least one stmt
+            self.current_function.emit_instruction(
+                OP_PUSH, 0)  # Need to have at least one value
         else:
             for expr in sequence[:-1]:
-                self.compileExpression(expr, isTailCall=False)
-                self.currentFunction.emitInstruction(OP_POP)  # Clean up stack
+                self.compile_expression(expr, is_tail_call=False)
+                self.current_function.emit_instruction(
+                    OP_POP)  # Clean up stack
 
-            self.compileExpression(sequence[-1], isTailCall)
+            self.compile_expression(sequence[-1], is_tail_call)
 
-    #
-    # Reserve local variables and assign initial values to them.
-    # Of the form (let ((variable value) (variable value) (variable value)...) expr)
-    #
-    def compileLet(self, expr, isTailCall=False):
+    def compile_let(self, expr, is_tail_call=False):
+        '''
+        Reserve local variables and assign initial values to them.
+        (let ((variable value) (variable value) (variable value)...) expr)
+        '''
+
         # Reserve space on stack for local variables
-        variableCount = len(expr[1])
-        self.currentFunction.enterScope()
+        self.current_function.enter_scope()
 
         # Walk through each variable, define in scope, evaluate the initial value,
         # and assign.
         for variable, value in expr[1]:
-            symbol = self.currentFunction.reserveLocalVariable(variable)
-            self.compileExpression(value)
-            self.currentFunction.emitInstruction(OP_SETLOCAL, symbol.index)
-            # setlocal leaves on stack, remove it
-            self.currentFunction.emitInstruction(OP_POP)
+            symbol = self.current_function.reserve_local_variable(variable)
+            self.compile_expression(value)
+            self.current_function.emit_instruction(OP_SETLOCAL, symbol.index)
+            # Remove value setlocal left on stack
+            self.current_function.emit_instruction(OP_POP)
 
-        # Now evaluate the predicate, which can be a sequence
-        self.compileSequence(expr[2:], isTailCall)
-        self.currentFunction.exitScope()
+        # Evaluate the predicate, which can be a sequence
+        self.compile_sequence(expr[2:], is_tail_call)
+        self.current_function.exit_scope()
 
-    def performGlobalFixups(self):
+    def perform_global_fixups(self):
         # Check if there are uninitialized globals
-        for varName in self.globals:
-            if not self.globals[varName].initialized:
-                print 'unknown variable %s' % varName
+        # (XXX raise exception?)
+        for var_name in self.globals:
+            if not self.globals[var_name].initialized:
+                print('unknown variable {}'.format(var_name))
 
-        for function, functionOffset, target in self.globalFixups:
+        for function, function_offset, target in self.global_fixups:
             if isinstance(target, Function):
-                function.patch(functionOffset, target.baseAddress)
+                function.patch(function_offset, target.base_address)
             elif isinstance(target, Symbol):
                 if target.type == Symbol.GLOBAL_VARIABLE:
-                    function.patch(functionOffset, target.index)
+                    function.patch(function_offset, target.index)
                 elif target.type == Symbol.FUNCTION:
-                    function.patch(functionOffset, target.function.baseAddress)
+                    function.patch(
+                        function_offset,
+                        target.function.base_address)
             else:
                 raise Exception('unknown global fixup type')
 
@@ -935,100 +944,98 @@ OPTIMIZE_UOPS = {
 }
 
 
-def isPowerOfTwo(x):
+def is_power_of_two(x):
     return (x & (x - 1)) == 0
 
 
-def makeLegalConstant(x):
-    x &= 0xFFFF
+def make_legal_constant(x):
+    x &= 0xffff
     if x & 0x8000:
         return -((~x + 1) & 0xffff)
     else:
         return x
-#
-# Optimize the S-Expression program, performing transforms like constant folding,
-# constant conditional folding, and strength reduction.
-#
+
+
 def optimize(expr):
+    '''
+    Optimize the S-Expression program, performing transforms like constant
+    folding, constant conditional folding, and strength reduction.
+    '''
+
     if isinstance(expr, list) and len(expr) > 0:
         if expr[0] == 'quote':
             return expr  # Don't optimize things in quotes
         else:
             # Fold arithmetic expressions if possible
-            optimizedParams = [optimize(sub) for sub in expr[1:]]
-            if not isinstance(
-                expr[0],
-                list) and expr[0] in OPTIMIZE_BINOPS and len(expr) == 3 and isinstance(
-                optimizedParams[0],
-                int) and isinstance(
-                optimizedParams[1],
-                    int):
-                return makeLegalConstant(
+            optimized_params = [optimize(subexpr) for subexpr in expr[1:]]
+            if not isinstance(expr[0], list) and \
+                    expr[0] in OPTIMIZE_BINOPS and \
+                    len(expr) == 3 and \
+                    isinstance(optimized_params[0], int) and \
+                    isinstance(optimized_params[1], int):
+                return make_legal_constant(
                     OPTIMIZE_BINOPS[
-                        expr[0]](
-                        optimizedParams[0],
-                        optimizedParams[1]))
+                        expr[0]](optimized_params[0], optimized_params[1]))
 
-            if not isinstance(expr[0], list) and expr[0] in OPTIMIZE_UOPS \
-                    and len(expr) == 2 and isinstance(optimizedParams[0], int):
-                return makeLegalConstant(
-                    OPTIMIZE_UOPS[expr[0]](optimizedParams[0]))
+            if not isinstance(expr[0], list) and expr[0] in OPTIMIZE_UOPS and \
+                    len(expr) == 2 and \
+                    isinstance(optimized_params[0], int):
+                return make_legal_constant(
+                    OPTIMIZE_UOPS[expr[0]](optimized_params[0]))
 
-            # Short circuit. If any parameters are constant 0, the whole thing
-            # is zero
+            # If any parameters are constant 0, the whole thing is zero
             if expr[0] == 'and':
-                allOnes = True
-                for param in optimizedParams:
+                all_ones = True
+                for param in optimized_params:
                     if isinstance(param, int):
                         if param == 0:
                             return 0
                     else:
-                        allOnes = False
+                        all_ones = False
 
-                if allOnes:
+                if all_ones:
                     return 1
 
                 # Could not optimize
-                return [expr[0]] + optimizedParams
+                return [expr[0]] + optimized_params
 
-            # Short circuit. If any parameters are constant 1, the whole thing
-            # is 1
+            # If any parameters are constant 1, the whole thing is 1
             if expr[0] == 'or':
-                allZeroes = True
-                for param in optimizedParams:
+                all_zeroes = True
+                for param in optimized_params:
                     if isinstance(param, int):
                         if param != 0:
                             return 1
                     else:
-                        allZeroes = False
+                        all_zeroes = False
 
-                if allZeroes:
+                if all_zeroes:
                     return 0
 
                 # Could not optimize
-                return [expr[0]] + optimizedParams
+                return [expr[0]] + optimized_params
 
             # If a conditional form has a constant expression, include only the
             # appropriate clause
             if not isinstance(expr[0], list) and expr[0] == 'if' \
-                    and isinstance(optimizedParams[0], int):
-                if optimizedParams[0] != 0:
-                    return optimizedParams[1]
-                elif len(optimizedParams) > 2:
-                    return optimizedParams[2]
+                    and isinstance(optimized_params[0], int):
+                if optimized_params[0] != 0:
+                    return optimized_params[1]
+                elif len(optimized_params) > 2:
+                    return optimized_params[2]
                 else:
                     return 0    # Did not have an else, this is an empty expression
 
             # Strength reduction for power of two multiplies and divides
-            if len(optimizedParams) > 1 and isinstance(
-                    optimizedParams[1], int) and isPowerOfTwo(
-                    optimizedParams[1]) and optimizedParams[1] > 0 and (
+            if len(optimized_params) > 1 and isinstance(
+                    optimized_params[1], int) and is_power_of_two(
+                    optimized_params[1]) and optimized_params[1] > 0 and (
                     expr[0] == '*' or expr[0] == '/'):
                 return ['lshift' if expr[0] == '*' else 'rshift',
-                        optimizedParams[0], int(math.log(int(optimizedParams[1]), 2))]
+                        optimized_params[0], int(math.log(int(optimized_params[1]), 2))]
 
             # Nothing to optimize, return the expression as is
-            return [expr[0]] + optimizedParams
+            return [expr[0]] + optimized_params
     else:
         return expr
 
@@ -1037,7 +1044,7 @@ def optimize(expr):
 #
 
 # name, hasparam
-disasmTable = {
+DISASM_TABLE = {
     OP_NOP: ('nop', False),
     OP_CALL: ('call', False),
     OP_RETURN: ('return', False),
@@ -1070,58 +1077,58 @@ disasmTable = {
 }
 
 
-def disassemble(outfile, instructions, baseAddress):
+def disassemble(outfile, instructions, base_address):
     for pc, word in enumerate(instructions):
-        outfile.write('' + str(baseAddress + pc))
+        outfile.write('' + str(base_address + pc))
         opcode = (word >> 16)
-        name, hasParam = disasmTable[opcode]
-        if hasParam:
-            paramValue = word & 0xffff
-            if paramValue & 0x8000:
-                paramValue = -(((paramValue ^ 0xffff) + 1) & 0xffff)
+        name, has_param = DISASM_TABLE[opcode]
+        if has_param:
+            param_value = word & 0xffff
+            if param_value & 0x8000:
+                param_value = -(((param_value ^ 0xffff) + 1) & 0xffff)
 
-            outfile.write('\t' + name + ' ' + str(paramValue) + '\n')
+            outfile.write('\t{} {}\n'.format(name, param_value))
         else:
-            outfile.write('\t' + name + '\n')
+            outfile.write('\t{}\n'.format(name))
 
 
-def prettyPrintSExpr(listfile, expr, indent=0):
+def pretty_print_sexpr(listfile, expr, indent=0):
     if isinstance(expr, list):
         if len(expr) > 0 and expr[0] == 'function':
             listfile.write('\n')
 
         listfile.write('\n')
-        for x in range(indent):
-            listfile.write('  ')
+        listfile.write('  ' * indent)
 
         listfile.write('(')
         for elem in expr:
             if elem != expr[0]:
                 listfile.write(' ')
 
-            prettyPrintSExpr(listfile, elem, indent + 1)
+            pretty_print_sexpr(listfile, elem, indent + 1)
 
         listfile.write(')')
     else:
         listfile.write(str(expr))
 
 
-#
-# The macro processor is actually a small lisp interpreter
-# When we see macro, we evaluate its expression with the arguments as parameters.
-#
-class MacroProcessor:
+class MacroProcessor(object):
+    '''
+    The macro processor is a small lisp interpreter
+    Evaluate macro expressions with their arguments as parameters, insert
+    the result into the expression list.
+    '''
 
     def __init__(self):
-        self.macroList = {}
+        self.macro_list = {}
 
-    def expandBackquote(self, expr, env):
+    def expand_backquote(self, expr, env):
         if isinstance(expr, list):
             if expr[0] == 'unquote':
                 # This gets evaluated regularly
                 return self.eval(expr[1], env)
             else:
-                return [self.expandBackquote(term, env) for term in expr]
+                return [self.expand_backquote(term, env) for term in expr]
         else:
             return expr
 
@@ -1134,7 +1141,7 @@ class MacroProcessor:
                 return self.eval(expr[1], env)[1]
             elif func == 'if':        # (if test trueexpr falsexpr)
                 if self.eval(expr[1], env):
-                    return self.eval(pair[2], env)
+                    return self.eval(expr[2], env)
                 elif len(expr) > 3:
                     return self.eval(expr[3], env)
                 else:
@@ -1146,7 +1153,7 @@ class MacroProcessor:
             elif func == 'quote':
                 return expr[1]
             elif func == 'backquote':
-                return self.expandBackquote(expr[1], env)
+                return self.expand_backquote(expr[1], env)
             elif func == 'cons':
                 return [self.eval(expr[1], env)] + [self.eval(expr[2], env)]
             elif func in OPTIMIZE_BINOPS:
@@ -1154,19 +1161,19 @@ class MacroProcessor:
                     self.eval(
                         expr[1], env), self.eval(
                         expr[2], env))
-            elif func in self.macroList:
+            elif func in self.macro_list:
                 # Invoke a sub-macro
-                newEnv = copy.copy(env)
-                argList, body = self.macroList[expr[0]]
-                for name, value in zip(argList, expr[1:]):
-                    newEnv[name] = value
+                new_env = copy.copy(env)
+                arg_list, body = self.macro_list[expr[0]]
+                for name, value in zip(arg_list, expr[1:]):
+                    new_env[name] = value
 
-                return self.eval(body, newEnv)
+                return self.eval(body, new_env)
             else:
-                # Call a function. This is a little tricky, since we can't really
-                # define functions. Stubbed out for now.
+                # Call a function. We can't really define functions yet, so
+                # stubbed out for now.
                 # Func is (function (arg arg arg) body)
-                func = self.env[expr[0]]
+                func = env[expr[0]]
                 if func is None or not isinstance(func, list) or func[
                         0] != 'function':
                     raise Exception(
@@ -1180,55 +1187,64 @@ class MacroProcessor:
         else:
             return env[expr]
 
-    def macroPreProcess(self, program):
-        updatedProgram = []
+    def macro_pre_process(self, program):
+        updated_program = []
         for statement in program:
             if isinstance(statement, list) and statement[0] == 'defmacro':
                 # (defmacro <name> (arg list) replace)
-                self.macroList[statement[1]] = (statement[2], statement[3])
+                self.macro_list[statement[1]] = (statement[2], statement[3])
             else:
-                updatedProgram += [self.macroExpandRecursive(statement)]
+                updated_program += [self.macro_expand_recursive(statement)]
 
-        return updatedProgram
+        return updated_program
 
-    def macroExpandRecursive(self, statement):
+    def macro_expand_recursive(self, statement):
         if isinstance(statement, list) and len(statement) > 0:
             if not isinstance(statement[0], list) and statement[
-                    0] in self.macroList:
+                    0] in self.macro_list:
                 # This is a macro form. Evalute the macro now and replace this form with
                 # the result.
-                argNames, body = self.macroList[statement[0]]
-                if len(argNames) != len(statement) - 1:
-                    print 'warning: macro expansion of %s has the wrong number of arguments' % statement[0]
-                    print 'expected %d got %d:' % (len(argNames), len(statement) - 1)
+                arg_names, body = self.macro_list[statement[0]]
+                if len(arg_names) != len(statement) - 1:
+                    print('warning: macro expansion of {} has the wrong number of arguments'.format(
+                        statement[0]))
+                    print('expected {} got {}:'.format(
+                        len(arg_names), len(statement) - 1))
                     for arg in statement[1:]:
-                        print arg
+                        print(arg)
 
                 env = {}
-                for name, value in zip(argNames, statement[1:]):
-                    env[name] = self.macroExpandRecursive(value)
+                for name, value in zip(arg_names, statement[1:]):
+                    env[name] = self.macro_expand_recursive(value)
 
                 return self.eval(body, env)
             else:
-                return [self.macroExpandRecursive(term) for term in statement]
+                return [self.macro_expand_recursive(
+                    term) for term in statement]
         else:
             return statement
 
-parser = Parser()
-parser.parseFile('runtime.lisp')
-for filename in sys.argv[1:]:
-    parser.parseFile(filename)
 
-macro = MacroProcessor()
-expanded = macro.macroPreProcess(parser.getProgram())
+def compile_program(files):
+    parser = Parser()
 
-optimized = [optimize(sub) for sub in expanded]
+    # Read standard runtime library
+    parser.parse_file('runtime.lisp')
 
-compiler = Compiler()
-code = compiler.compile(optimized)
+    # Read source files
+    for filename in files:
+        parser.parse_file(filename)
 
-outfile = open('program.hex', 'w')
-for instr in code:
-    outfile.write('%06x\n' % instr)
+    macro = MacroProcessor()
+    expanded = macro.macro_pre_process(parser.program)
 
-outfile.close()
+    optimized = [optimize(sub) for sub in expanded]
+
+    compiler = Compiler()
+    code = compiler.compile(optimized)
+
+    with open('program.hex', 'w') as outfile:
+        for instr in code:
+            outfile.write('{:06x}\n'.format(instr))
+
+compile_program(sys.argv[1:])
