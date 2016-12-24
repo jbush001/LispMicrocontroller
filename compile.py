@@ -385,6 +385,11 @@ class Compiler(object):
         # after reserve)
         self.function_list[0].patch(1, len(self.globals))
 
+        # Now consolidate the functions
+        instructions = []
+        for func in self.function_list:
+            instructions += func.instructions
+
         # For debugging: create a listing of the instructions used.
         with open('program.lst', 'wb') as listfile:
             # Write out table of global variables
@@ -394,17 +399,9 @@ class Compiler(object):
                 if sym.type != Symbol.FUNCTION:
                     listfile.write(' {} var@{}\n'.format(var, sym.index))
 
-            for func in self.function_list:
-                listfile.write('\nfunction {}\n'.format(func.name))
-                disassemble(listfile, func.instructions, func.base_address)
-
             # Write out expanded expressions
             pretty_print_sexpr(listfile, program, 0)
-
-        # Now consolidate the functions
-        instructions = []
-        for func in self.function_list:
-            instructions += func.instructions
+            disassemble(listfile, instructions, self.function_list)
 
         return instructions
 
@@ -1063,19 +1060,30 @@ DISASM_TABLE = {
 }
 
 
-def disassemble(outfile, instructions, base_address):
+def disassemble(outfile, instructions, functions):
+    next_func = functions[0].base_address
+    func_index = 0
+
     for pc, word in enumerate(instructions):
-        outfile.write('' + str(base_address + pc))
-        opcode = (word >> 16)
+        if pc == next_func:
+            outfile.write('\n{}:\n'.format(functions[func_index].name))
+            func_index += 1
+            if func_index == len(functions):
+                next_func = 0xffffffff
+            else:
+                next_func = functions[func_index].base_address
+
+        outfile.write('    {:04d}    '.format(pc))
+        opcode = word >> 16
         name, has_param = DISASM_TABLE[opcode]
         if has_param:
             param_value = word & 0xffff
             if param_value & 0x8000:
                 param_value = -(((param_value ^ 0xffff) + 1) & 0xffff)
 
-            outfile.write('\t{} {}\n'.format(name, param_value))
+            outfile.write('{} {}\n'.format(name, param_value))
         else:
-            outfile.write('\t{}\n'.format(name))
+            outfile.write('{}\n'.format(name))
 
 
 def pretty_print_sexpr(listfile, expr, indent=0):
