@@ -83,7 +83,7 @@ class Label(object):
 
     def __init__(self):
         self.defined = False
-        self.address = 0
+        self.address = 0    # offset from beginning of function
 
 
 class Function(object):
@@ -93,17 +93,13 @@ class Function(object):
         self.fixups = []
         self.base_address = 0
         self.num_local_variables = 0
+        self.prologue = None
         self.instructions = []
         self.environment = [{}]         # Stack of scopes
         self.closure_vars = []
         self.enclosing_function = None
         self.referenced = False         # Used to strip dead functions
         self.num_params = 0
-
-        # Save a spot for an initial 'reserve' instruction
-        self.emit_instruction(OP_RESERVE, 0)
-
-        # Entry label comes after reserve
         self.entry = Label()
         self.emit_label(self.entry)
 
@@ -155,6 +151,15 @@ class Function(object):
 
         self.instructions += [(op << 16) | param]
 
+    def add_prologue(self):
+        if self.num_local_variables > 0:
+            self.prologue = [(OP_RESERVE << 16) | self.num_local_variables]
+        else:
+            self.prologue = []
+
+    def get_size(self):
+        return len(self.prologue) + len(self.instructions)
+
     def add_fixup(self, target):
         '''
         This remembers that the last emitted instruction should be
@@ -173,12 +178,11 @@ class Function(object):
         to point to the proper targets (which this expects should all be
         known at this point).
         '''
-
-        self.instructions[0] = (OP_RESERVE << 16) | self.num_local_variables
+        base_address = self.base_address + len(self.prologue)
         for pc, target in self.fixups:
             if isinstance(target, Label):
                 assert target.defined
-                self.patch(pc, self.base_address + target.address)
+                self.patch(pc, base_address + target.address)
             elif isinstance(target, Function):
                 self.patch(pc, target.base_address)
             elif isinstance(target, Symbol):
@@ -367,15 +371,17 @@ class Compiler(object):
         self.function_list = [
             func for func in self.function_list if func.referenced]
 
-        # Need to determine where functions are in memory
-        self.code_length = 0
-        for func in self.function_list:
-            func.base_address = self.code_length
-            self.code_length += len(func.instructions)
-
         for var_name in self.globals:
             if not self.globals[var_name].initialized:
                 print('unknown variable {}'.format(var_name))
+
+        pc = 0
+        for func in self.function_list:
+            func.base_address = pc
+            func.add_prologue()
+            pc += func.get_size()
+
+        self.code_length = pc
 
         # Do fixups
         for function in self.function_list:
@@ -383,11 +389,12 @@ class Compiler(object):
 
         # Fix up the global variable size table (we know it is the push right
         # after reserve)
-        self.function_list[0].patch(1, len(self.globals))
+        self.function_list[0].patch(0, len(self.globals))
 
         # Now consolidate the functions
         instructions = []
         for func in self.function_list:
+            instructions += func.prologue
             instructions += func.instructions
 
         # For debugging: create a listing of the instructions used.
