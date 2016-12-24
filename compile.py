@@ -90,7 +90,7 @@ class Function(object):
 
     def __init__(self):
         self.name = None
-        self.local_fixups = []
+        self.fixups = []
         self.base_address = 0
         self.num_local_variables = 0
         self.instructions = []
@@ -143,7 +143,7 @@ class Function(object):
 
     def emit_branch_instruction(self, op, label):
         self.emit_instruction(op, 0)
-        self.local_fixups += [(self.get_program_address() - 1, label)]
+        self.add_fixup(label)
 
     def emit_instruction(self, op, param=0):
         if param > 32767 or param < -32768:
@@ -155,17 +155,40 @@ class Function(object):
 
         self.instructions += [(op << 16) | param]
 
+    def add_fixup(self, target):
+        '''
+        This remembers that the last emitted instruction should be
+        patched later to point to the passed object, which can be
+        a Label, Function, or Symbol
+        '''
+        self.fixups.append((self.get_program_address() - 1, target))
+
     def patch(self, offset, value):
         self.instructions[offset] &= ~0xffff
         self.instructions[offset] |= (value & 0xffff)
 
-    def perform_local_fixups(self):
-        self.instructions[0] = (OP_RESERVE << 16) | self.num_local_variables
-        for pc, label in self.local_fixups:
-            if not label.defined:
-                raise Exception('undefined label')
+    def apply_fixups(self):
+        '''
+        Walk through all fixups for this function and patch instructions
+        to point to the proper targets (which this expects should all be
+        known at this point).
+        '''
 
-            self.patch(pc, self.base_address + label.address)
+        self.instructions[0] = (OP_RESERVE << 16) | self.num_local_variables
+        for pc, target in self.fixups:
+            if isinstance(target, Label):
+                assert target.defined
+                self.patch(pc, self.base_address + target.address)
+            elif isinstance(target, Function):
+                self.patch(pc, target.base_address)
+            elif isinstance(target, Symbol):
+                if target.type == Symbol.GLOBAL_VARIABLE:
+                    self.patch(pc, target.index)
+                elif target.type == Symbol.FUNCTION:
+                    self.patch(pc, target.function.base_address)
+            else:
+                raise Exception(
+                    'internal error: unknown fixup type ' + target.__name__)
 
 
 class Parser(object):
@@ -236,12 +259,6 @@ class Compiler(object):
         self.function_list = [None]        # Reserve a spot for 'main'
         self.break_stack = []
         self.code_length = 0
-
-        # Can be a fixup for:
-        #   - A global variable
-        #   - A function pointer
-        # Each stores ( function, function_offset, target )
-        self.global_fixups = []
 
     def lookup_symbol(self, name):
         '''
@@ -356,11 +373,13 @@ class Compiler(object):
             func.base_address = self.code_length
             self.code_length += len(func.instructions)
 
+        for var_name in self.globals:
+            if not self.globals[var_name].initialized:
+                print('unknown variable {}'.format(var_name))
+
         # Do fixups
         for function in self.function_list:
-            function.perform_local_fixups()        # Replace labels with offsets
-
-        self.perform_global_fixups()
+            function.apply_fixups()        # Replace labels with offsets
 
         # Fix up the global variable size table (we know it is the push right
         # after reserve)
@@ -410,15 +429,11 @@ class Compiler(object):
 
             # Function address, to be fixed up
             self.current_function.emit_instruction(OP_PUSH, 0)
-            self.global_fixups += [(self.current_function,
-                                    self.current_function.get_program_address() - 1,
-                                    function)]
+            self.current_function.add_fixup(function)
 
             # Global variable offset, to be fixed up
             self.current_function.emit_instruction(OP_PUSH, 0)
-            self.global_fixups += [(self.current_function,
-                                    self.current_function.get_program_address() - 1,
-                                    sym)]
+            self.current_function.add_fixup(sym)
             self.current_function.emit_instruction(OP_STORE)
             self.current_function.emit_instruction(OP_POP)
             sym.initialized = True
@@ -476,16 +491,12 @@ class Compiler(object):
                                                    variable.index)
         elif variable.type == Symbol.GLOBAL_VARIABLE:
             self.current_function.emit_instruction(OP_PUSH, 0)
-            self.global_fixups += [(self.current_function,
-                                    self.current_function.get_program_address() - 1,
-                                    variable)]
+            self.current_function.add_fixup(variable)
             self.current_function.emit_instruction(OP_LOAD)
         elif variable.type == Symbol.FUNCTION:
             variable.function.referenced = True
             self.current_function.emit_instruction(OP_PUSH, 0)
-            self.global_fixups += [(self.current_function,
-                                    self.current_function.get_program_address() - 1,
-                                    variable)]
+            self.current_function.add_fixup(variable)
         else:
             raise Exception(
                 'internal error: symbol does not have a valid type', '')
@@ -600,9 +611,7 @@ class Compiler(object):
         elif variable.type == Symbol.GLOBAL_VARIABLE:
             self.compile_expression(expr[2])
             self.current_function.emit_instruction(OP_PUSH, 0)
-            self.global_fixups += [(self.current_function,
-                                    self.current_function.get_program_address() - 1,
-                                    variable)]
+            self.current_function.add_fixup(variable)
             self.current_function.emit_instruction(OP_STORE)
             variable.initialized = True
         elif variable.type == Symbol.FUNCTION:
@@ -853,9 +862,7 @@ class Compiler(object):
         # set the tag to indicate this is a function.
         self.current_function.emit_instruction(OP_PUSH, TAG_FUNCTION)
         self.current_function.emit_instruction(OP_PUSH, 0)
-        self.global_fixups += [(self.current_function,
-                                self.current_function.get_program_address() - 1,
-                                new_function)]
+        self.current_function.add_fixup(new_function)
         self.current_function.emit_instruction(OP_SETTAG)
         self.function_list += [new_function]
 
@@ -897,26 +904,6 @@ class Compiler(object):
         # Evaluate the predicate, which can be a sequence
         self.compile_sequence(expr[2:], is_tail_call)
         self.current_function.exit_scope()
-
-    def perform_global_fixups(self):
-        # Check if there are uninitialized globals
-        # (XXX raise exception?)
-        for var_name in self.globals:
-            if not self.globals[var_name].initialized:
-                print('unknown variable {}'.format(var_name))
-
-        for function, function_offset, target in self.global_fixups:
-            if isinstance(target, Function):
-                function.patch(function_offset, target.base_address)
-            elif isinstance(target, Symbol):
-                if target.type == Symbol.GLOBAL_VARIABLE:
-                    function.patch(function_offset, target.index)
-                elif target.type == Symbol.FUNCTION:
-                    function.patch(
-                        function_offset,
-                        target.function.base_address)
-            else:
-                raise Exception('unknown global fixup type')
 
 OPTIMIZE_BINOPS = {
     '+': (lambda x, y: x + y),
