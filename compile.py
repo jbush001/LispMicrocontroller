@@ -97,7 +97,6 @@ class Function(object):
         self.environment = [{}]         # Stack of scopes
         self.closure_vars = []
         self.enclosing_function = None
-        self.referenced_functions = []
         self.referenced = False         # Used to strip dead functions
         self.num_params = 0
 
@@ -253,15 +252,15 @@ class Compiler(object):
 
         # Check for local variable
         sym = self.current_function.lookup_local_variable(name)
-        if sym is not None:
+        if sym:
             return sym
 
         # Is this an upval?
         is_upval = False
         func = self.current_function.enclosing_function
-        while func is not None:
+        while func:
             sym = func.lookup_local_variable(name)
-            if sym is not None:
+            if sym:
                 is_upval = True
                 break
 
