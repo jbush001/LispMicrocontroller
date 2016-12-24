@@ -83,7 +83,7 @@ class Label(object):
 
     def __init__(self):
         self.defined = False
-        self.address = 0    # offset from beginning of function
+        self.offset = 0
 
 
 class Function(object):
@@ -91,7 +91,7 @@ class Function(object):
     def __init__(self):
         self.name = None
         self.fixups = []
-        self.base_address = 0
+        self.base_address = None
         self.num_local_variables = 0
         self.prologue = None
         self.instructions = []
@@ -129,13 +129,10 @@ class Function(object):
         self.environment[-1][name] = sym
         sym.index = index + 1
 
-    def get_program_address(self):
-        return len(self.instructions)
-
     def emit_label(self, label):
         assert not label.defined
         label.defined = True
-        label.address = self.get_program_address()
+        label.offset = len(self.instructions)
 
     def emit_branch_instruction(self, op, label):
         self.emit_instruction(op, 0)
@@ -166,7 +163,7 @@ class Function(object):
         patched later to point to the passed object, which can be
         a Label, Function, or Symbol
         '''
-        self.fixups.append((self.get_program_address() - 1, target))
+        self.fixups.append((len(self.instructions) - 1, target))
 
     def patch(self, offset, value):
         self.instructions[offset] &= ~0xffff
@@ -182,7 +179,7 @@ class Function(object):
         for pc, target in self.fixups:
             if isinstance(target, Label):
                 assert target.defined
-                self.patch(pc, base_address + target.address)
+                self.patch(pc, base_address + target.offset)
             elif isinstance(target, Function):
                 self.patch(pc, target.base_address)
             elif isinstance(target, Symbol):
@@ -196,7 +193,6 @@ class Function(object):
 
 
 class Parser(object):
-
     '''Converts text LISP source into a nested set of python lists'''
 
     def __init__(self):
@@ -278,14 +274,14 @@ class Compiler(object):
 
         # Is this an upval?
         is_upval = False
-        func = self.current_function.enclosing_function
-        while func:
-            sym = func.lookup_local_variable(name)
+        function = self.current_function.enclosing_function
+        while function:
+            sym = function.lookup_local_variable(name)
             if sym:
                 is_upval = True
                 break
 
-            func = func.enclosing_function
+            function = function.enclosing_function
 
         if is_upval:
             raise Exception('closures not implemented: variable ' +
@@ -298,10 +294,10 @@ class Compiler(object):
 #
 #            # Mark free variables, possibly through multiple functions
 #            dest = sym
-#            func = self.current_function.enclosing_function
+#            function = self.current_function.enclosing_function
 #            found_source = False
-#            while func and not found_source:
-#                source = func.lookup_local_variable(name)
+#            while function and not found_source:
+#                source = function.lookup_local_variable(name)
 #                if source is None:
 #                    # Note that, when we create an anonymous function, we will
 #                    # open a new scope that will contain these temporaries.
@@ -317,8 +313,8 @@ class Compiler(object):
 #                    found_source = True
 #
 #                dest.upval = source
-#                func.closure_vars += [ source ]
-#                func = func.enclosing_function
+#                function.closure_vars += [ source ]
+#                function = function.enclosing_function
 #
 #            return sym
 
@@ -343,10 +339,12 @@ class Compiler(object):
 
         # Create a built-in variable that indicates where the heap starts
         # (will be patched at the end of compilation with the proper address)
+        # The code to patch this below assumes it is the first instruction
+        # emitted.
         heapstart = self.lookup_symbol('$heapstart')
         heapstart.initialized = True
         self.current_function.emit_instruction(OP_PUSH, 0)
-        self.current_function.emit_instruction(OP_PUSH, 0)
+        self.current_function.emit_instruction(OP_PUSH, heapstart.index)
         self.current_function.emit_instruction(OP_STORE)
         self.current_function.emit_instruction(OP_POP)
 
@@ -363,41 +361,43 @@ class Compiler(object):
         self.current_function.emit_label(forever)
         self.current_function.emit_branch_instruction(OP_GOTO, forever)
 
-        # The top level code (which looks like a function) is the first code
-        # emitted, since that's where execution will start
+        # main is the first function emitted, since that's where execution
+        # will start
         self.function_list[0] = self.current_function
 
         # Strip out functions that aren't called
         self.function_list = [
-            func for func in self.function_list if func.referenced]
+            function for function in self.function_list if function.referenced]
 
+        # Check for globals that are referenced but not used
         for var_name in self.globals:
             if not self.globals[var_name].initialized:
                 print('unknown variable {}'.format(var_name))
 
+        # Generate prologues and determine function addresses
         pc = 0
-        for func in self.function_list:
-            func.base_address = pc
-            func.add_prologue()
-            pc += func.get_size()
+        for function in self.function_list:
+            function.base_address = pc
+            function.add_prologue()
+            pc += function.get_size()
 
         self.code_length = pc
 
-        # Do fixups
+        # Fix up all unresolved references
         for function in self.function_list:
-            function.apply_fixups()        # Replace labels with offsets
+            function.apply_fixups()
 
-        # Fix up the global variable size table (we know it is the push right
-        # after reserve)
+        # Fix up the global variable size table. This assumes the push of the
+        # size is the first instruction emitted above.
         self.function_list[0].patch(0, len(self.globals))
 
-        # Now consolidate the functions
+        # Generate instruction stream by flattening all generated functions
         instructions = []
-        for func in self.function_list:
-            instructions += func.prologue
-            instructions += func.instructions
+        for function in self.function_list:
+            instructions += function.prologue
+            instructions += function.instructions
 
-        # For debugging: create a listing of the instructions used.
+        # For debugging: create a list file with the disassembly
         with open('program.lst', 'wb') as listfile:
             # Write out table of global variables
             listfile.write('Globals:\n')
@@ -406,8 +406,6 @@ class Compiler(object):
                 if sym.type != Symbol.FUNCTION:
                     listfile.write(' {} var@{}\n'.format(var, sym.index))
 
-            # Write out expanded expressions
-            pretty_print_sexpr(listfile, program, 0)
             disassemble(listfile, instructions, self.function_list)
 
         return instructions
@@ -826,10 +824,10 @@ class Compiler(object):
         ((param param...) body)
         '''
 
-        old_func = self.current_function
+        old_function = self.current_function
         new_function = Function()
         new_function.name = name
-        new_function.enclosing_function = old_func
+        new_function.enclosing_function = old_function
         self.current_function = new_function
 
         for index, param_name in enumerate(params):
@@ -840,7 +838,7 @@ class Compiler(object):
         # Compile top level expression.
         self.compile_sequence(body, is_tail_call=True)
         self.current_function.emit_instruction(OP_RETURN)
-        self.current_function = old_func
+        self.current_function = old_function
 
         return new_function
 
@@ -1068,17 +1066,17 @@ DISASM_TABLE = {
 
 
 def disassemble(outfile, instructions, functions):
-    next_func = functions[0].base_address
+    next_function_start = functions[0].base_address
     func_index = 0
 
     for pc, word in enumerate(instructions):
-        if pc == next_func:
+        if pc == next_function_start:
             outfile.write('\n{}:\n'.format(functions[func_index].name))
             func_index += 1
             if func_index == len(functions):
-                next_func = 0xffffffff
+                next_function_start = 0xffffffff
             else:
-                next_func = functions[func_index].base_address
+                next_function_start = functions[func_index].base_address
 
         outfile.write('    {:04d}    '.format(pc))
         opcode = word >> 16
@@ -1135,34 +1133,34 @@ class MacroProcessor(object):
 
     def eval(self, expr, env):
         if isinstance(expr, list):
-            func = expr[0]
-            if func == 'first':
+            function = expr[0]
+            if function == 'first':
                 return self.eval(expr[1], env)[0]
-            elif func == 'rest':
+            elif function == 'rest':
                 return self.eval(expr[1], env)[1]
-            elif func == 'if':        # (if test trueexpr falsexpr)
+            elif function == 'if':        # (if test trueexpr falsexpr)
                 if self.eval(expr[1], env):
                     return self.eval(expr[2], env)
                 elif len(expr) > 3:
                     return self.eval(expr[3], env)
                 else:
                     return 0
-            elif func == 'assign':    # (assign var value)
+            elif function == 'assign':    # (assign var value)
                 env[expr[1]] = self.eval(expr[2], env)
-            elif func == 'list':
+            elif function == 'list':
                 return [self.eval(element, env) for element in expr[1:]]
-            elif func == 'quote':
+            elif function == 'quote':
                 return expr[1]
-            elif func == 'backquote':
+            elif function == 'backquote':
                 return self.expand_backquote(expr[1], env)
-            elif func == 'cons':
+            elif function == 'cons':
                 return [self.eval(expr[1], env)] + [self.eval(expr[2], env)]
-            elif func in OPTIMIZE_BINOPS:
-                return OPTIMIZE_BINOPS[func](
+            elif function in OPTIMIZE_BINOPS:
+                return OPTIMIZE_BINOPS[function](
                     self.eval(
                         expr[1], env), self.eval(
                         expr[2], env))
-            elif func in self.macro_list:
+            elif function in self.macro_list:
                 # Invoke a sub-macro
                 new_env = copy.copy(env)
                 arg_list, body = self.macro_list[expr[0]]
@@ -1174,15 +1172,15 @@ class MacroProcessor(object):
                 # Call a function. We can't really define functions yet, so
                 # stubbed out for now.
                 # Func is (function (arg arg arg) body)
-                func = env[expr[0]]
-                if func is None or not isinstance(func, list) or func[
-                        0] != 'function':
+                function = env[expr[0]]
+                if function is None or not isinstance(function, list) or \
+                    function[0] != 'function':
                     raise Exception(
                         'bad function call during macro expansion', '')
-                for name, value in zip(func[0], expr[1:]):
+                for name, value in zip(function[0], expr[1:]):
                     env[name] = self.eval(value, env)
 
-                return self.eval(func[1], env)
+                return self.eval(function[1], env)
         elif isinstance(expr, int):
             return expr
         else:
