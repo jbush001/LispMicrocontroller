@@ -96,8 +96,8 @@ module lisp_core
     begin
         case (stack_pointer_select)
             SP_CURRENT:     stack_pointer_next = stack_pointer;
-            SP_DECREMENT:     stack_pointer_next = stack_pointer - 16'd1;
-            SP_INCREMENT:     stack_pointer_next = stack_pointer + 16'd1;
+            SP_DECREMENT:   stack_pointer_next = stack_pointer - 16'd1;
+            SP_INCREMENT:   stack_pointer_next = stack_pointer + 16'd1;
             SP_ALU:         stack_pointer_next = alu_result[15:0];
         endcase
     end
@@ -115,9 +115,9 @@ module lisp_core
     always @*
     begin
         case (alu_op0_select)
-            OP0_TOP_OF_STACK:     alu_op0 = top_of_stack[15:0];
-            OP0_STACK_POINTER:     alu_op0 = stack_pointer;
-            OP0_BASE_POINTER:     alu_op0 = base_pointer;
+            OP0_TOP_OF_STACK:   alu_op0 = top_of_stack[15:0];
+            OP0_STACK_POINTER:  alu_op0 = stack_pointer;
+            OP0_BASE_POINTER:   alu_op0 = base_pointer;
             default:            alu_op0 = {16{1'bx}};
         endcase
     end
@@ -135,10 +135,10 @@ module lisp_core
     always @*
     begin
         case (alu_op1_select)
-            OP1_MEM_READ: alu_op1 = data_mem_read_value[15:0];
-            OP1_PARAM:             alu_op1 = param;
-            OP1_ONE:             alu_op1 = 16'd1;
-            default:            alu_op1 = {16{1'bx}};
+            OP1_MEM_READ:   alu_op1 = data_mem_read_value[15:0];
+            OP1_PARAM:      alu_op1 = param;
+            OP1_ONE:        alu_op1 = 16'd1;
+            default:        alu_op1 = {16{1'bx}};
         endcase
     end
 
@@ -154,18 +154,18 @@ module lisp_core
     always @*
     begin
         case (alu_op)
-            OP_ADD: alu_result = alu_op0 + alu_op1;
-            OP_SUB: alu_result = diff;
-            OP_GTR: alu_result = !negative && !zero;
-            OP_GTE: alu_result = !negative;
-            OP_EQ: alu_result = zero;
-            OP_NEQ: alu_result = !zero;
-            OP_AND: alu_result = alu_op0 & alu_op1;
-            OP_OR: alu_result = alu_op0 | alu_op1;
-            OP_XOR: alu_result = alu_op0 ^ alu_op1;
-            OP_LSHIFT: alu_result = alu_op0 << alu_op1;
-            OP_RSHIFT: alu_result = alu_op0 >> alu_op1;
-            default: alu_result = {16{1'bx}};
+            OP_ADD:     alu_result = alu_op0 + alu_op1;
+            OP_SUB:     alu_result = diff;
+            OP_GTR:     alu_result = !negative && !zero;
+            OP_GTE:     alu_result = !negative;
+            OP_EQ:      alu_result = zero;
+            OP_NEQ:     alu_result = !zero;
+            OP_AND:     alu_result = alu_op0 & alu_op1;
+            OP_OR:      alu_result = alu_op0 | alu_op1;
+            OP_XOR:     alu_result = alu_op0 ^ alu_op1;
+            OP_LSHIFT:  alu_result = alu_op0 << alu_op1;
+            OP_RSHIFT:  alu_result = alu_op0 >> alu_op1;
+            default:    alu_result = {16{1'bx}};
         endcase
     end
 
@@ -187,15 +187,15 @@ module lisp_core
     always @*
     begin
         case (tos_select)
-            TOS_CURRENT:             top_of_stack_next = top_of_stack;
-            TOS_TAG:                top_of_stack_next = top_of_stack[18:16];
-            TOS_RETURN_ADDR:        top_of_stack_next = { 3'd0, instruction_pointer + 16'd1 };
-            TOS_BASE_POINTER:        top_of_stack_next = { 3'd0, base_pointer };
-            TOS_PARAM:                top_of_stack_next = { 3'd0, param };
-            TOS_SETTAG:                top_of_stack_next = { data_mem_read_value[2:0], top_of_stack[15:0] };
-            TOS_ALU_RESULT:            top_of_stack_next = { top_of_stack[18:16], alu_result[15:0] };
-            TOS_MEMORY_RESULT:        top_of_stack_next = data_mem_read_value;
-            default:                top_of_stack_next = {19{1'bx}};
+            TOS_CURRENT:        top_of_stack_next = top_of_stack;
+            TOS_TAG:            top_of_stack_next = top_of_stack[18:16];
+            TOS_RETURN_ADDR:    top_of_stack_next = { 3'd0, instruction_pointer + 16'd1 };
+            TOS_BASE_POINTER:   top_of_stack_next = { 3'd0, base_pointer };
+            TOS_PARAM:          top_of_stack_next = { 3'd0, param };
+            TOS_SETTAG:         top_of_stack_next = { data_mem_read_value[2:0], top_of_stack[15:0] };
+            TOS_ALU_RESULT:     top_of_stack_next = { top_of_stack[18:16], alu_result[15:0] };
+            TOS_MEMORY_RESULT:  top_of_stack_next = data_mem_read_value;
+            default:            top_of_stack_next = {19{1'bx}};
         endcase
     end
 
@@ -213,11 +213,11 @@ module lisp_core
     always @*
     begin
         case (ma_select)
-            MA_STACK_POINTER:             data_mem_address = stack_pointer;
-            MA_TOP_OF_STACK:             data_mem_address = top_of_stack[15:0];
-            MA_ALU:                        data_mem_address = alu_result;
+            MA_STACK_POINTER:           data_mem_address = stack_pointer;
+            MA_TOP_OF_STACK:            data_mem_address = top_of_stack[15:0];
+            MA_ALU:                     data_mem_address = alu_result;
             MA_BASE_POINTER:            data_mem_address = base_pointer;
-            MA_STACK_POINTER_MINUS_ONE:    data_mem_address = stack_pointer - 16'd1;
+            MA_STACK_POINTER_MINUS_ONE: data_mem_address = stack_pointer - 16'd1;
             default:                    data_mem_address = {16{1'bx}};
         endcase
     end
@@ -234,10 +234,10 @@ module lisp_core
     always @*
     begin
         case (mw_select)
-            MW_BASE_POINTER: data_mem_write_value = { 3'd0, base_pointer };
-            MW_TOP_OF_STACK: data_mem_write_value = top_of_stack;
+            MW_BASE_POINTER:    data_mem_write_value = { 3'd0, base_pointer };
+            MW_TOP_OF_STACK:    data_mem_write_value = top_of_stack;
             MW_MEM_READ_RESULT: data_mem_write_value = data_mem_read_value;
-            default: data_mem_write_value = {19{1'bx}};
+            default:            data_mem_write_value = {19{1'bx}};
         endcase
     end
 
@@ -255,8 +255,8 @@ module lisp_core
     begin
         case (bp_select)
             BP_CURRENT:     base_pointer_next = base_pointer;
-            BP_ALU:            base_pointer_next = alu_result;
-            BP_MEM:            base_pointer_next = data_mem_read_value[15:0];
+            BP_ALU:         base_pointer_next = alu_result;
+            BP_MEM:         base_pointer_next = data_mem_read_value[15:0];
             default:        base_pointer_next = {16{1'bx}};
         endcase
     end
@@ -277,12 +277,12 @@ module lisp_core
     always @*
     begin
         case (ip_select)
-            IP_CURRENT: instruction_pointer_next = instruction_pointer;
-            IP_NEXT: instruction_pointer_next = instruction_pointer + 16'd1;
-            IP_BRANCH_TARGET: instruction_pointer_next = param;
+            IP_CURRENT:         instruction_pointer_next = instruction_pointer;
+            IP_NEXT:            instruction_pointer_next = instruction_pointer + 16'd1;
+            IP_BRANCH_TARGET:   instruction_pointer_next = param;
             IP_MEM_READ_RESULT: instruction_pointer_next = data_mem_read_value[15:0];
-            IP_STACK_TARGET: instruction_pointer_next =  top_of_stack[15:0];
-            default: instruction_pointer_next = {16{1'bx}};
+            IP_STACK_TARGET:    instruction_pointer_next =  top_of_stack[15:0];
+            default:            instruction_pointer_next = {16{1'bx}};
         endcase
     end
 
