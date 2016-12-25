@@ -20,6 +20,7 @@ import subprocess
 import sys
 
 TESTS = [
+    'oom.lisp',
     'gc.lisp',
     'closure.lisp',
     'map-reduce.lisp',

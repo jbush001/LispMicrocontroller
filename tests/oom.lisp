@@ -18,3 +18,5 @@
 ; need to modify testbench.v to run extra cycles.
 (while true
     (assign a (cons 1 a)))
+
+; CHECK: OOM

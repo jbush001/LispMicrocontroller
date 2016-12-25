@@ -49,7 +49,7 @@ module testbench;
         //$dumpfile("trace.vcd");
         //$dumpvars(100, l);
 
-        for (i = 0; i < 1000000 && !halt; i = i + 1)
+        for (i = 0; i < 2000000 && !halt; i = i + 1)
         begin
             #5 clk = ~clk;
 
