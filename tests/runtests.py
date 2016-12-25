@@ -5,6 +5,7 @@ import sys
 import re
 
 TESTS = [
+    'closure.lisp',
     'map-reduce.lisp',
     'sum-even-fib.lisp',
     'optimizer.lisp',

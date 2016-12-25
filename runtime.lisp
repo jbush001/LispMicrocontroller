@@ -62,6 +62,9 @@
 (defmacro function? (ptr)
     `(= (bitwise-and (gettag ,ptr) 3) 2))
 
+(defmacro closure? (ptr)
+    `(= (bitwise-and (gettag ,ptr) 3) 3))
+
 ; Note that $heapstart is a variable created automatically
 ; by the compiler.  Wilderness is memory that has never been allocated and
 ; that we can simply slice off from.
@@ -72,7 +75,8 @@
 
 ; Mark a pointer, following links if it is a pair
 (function $mark-recursive (ptr)
-    (if (and ptr (list? ptr))    ; Check if this is a cons and is not null
+    ; Check if this is a cons/closure and is not null
+    (if (and ptr (or (list? ptr) (closure? ptr)))
         (begin
             (let ((firstword (load ptr)) (tag (gettag firstword)))
                 (if (not (rshift tag 2))

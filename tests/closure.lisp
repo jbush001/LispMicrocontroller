@@ -14,16 +14,20 @@
 ; limitations under the License.
 ;
 
-; Upvals are not fully implemented yet. Right now, this will return a compilation
-; error.
+(function make_between (low high)
+    (function (value) (and (>= value low) (<= value high))))
 
-(function mkgtr (x)
-    (function (y) (> y x)))
+(assign check (make_between 3 5))
 
-(assign gtr7 (mkgtr 7))
+; Run a GC to ensure the closure is properly marked
+($gc)
 
+; If the GC did free the closure, this will clobber it
+(cons 0 0)
+
+; Now get back to testing that the closure works correctly
 (for x 0 10 1
-    (begin
-        (if (gtr7 x) (printchar 84) (printchar 70))
-        (printchar 10)))
+    (if (check x) ($printchar 84) ($printchar 70)))
+
+; CHECK: FFFTTTFFFF
 

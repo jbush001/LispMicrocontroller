@@ -30,6 +30,7 @@ import sys
 TAG_INTEGER = 0  # Make this zero because types default to this when pushed
 TAG_CONS = 1
 TAG_FUNCTION = 2
+TAG_CLOSURE = 3
 
 OP_NOP = 0
 OP_CALL = 1
@@ -72,7 +73,7 @@ class Symbol(object):
         self.index = -1
         self.initialized = False    # For globals
         self.function = None
-        self.upval = None
+        self.closure_source = None
 
 
 class Label(object):
@@ -96,7 +97,7 @@ class Function(object):
         self.prologue = None
         self.instructions = []
         self.environment = [{}]         # Stack of scopes
-        self.closure_vars = []
+        self.free_variables = []
         self.enclosing_function = None
         self.referenced = False         # Used to strip dead functions
         self.num_params = 0
@@ -142,17 +143,32 @@ class Function(object):
         if param > 32767 or param < -32768:
             raise Exception('param out of range ' + str(param))
 
-        # Convert to two's complement
-        if param < 0:
-            param = ((-param ^ 0xffff) + 1) & 0xffff
-
-        self.instructions += [(op << 16) | param]
+        self.instructions += [(op << 16) | (param & 0xffff)]
 
     def add_prologue(self):
+        prologue = []
         if self.num_local_variables > 0:
-            self.prologue = [(OP_RESERVE << 16) | self.num_local_variables]
-        else:
-            self.prologue = []
+            prologue.append((OP_RESERVE << 16) | self.num_local_variables)
+
+        if self.free_variables:
+            prologue.append((OP_PUSH << 16) | 1)  # Address of $closure
+            prologue.append(OP_LOAD << 16)
+
+            # Read the list
+            for index, var in enumerate(self.free_variables):
+                if index:
+                    prologue.append(OP_REST << 16)  # Read next pointer
+
+                if index != len(self.free_variables) - 1:
+                    # Save pointer for call to rest in next loop iteration
+                    prologue.append(OP_DUP << 16)
+
+                prologue.append(OP_LOAD << 16)  # Read value (car)
+                prologue.append((OP_SETLOCAL << 16) | (
+                    var.index & 0xffff))  # save
+                prologue.append(OP_POP << 16)
+
+        self.prologue = prologue
 
     def get_size(self):
         return len(self.prologue) + len(self.instructions)
@@ -272,53 +288,48 @@ class Compiler(object):
         if sym:
             return sym
 
-        # Is this an upval?
-        is_upval = False
+        # A variable is 'free' if it is defined in the enclosing
+        # function. In this example, a is a free variable:
+        #
+        # (function foo (a) (function (b) (+ a b)))
+        #
+        is_free_var = False
         function = self.current_function.enclosing_function
         while function:
             sym = function.lookup_local_variable(name)
             if sym:
-                is_upval = True
+                is_free_var = True
                 break
 
             function = function.enclosing_function
 
-        if is_upval:
-            raise Exception('closures not implemented: variable ' +
-                            name + ' defined in enclosing function')
+        if is_free_var:
+            # Create a new local variable to contain the value
+            sym = self.current_function.reserve_local_variable(name)
+            self.current_function.free_variables += [sym]
 
-#    XXX partial implementation of closure variables, currently disabled.
-#            # Create a new local variable
-#            sym = self.current_function.reserve_local_variable(name)
-#            self.current_function.closure_vars += [ sym ]
-#
-#            # Mark free variables, possibly through multiple functions
-#            dest = sym
-#            function = self.current_function.enclosing_function
-#            found_source = False
-#            while function and not found_source:
-#                source = function.lookup_local_variable(name)
-#                if source is None:
-#                    # Note that, when we create an anonymous function, we will
-#                    # open a new scope that will contain these temporaries.
-#                    # They will go out of scope when we finish compiling the function
-#                    # We DO want to be sure to create a named variable so we can
-#                    # share the same instance if the outer variable is referenced
-#                    # multiple times. Eg:
-#                    # (function foo (a) (function bar (b) (function baz(c) (+ c a))))
-#                    # A temporary 'a' will be created in the outer scope of bar.
-#                    #
-#                    source = self.current_function.reserve_local_variable(name)
-#                else:
-#                    found_source = True
-#
-#                dest.upval = source
-#                function.closure_vars += [ source ]
-#                function = function.enclosing_function
-#
-#            return sym
+            # Determine where to capture this from in the source environment
+            dest = sym
+            func = self.current_function.enclosing_function
+            while True:
+                dest.closure_source = func.lookup_local_variable(name)
+                if dest.closure_source:
+                    break
 
-        # Check for global variable
+                # The variable is from a function above this one, eg:
+                # (function foo (a) (function bar (b) (function baz(c) (+ c a))))
+                # In this example, we want to create a variable 'a' in the scope
+                # of function b, so it is copied through properly. This is
+                # named so, if there are subseqent uses of 'a', they will reference
+                # the same variable.
+                dest.closure_source = func.reserve_local_variable(name)
+                func.free_variables += [dest.closure_source]
+                dest = dest.closure_source
+                func = func.enclosing_function
+
+            return sym
+
+        # Check if this is a global variable
         if name in self.globals:
             return self.globals[name]
 
@@ -343,6 +354,12 @@ class Compiler(object):
         # emitted.
         heapstart = self.lookup_symbol('$heapstart')
         heapstart.initialized = True
+
+        # This is used during calls with closures. Code expects this variable
+        # to be at address 1 (which it will be because it is the second global
+        # variable that was created).
+        closure_ptr = self.lookup_symbol('$closure')
+        closure_ptr.initialized = True
         self.current_function.emit_instruction(OP_PUSH, 0)
         self.current_function.emit_instruction(OP_PUSH, heapstart.index)
         self.current_function.emit_instruction(OP_STORE)
@@ -803,8 +820,8 @@ class Compiler(object):
             self.compile_expression(param_expr)
 
         if self.current_function.name == expr[0] and is_tail_call:
-            # This is a recursive call. Copy parameters back into frame and
-            # then jump to entry
+            # This is a recursive tail call. Copy parameters back into
+            # frame and then jump to entry
             for opnum in range(len(expr) - 1):
                 self.current_function.emit_instruction(OP_SETLOCAL, opnum + 1)
                 self.current_function.emit_instruction(OP_POP)
@@ -812,11 +829,45 @@ class Compiler(object):
             self.current_function.emit_branch_instruction(
                 OP_GOTO, self.current_function.entry)
         else:
+            is_closure_call = True
+            if isinstance(expr[0], str):
+                func = self.lookup_symbol(expr[0])
+                if func.type == Symbol.FUNCTION:
+                    is_closure_call = False
+
             self.compile_expression(expr[0])
-            self.current_function.emit_instruction(OP_CALL)
-            if len(expr) > 1:
+
+            if is_closure_call:
+                # Need to check if this is a closure or just a function
+                self.current_function.emit_instruction(OP_DUP)
+                self.current_function.emit_instruction(OP_GETTAG)
+                not_closure = Label()
+                self.current_function.emit_instruction(OP_PUSH, TAG_CLOSURE)
+                self.current_function.emit_instruction(OP_EQ)
+                self.current_function.emit_instruction(OP_BFALSE, 0)
+                self.current_function.add_fixup(not_closure)
+
+                # This is a closure, extract relevant parts. Store pointer to
+                # environment at address 1, which is $closure.
+                self.current_function.emit_instruction(OP_DUP)
+                self.current_function.emit_instruction(OP_REST)  # read env
+                self.current_function.emit_instruction(OP_PUSH, 1)  # $closure
+                self.current_function.emit_instruction(OP_STORE)  # save
+                self.current_function.emit_instruction(OP_POP)
                 self.current_function.emit_instruction(
-                    OP_CLEANUP, len(expr) - 1)
+                    OP_LOAD)  # load function
+
+                self.current_function.emit_label(not_closure)
+                self.current_function.emit_instruction(OP_CALL)
+                if len(expr) > 1:
+                    self.current_function.emit_instruction(OP_CLEANUP,
+                                                           len(expr) - 1)
+            else:
+                # Optimized function call
+                self.current_function.emit_instruction(OP_CALL)
+                if len(expr) > 1:
+                    self.current_function.emit_instruction(
+                        OP_CLEANUP, len(expr) - 1)
 
     def compile_function_body(self, name, params, body):
         '''
@@ -860,12 +911,43 @@ class Compiler(object):
 
         new_function.name = '<anonymous function>'
 
-        # Compile code that references the function object we created. We'll
-        # set the tag to indicate this is a function.
-        self.current_function.emit_instruction(OP_PUSH, TAG_FUNCTION)
-        self.current_function.emit_instruction(OP_PUSH, 0)
-        self.current_function.add_fixup(new_function)
-        self.current_function.emit_instruction(OP_SETTAG)
+        # Compile reference to function into enclosing function
+        if new_function.free_variables:
+            # There are free variables. Compile code to create closure.
+            # closure is a pair, with the first element being a pointer to the
+            # function code (which is fixed up later) and the second being a list
+            # of all free variables that need to be copied in the prologue of
+            # the function.
+            self.current_function.emit_instruction(OP_PUSH, TAG_CLOSURE)
+
+            # Copy all of the closure variables into a list
+            self.current_function.emit_instruction(OP_PUSH, 0)  # Delimeter
+            for var in reversed(new_function.free_variables):
+                self.current_function.emit_instruction(OP_GETLOCAL,
+                                                       var.closure_source.index)
+                # Append to list
+                self.compile_identifier('cons')
+                self.current_function.emit_instruction(OP_CALL)
+                self.current_function.emit_instruction(OP_CLEANUP, 2)
+
+            # Add function pointer
+            self.current_function.emit_instruction(OP_PUSH, 0)
+            self.current_function.add_fixup(new_function)
+
+            # Create the pair of (funcaddr . valuelist)
+            self.compile_identifier('cons')
+            self.current_function.emit_instruction(OP_CALL)
+            self.current_function.emit_instruction(OP_CLEANUP, 2)
+
+            # Change the tag of this cons cell into a closure
+            self.current_function.emit_instruction(OP_SETTAG)
+        else:
+            # No free variables
+            self.current_function.emit_instruction(OP_PUSH, TAG_FUNCTION)
+            self.current_function.emit_instruction(OP_PUSH, 0)
+            self.current_function.add_fixup(new_function)
+            self.current_function.emit_instruction(OP_SETTAG)
+
         self.function_list += [new_function]
 
     def compile_sequence(self, sequence, is_tail_call=False):
@@ -1079,7 +1161,7 @@ def disassemble(outfile, instructions, functions):
                 next_function_start = functions[func_index].base_address
 
         outfile.write('    {:04d}    '.format(pc))
-        opcode = word >> 16
+        opcode = (word >> 16) & 0x1f
         name, has_param = DISASM_TABLE[opcode]
         if has_param:
             param_value = word & 0xffff
@@ -1174,7 +1256,7 @@ class MacroProcessor(object):
                 # Func is (function (arg arg arg) body)
                 function = env[expr[0]]
                 if function is None or not isinstance(function, list) or \
-                    function[0] != 'function':
+                        function[0] != 'function':
                     raise Exception(
                         'bad function call during macro expansion', '')
                 for name, value in zip(function[0], expr[1:]):
