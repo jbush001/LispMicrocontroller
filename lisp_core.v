@@ -24,10 +24,10 @@ module lisp_core
 
     output [15:0]               instr_mem_address,
     input [20:0]                instr_mem_read_value,
-    output reg[15:0]            data_mem_address = 0,
+    output reg[15:0]            data_mem_address,
     input [18:0]                data_mem_read_value,
-    output reg[18:0]            data_mem_write_value = 0,
-    output reg                  data_mem_write_enable = 0);
+    output reg[18:0]            data_mem_write_value,
+    output reg                  data_mem_write_enable);
 
     localparam STATE_DECODE = 0;
     localparam STATE_GOT_NOS = 1;
@@ -90,7 +90,7 @@ module lisp_core
     localparam SP_ALU = 3;
 
     reg[1:0] stack_pointer_select = SP_CURRENT;
-    reg[15:0] stack_pointer_next = 0;
+    reg[15:0] stack_pointer_next;
 
     always @*
     begin
@@ -110,7 +110,7 @@ module lisp_core
     localparam OP0_BASE_POINTER = 2;
 
     reg[1:0] alu_op0_select = OP0_TOP_OF_STACK;
-    reg[15:0] alu_op0 = 0;
+    reg[15:0] alu_op0;
 
     always @*
     begin
@@ -130,7 +130,7 @@ module lisp_core
     localparam OP1_ONE = 2;
 
     reg[1:0] alu_op1_select = OP1_MEM_READ;
-    reg[15:0] alu_op1 = 0;
+    reg[15:0] alu_op1;
 
     always @*
     begin
@@ -145,8 +145,8 @@ module lisp_core
     //
     // ALU
     //
-    reg[15:0] alu_result = 0;
-    reg[4:0] alu_op = 0;
+    reg[15:0] alu_result;
+    reg[4:0] alu_op;
     wire[15:0] diff = alu_op0 - alu_op1;
     wire zero = diff == 0;
     wire negative = diff[15];
@@ -182,7 +182,7 @@ module lisp_core
     localparam TOS_MEMORY_RESULT = 7;
 
     reg[2:0] tos_select = TOS_CURRENT;
-    reg[18:0] top_of_stack_next = 0;
+    reg[18:0] top_of_stack_next;
 
     always @*
     begin
@@ -248,7 +248,7 @@ module lisp_core
     localparam BP_ALU = 1;
     localparam BP_MEM = 2;
 
-    reg[15:0] base_pointer_next = 0;
+    reg[15:0] base_pointer_next;
     reg[1:0] bp_select = BP_CURRENT;
 
     always @*
@@ -270,7 +270,7 @@ module lisp_core
     localparam IP_MEM_READ_RESULT = 3;
     localparam IP_STACK_TARGET = 4;
 
-    reg[15:0] instruction_pointer_next = 0;
+    reg[15:0] instruction_pointer_next;
     reg[2:0] ip_select = IP_CURRENT;
     assign instr_mem_address = instruction_pointer_next;
 
