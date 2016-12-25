@@ -39,7 +39,7 @@ TESTS = [
     'getbp_bug.lisp',
     'hello.lisp',
     'dict.lisp',
-    'muldiv.lisp',
+    'math.lisp',
     'nth.lisp'
 ]
 

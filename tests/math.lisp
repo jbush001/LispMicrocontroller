@@ -37,3 +37,7 @@
 (print (mod 2319 POS))  ; CHECK: 19
 (print (mod 2319 NEG))  ; CHECK: -2
 (print (sqrt 1902))     ; CHECK: 43
+
+(print (abs NEG))       ; CHECK: 7
+(print (abs POS))       ; CHECK: 23
+
