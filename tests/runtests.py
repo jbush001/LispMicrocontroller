@@ -75,31 +75,10 @@ def check_output(output, check_filename):
 def runtest(filename):
     try:
         # Compile test
-        args = ['python', 'compile.py', filename]
-        process = None
-        try:
-            process = subprocess.Popen(args)
-            process.communicate()
-        except:
-            print('compile failed')
-            if process:
-                process.kill()
-
-            raise
+        subprocess.check_call(['python', 'compile.py', filename])
 
         # Run test
-        args = ['vvp', 'sim.vvp']
-        process = None
-        output = None
-        try:
-            process = subprocess.Popen(args, stdout=subprocess.PIPE)
-            output = process.communicate()[0].decode().strip()
-        except:
-            if process:
-                process.kill()
-
-            raise
-
+        output = subprocess.check_output(['vvp', 'sim.vvp']).decode().strip()
         if output:
             if check_output(output, filename):
                 print('PASS')
