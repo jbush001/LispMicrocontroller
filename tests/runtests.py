@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+from __future__ import print_function
 import subprocess
 import sys
 
@@ -113,5 +114,5 @@ if len(sys.argv) > 1:
     runtest('tests/' + sys.argv[1])
 else:
     for filename in TESTS:
-        print(filename)
+        print(filename, end=' ')
         runtest('tests/' + filename)
