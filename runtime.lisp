@@ -45,6 +45,10 @@
 (defmacro read-register (index)
     `(load (- ,index 4096)))
 
+; In testbench.v, when register 4095 is written, the simulator will exit
+(function halt ()
+    (write-register 4095 0))
+
 ; For debugging, uncomment the printchar lines to log GC actions
 (defmacro gclog (prefix address)
     `(begin
@@ -133,7 +137,7 @@
     ($printchar 79)
     ($printchar 77)
     ($printchar 10)
-    (while 1 ()))
+    (halt))
 
 ;
 ; Allocate a new cell and return a pointer to it
@@ -335,3 +339,4 @@
 
 (function reverse (list)
     ($$reverse_recursive list nil))
+

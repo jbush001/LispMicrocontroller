@@ -29,6 +29,7 @@ module testbench;
     wire register_write;
     wire[15:0] register_write_value;
     reg[15:0] register_read_value = 0;
+    reg halt = 0;
 
     ulisp l(
         .clk(clk),
@@ -48,7 +49,7 @@ module testbench;
         //$dumpfile("trace.vcd");
         //$dumpvars(100, l);
 
-        for (i = 0; i < 400000; i = i + 1)
+        for (i = 0; i < 1000000 && !halt; i = i + 1)
         begin
             #5 clk = ~clk;
 
@@ -64,6 +65,11 @@ module testbench;
         begin
             if (register_index == 0)
                 $write("%c", register_write_value);
+            else if (register_index == 4095)
+            begin
+                $display("HALTED");
+                halt = 1;
+            end
             else
                 $display("set register %d <= %d", register_index, register_write_value);
         end

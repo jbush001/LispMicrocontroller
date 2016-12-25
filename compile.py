@@ -373,10 +373,10 @@ class Compiler(object):
                 self.current_function.emit_instruction(
                     OP_POP)  # Clean up stack
 
-        # Put an infinite loop at the end
-        forever = Label()
-        self.current_function.emit_label(forever)
-        self.current_function.emit_branch_instruction(OP_GOTO, forever)
+        # Call (halt) library call at end
+        self.compile_identifier('halt')
+        self.current_function.emit_instruction(OP_CALL)
+        self.current_function.emit_instruction(OP_CLEANUP, 2)
 
         # main is the first function emitted, since that's where execution
         # will start

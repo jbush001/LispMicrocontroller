@@ -69,6 +69,10 @@ def check_output(output, check_filename):
         print('FAIL: no lines with CHECK: were found')
         return False
 
+    if output.find('HALTED', result_offset) == -1:
+        print('simulation did not halt normally')
+        return False
+
     return True
 
 
