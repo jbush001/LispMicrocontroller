@@ -15,7 +15,9 @@
 ;
 
 ;
-; Garbage collector test.  This can't be run automatically.  I enable
+; Garbage collector test.
+; In the automated configuration, this ensures the program runs to completion,
+; but can't ensure it frees everything. To verify this completely, I enable
 ; GC logs in runtime.lisp, then manually analyze the sequence of allocs/frees.
 ;
 
@@ -24,14 +26,23 @@
 (assign b '(5 6 7 8))
 
 (function foo ()
-    (let ((c '(9 10 11 12)) (d '(13 14 15 16)))    ; Reference on the stack, won't be collected
-        ($gc)))
+    (let ((c '(9 10)) (d '(11 12)))    ; Reference on the stack, won't be collected
+        ($gc)   ; This shouldn't free anything
+        (let ((g '(13 14 15 16))) ; If c or d were incorrectly freed, this would clobber
+            (print c)   ; CHECK: (9 10)
+            (print d)))) ; CHECK: (11 12)
 
 (foo)
-($gc)    ; We should get element 'c' and 'd' back now
+($gc)    ; We should get element 'c', 'd', and 'g' back now
 
-
-(assign e '(17 18 19 20 21 22 23 24))    ; This will take the space that a formerly took
-
+(assign e '(17 18 19 20 21 22 23 24))    ; This will take the space that c, d, and g formerly took
 
 (assign f '(25 26 27 28))    ; Allocate a new block from the wilderness
+
+(print a) ; CHECK: (1 2 (99 98 97 96) 4))
+(print b) ; CHECK: (5 6 7 8)
+(print e) ; CHECK: (17 18 19 20 21 22 23 24)
+(print f) ; CHECK: (25 26 27 28)
+
+
+
