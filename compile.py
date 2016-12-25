@@ -415,7 +415,7 @@ class Compiler(object):
             instructions += function.instructions
 
         # For debugging: create a list file with the disassembly
-        with open('program.lst', 'wb') as listfile:
+        with open('program.lst', 'w') as listfile:
             # Write out table of global variables
             listfile.write('Globals:\n')
             for var in self.globals:
@@ -992,7 +992,7 @@ class Compiler(object):
 OPTIMIZE_BINOPS = {
     '+': (lambda x, y: x + y),
     '-': (lambda x, y: x - y),
-    '/': (lambda x, y: x / y),
+    '/': (lambda x, y: x // y),
     '*': (lambda x, y: x * y),
     'bitwise-and': (lambda x, y: x & y),
     'bitwise-or': (lambda x, y: x | y),

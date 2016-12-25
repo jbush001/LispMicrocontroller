@@ -92,7 +92,7 @@ def runtest(filename):
         output = None
         try:
             process = subprocess.Popen(args, stdout=subprocess.PIPE)
-            output = process.communicate()[0].strip()
+            output = process.communicate()[0].decode().strip()
         except:
             if process:
                 process.kill()
