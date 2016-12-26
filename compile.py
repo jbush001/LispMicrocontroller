@@ -100,12 +100,11 @@ class Function(object):
         self.free_variables = []
         self.enclosing_function = None
         self.referenced = False         # Used to strip dead functions
-        self.num_params = 0
         self.entry = Label()
         self.emit_label(self.entry)
 
     def enter_scope(self):
-        self.environment += [{}]
+        self.environment.append({})
 
     def exit_scope(self):
         self.environment.pop()
@@ -125,7 +124,7 @@ class Function(object):
         self.num_local_variables += 1
         return sym
 
-    def reserve_parameter(self, name, index):
+    def set_param(self, name, index):
         sym = Symbol(Symbol.LOCAL_VARIABLE)
         self.environment[-1][name] = sym
         sym.index = index + 1
@@ -143,7 +142,7 @@ class Function(object):
         if param > 32767 or param < -32768:
             raise Exception('param out of range ' + str(param))
 
-        self.instructions += [(op << 16) | (param & 0xffff)]
+        self.instructions.append((op << 16) | (param & 0xffff))
 
     def add_prologue(self):
         prologue = []
@@ -182,6 +181,12 @@ class Function(object):
         self.fixups.append((len(self.instructions) - 1, target))
 
     def patch(self, offset, value):
+        '''
+        Change the immediate field of the instruction to the passed
+        value, leaving its opcode unmodified.
+        offset - index of the instruction, starting after the prologue
+        value - new value for immediate field
+        '''
         self.instructions[offset] &= ~0xffff
         self.instructions[offset] |= (value & 0xffff)
 
@@ -229,7 +234,7 @@ class Parser(object):
                 if expr == '':
                     break
 
-                self.program += [expr]
+                self.program.append(expr)
 
     def parse_paren_list(self):
         parenlist = []
@@ -242,7 +247,7 @@ class Parser(object):
                 break
 
             self.lexer.push_token(lookahead)
-            parenlist += [self.parse_expr()]
+            parenlist.append(self.parse_expr())
 
         return parenlist
 
@@ -275,7 +280,6 @@ class Compiler(object):
         self.current_function = Function()
         self.function_list = [None]        # Reserve a spot for 'main'
         self.break_stack = []
-        self.code_length = 0
 
     def lookup_symbol(self, name):
         '''
@@ -283,7 +287,6 @@ class Compiler(object):
         to enclosing scopes. If the symbol doesn't exist, create it in the
         global scope.
         '''
-
         # Check for local variable
         sym = self.current_function.lookup_local_variable(name)
         if sym:
@@ -307,7 +310,7 @@ class Compiler(object):
         if is_free_var:
             # Create a new local variable to contain the value
             sym = self.current_function.reserve_local_variable(name)
-            self.current_function.free_variables += [sym]
+            self.current_function.free_variables.append(sym)
 
             # Determine where to capture this from in the source environment
             dest = sym
@@ -324,7 +327,7 @@ class Compiler(object):
                 # named so, if there are subseqent uses of 'a', they will reference
                 # the same variable.
                 dest.closure_source = func.reserve_local_variable(name)
-                func.free_variables += [dest.closure_source]
+                func.free_variables.append(dest.closure_source)
                 dest = dest.closure_source
                 func = func.enclosing_function
 
@@ -400,8 +403,6 @@ class Compiler(object):
             function.add_prologue()
             pc += function.get_size()
 
-        self.code_length = pc
-
         # Fix up all unresolved references
         for function in self.function_list:
             function.apply_fixups()
@@ -420,7 +421,7 @@ class Compiler(object):
         with open('program.lst', 'w') as listfile:
             # Write out table of global variables
             listfile.write('Globals:\n')
-            for var in sorted(self.globals, key=lambda key:self.globals[key].index):
+            for var in sorted(self.globals, key=lambda key: self.globals[key].index):
                 sym = self.globals[var]
                 if sym.type != Symbol.FUNCTION:
                     listfile.write(' {:4d} {} \n'.format(sym.index, var))
@@ -434,9 +435,8 @@ class Compiler(object):
         Compile named function definition
         (function name (param param...) body)
         '''
-
         function = self.compile_function_body(expr[1], expr[2], expr[3:])
-        self.function_list += [function]
+        self.function_list.append(function)
 
         if expr[1] in self.globals:
             # There was a forward reference to this function and it was
@@ -478,7 +478,6 @@ class Compiler(object):
         This may be wrapped in control flow form. If a sequence is outermost,
         the last function call will be a tail call.
         '''
-
         if isinstance(expr, list):
             if len(expr) == 0:
                 # Empty expression
@@ -505,7 +504,6 @@ class Compiler(object):
         Look up the variable in the current environment and push its value
         onto the stack.
         '''
-
         variable = self.lookup_symbol(expr)
         if variable.type == Symbol.LOCAL_VARIABLE:
             self.current_function.emit_instruction(OP_GETLOCAL,
@@ -528,7 +526,6 @@ class Compiler(object):
         This may be a special form (like if) or a function call.
         Anything that isn't an atom or a number will be compiled here.
         '''
-
         if isinstance(expr[0], str):
             function_name = expr[0]
             if function_name in self.PRIMITIVES:
@@ -563,7 +560,6 @@ class Compiler(object):
         '''
          Quoted expressions compile to a series of cons calls.
         '''
-
         if isinstance(expr, list):
             if len(expr) == 3 and expr[1] == '.':
                 # This is a pair, which has special syntax: ( expr . expr )
@@ -605,7 +601,6 @@ class Compiler(object):
         String literals compile to a cons call for each character, since
         there is not a native string type.
         '''
-
         if len(string) == 1:
             self.compile_integer_literal(0)
         else:
@@ -624,7 +619,6 @@ class Compiler(object):
         This will leave the value of the expression on the stack, since all
         expressions do that.
         '''
-
         variable = self.lookup_symbol(expr[1])
         if variable.type == Symbol.LOCAL_VARIABLE:
             self.compile_expression(expr[2])
@@ -647,7 +641,6 @@ class Compiler(object):
         Compile a boolean expression that is not part of an conditional form like
         if or while. This will push the result (1 or 0) on the stack.
         '''
-
         false_label = Label()
         done_label = Label()
         self.compile_predicate(expr, false_label)
@@ -663,7 +656,6 @@ class Compiler(object):
         If the expression is false, this will jump to the label 'false_label', otherwise
         it will fall through. This performs short circuit evaluation where possible.
         '''
-
         if isinstance(expr, list):
             if expr[0] == 'and':
                 if len(expr) < 2:
@@ -709,7 +701,6 @@ class Compiler(object):
         Conditional execution
         (if expr true [false])
         '''
-
         false_label = Label()
         done_label = Label()
 
@@ -734,11 +725,10 @@ class Compiler(object):
         If the loop terminates normally (the condition is false), the
         result is zero. If (break val) is called, 'val' will be the result.
         '''
-
         top_of_loop = Label()
         bottom_of_loop = Label()
         break_loop = Label()
-        self.break_stack += [break_loop]
+        self.break_stack.append(break_loop)
         self.current_function.emit_label(top_of_loop)
         self.compile_predicate(expr[1], bottom_of_loop)
         self.compile_sequence(expr[2:])
@@ -754,7 +744,6 @@ class Compiler(object):
         break out of the current loop
         (break [value])
         '''
-
         label = self.break_stack[-1]
         if len(expr) > 1:
             self.compile_expression(expr[1])    # Push value on stack
@@ -813,7 +802,6 @@ class Compiler(object):
 
     def compile_function_call(self, expr, is_tail_call=False):
         '''Call a function'''
-
         if isinstance(expr[0], int):
             raise Exception('Cannot use integer as function')
 
@@ -876,7 +864,6 @@ class Compiler(object):
         Common code to compile body of the function definition (either anonymous or named)
         ((param param...) body)
         '''
-
         old_function = self.current_function
         new_function = Function()
         new_function.name = name
@@ -884,9 +871,7 @@ class Compiler(object):
         self.current_function = new_function
 
         for index, param_name in enumerate(params):
-            self.current_function.reserve_parameter(param_name, index)
-
-        self.current_function.num_params = len(params)
+            self.current_function.set_param(param_name, index)
 
         # Compile top level expression.
         self.compile_sequence(body, is_tail_call=True)
@@ -902,7 +887,6 @@ class Compiler(object):
         Generate the code in a separate global function, then emit a push
         of the reference to it in the current function.
         '''
-
         # Do an enter_scope because we may create temporary variables to
         # represent free variables while compiling. See lookup_symbol for more
         # information.
@@ -950,14 +934,13 @@ class Compiler(object):
             self.current_function.add_fixup(new_function)
             self.current_function.emit_instruction(OP_SETTAG)
 
-        self.function_list += [new_function]
+        self.function_list.append(new_function)
 
     def compile_sequence(self, sequence, is_tail_call=False):
         '''
         A sequence of expressions. The result will be the last expression evaluated.
         (sequence stmt1 stmt2 ... stmtn)
         '''
-
         if len(sequence) == 0:
             self.current_function.emit_instruction(
                 OP_PUSH, 0)  # Need to have at least one value
@@ -974,7 +957,6 @@ class Compiler(object):
         Reserve local variables and assign initial values to them.
         (let ((variable value) (variable value) (variable value)...) expr)
         '''
-
         # Reserve space on stack for local variables
         self.current_function.enter_scope()
 
@@ -1033,7 +1015,6 @@ def optimize(expr):
     Optimize the S-Expression program, performing transforms like constant
     folding, constant conditional folding, and strength reduction.
     '''
-
     if isinstance(expr, list) and len(expr) > 0:
         if expr[0] == 'quote':
             return expr  # Don't optimize things in quotes
@@ -1277,7 +1258,7 @@ class MacroProcessor(object):
                 # (defmacro <name> (arg list) replace)
                 self.macro_list[statement[1]] = (statement[2], statement[3])
             else:
-                updated_program += [self.macro_expand_recursive(statement)]
+                updated_program.append(self.macro_expand_recursive(statement))
 
         return updated_program
 

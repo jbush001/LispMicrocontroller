@@ -39,7 +39,7 @@
 
 (assign f '(25 26 27 28))    ; Allocate a new block from the wilderness
 
-(print a) ; CHECK: (1 2 (99 98 97 96) 4))
+(print a) ; CHECK: (1 2 (99 98 97 96) 4)
 (print b) ; CHECK: (5 6 7 8)
 (print e) ; CHECK: (17 18 19 20 21 22 23 24)
 (print f) ; CHECK: (25 26 27 28)
