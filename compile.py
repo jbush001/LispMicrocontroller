@@ -241,8 +241,7 @@ class Parser(object):
         while True:
             lookahead = self.lexer.get_token()
             if lookahead == '':
-                print('missing )')
-                break
+                raise Exception('missing )')
             elif lookahead == ')':
                 break
 
@@ -394,7 +393,7 @@ class Compiler(object):
         # Check for globals that are referenced but not used
         for name, sym in self.globals.items():
             if not sym.initialized:
-                print('unknown variable {}'.format(name))
+                raise Exception('unknown variable {}'.format(name))
 
         # Generate prologues and determine function addresses
         pc = 0

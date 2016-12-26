@@ -20,8 +20,9 @@ import subprocess
 import sys
 
 TESTS = [
-# Uncomment to ensure this properly detects failures
-#    'fail.lisp',
+# Uncomment these one at a time to ensure this properly detects failures
+#    'match-fail.lisp',
+#    'compile-fail.lisp',
     'tail-recurse.lisp',
     'hello.lisp',
     'gc.lisp',
