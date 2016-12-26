@@ -22,6 +22,7 @@ import sys
 TESTS = [
 # Uncomment to ensure this properly detects failures
 #    'fail.lisp',
+    'tail-recurse.lisp',
     'hello.lisp',
     'gc.lisp',
     'closure.lisp',
