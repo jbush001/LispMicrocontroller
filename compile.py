@@ -89,8 +89,8 @@ class Label(object):
 
 class Function(object):
 
-    def __init__(self):
-        self.name = None
+    def __init__(self, name):
+        self.name = name
         self.fixups = []
         self.base_address = None
         self.num_local_variables = 0
@@ -163,8 +163,8 @@ class Function(object):
                     prologue.append(OP_DUP << 16)
 
                 prologue.append(OP_LOAD << 16)  # Read value (car)
-                prologue.append((OP_SETLOCAL << 16) | (
-                    var.index & 0xffff))  # save
+                prologue.append((OP_SETLOCAL << 16) |
+                    (var.index & 0xffff))  # save
                 prologue.append(OP_POP << 16)
 
         self.prologue = prologue
@@ -276,8 +276,8 @@ class Compiler(object):
     def __init__(self):
         self.globals = {}
         self.next_global_slot = 0
-        self.current_function = Function()
-        self.function_list = [None]        # Reserve a spot for 'main'
+        self.current_function = None
+        self.function_list = []
         self.break_stack = []
 
     def lookup_symbol(self, name):
@@ -348,9 +348,9 @@ class Compiler(object):
         Top level compile function. All code not in function blocks will be
         emitted into an implicitly created dummy function 'main'
         '''
-        self.current_function = Function()
+        self.current_function = Function('main')
         self.current_function.referenced = True
-        self.current_function.name = 'main'
+        self.function_list.append(self.current_function)
 
         # Create a built-in variable that indicates where the heap starts
         # (will be patched at the end of compilation with the proper address)
@@ -374,17 +374,12 @@ class Compiler(object):
                 self.compile_function(expr)
             else:
                 self.compile_expression(expr)
-                self.current_function.emit_instruction(
-                    OP_POP)  # Clean up stack
+                self.current_function.emit_instruction(OP_POP) # Clean up stack
 
         # Call (halt) library call at end
         self.compile_identifier('halt')
         self.current_function.emit_instruction(OP_CALL)
         self.current_function.emit_instruction(OP_CLEANUP, 2)
-
-        # main is the first function emitted, since that's where execution
-        # will start
-        self.function_list[0] = self.current_function
 
         # Strip out functions that aren't called
         self.function_list = [
@@ -864,8 +859,7 @@ class Compiler(object):
         ((param param...) body)
         '''
         old_function = self.current_function
-        new_function = Function()
-        new_function.name = name
+        new_function = Function(name)
         new_function.enclosing_function = old_function
         self.current_function = new_function
 
@@ -890,11 +884,9 @@ class Compiler(object):
         # represent free variables while compiling. See lookup_symbol for more
         # information.
         self.current_function.enter_scope()
-        new_function = self.compile_function_body(None, expr[1], expr[2:])
+        new_function = self.compile_function_body('<anonymous function>', expr[1], expr[2:])
         new_function.referenced = True
         self.current_function.exit_scope()
-
-        new_function.name = '<anonymous function>'
 
         # Compile reference to function into enclosing function
         if new_function.free_variables:
