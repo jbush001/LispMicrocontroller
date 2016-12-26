@@ -271,6 +271,7 @@ class Compiler(object):
 
     def __init__(self):
         self.globals = {}
+        self.next_global_slot = 0
         self.current_function = Function()
         self.function_list = [None]        # Reserve a spot for 'main'
         self.break_stack = []
@@ -335,7 +336,8 @@ class Compiler(object):
 
         # Not found, create a new global variable implicitly
         sym = Symbol(Symbol.GLOBAL_VARIABLE)
-        sym.index = len(self.globals)        # Allocate a storage slot for this
+        sym.index = self.next_global_slot
+        self.next_global_slot += 1
         self.globals[name] = sym
         return sym
 
@@ -387,9 +389,9 @@ class Compiler(object):
             function for function in self.function_list if function.referenced]
 
         # Check for globals that are referenced but not used
-        for var_name in self.globals:
-            if not self.globals[var_name].initialized:
-                print('unknown variable {}'.format(var_name))
+        for name, sym in self.globals.items():
+            if not sym.initialized:
+                print('unknown variable {}'.format(name))
 
         # Generate prologues and determine function addresses
         pc = 0
@@ -418,10 +420,10 @@ class Compiler(object):
         with open('program.lst', 'w') as listfile:
             # Write out table of global variables
             listfile.write('Globals:\n')
-            for var in self.globals:
+            for var in sorted(self.globals, key=lambda key:self.globals[key].index):
                 sym = self.globals[var]
                 if sym.type != Symbol.FUNCTION:
-                    listfile.write(' {} var@{}\n'.format(var, sym.index))
+                    listfile.write(' {:4d} {} \n'.format(sym.index, var))
 
             disassemble(listfile, instructions, self.function_list)
 
