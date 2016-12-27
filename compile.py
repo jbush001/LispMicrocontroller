@@ -100,6 +100,7 @@ class Function(object):
         self.free_variables = []
         self.enclosing_function = None
         self.referenced = False         # Used to strip dead functions
+        self.referenced_funcs = []
         self.entry = Label()
         self.emit_label(self.entry)
 
@@ -212,6 +213,22 @@ class Function(object):
                 raise Exception(
                     'internal error: unknown fixup type ' + target.__name__)
 
+    def mark_callees(self):
+        '''
+        Recursively mark all functions referenced by this one so they won't
+        be removed by dead code stripping. The reference list contains
+        either functions (for anoymous functions or declared functions) or
+        symbols (for forward references)
+        '''
+        self.referenced = True
+        for ref in self.referenced_funcs:
+            if isinstance(ref, Symbol):
+                function = ref.function
+            else:
+                function = ref
+
+            if not function.referenced:
+                function.mark_callees()
 
 class Parser(object):
     '''Converts text LISP source into a nested set of python lists'''
@@ -349,7 +366,6 @@ class Compiler(object):
         emitted into an implicitly created dummy function 'main'
         '''
         self.current_function = Function('main')
-        self.current_function.referenced = True
         self.function_list.append(self.current_function)
 
         # Create a built-in variable that indicates where the heap starts
@@ -369,6 +385,13 @@ class Compiler(object):
         self.current_function.emit_instruction(OP_STORE)
         self.current_function.emit_instruction(OP_POP)
 
+        # Do a pass to register all functions in the global scope. This is
+        # necessary to avoid creating global variables for these.
+        for expr in program:
+            if expr[0] == 'function':
+                self.globals[expr[1]] = Symbol(Symbol.FUNCTION)
+
+        # Compile
         for expr in program:
             if expr[0] == 'function':
                 self.compile_function(expr)
@@ -382,6 +405,7 @@ class Compiler(object):
         self.current_function.emit_instruction(OP_CLEANUP, 2)
 
         # Strip out functions that aren't called
+        self.current_function.mark_callees()
         self.function_list = [
             function for function in self.function_list if function.referenced]
 
@@ -432,33 +456,14 @@ class Compiler(object):
         function = self.compile_function_body(expr[1], expr[2], expr[3:])
         self.function_list.append(function)
 
-        if expr[1] in self.globals:
-            # There was a forward reference to this function and it was
-            # assumed to be a global. We're kind of stuck with that now,
-            # because code was generated that can't be easily fixed up.
-            # Emit code to stash it in the global table.
-            sym = self.globals[expr[1]]
-            if sym.initialized:
-                raise Exception('Global variable ' +
-                                expr[1] + ' redefined as function')
+        assert expr[1] in self.globals  # Added by first pass
+        sym = self.globals[expr[1]]
+        if sym.initialized:
+            raise Exception('Global variable ' +
+                            expr[1] + ' redefined as function')
 
-            # Function address, to be fixed up
-            self.current_function.emit_instruction(OP_PUSH, 0)
-            self.current_function.add_fixup(function)
-
-            # Global variable offset, to be fixed up
-            self.current_function.emit_instruction(OP_PUSH, 0)
-            self.current_function.add_fixup(sym)
-            self.current_function.emit_instruction(OP_STORE)
-            self.current_function.emit_instruction(OP_POP)
-            sym.initialized = True
-            function.referenced = True
-        else:
-            sym = Symbol(Symbol.FUNCTION)
-            sym.initialized = True
-            sym.function = function
-
-        self.globals[expr[1]] = sym
+        sym.initialized = True
+        sym.function = function
 
     def compile_expression(self, expr, is_tail_call=False):
         '''
@@ -507,7 +512,7 @@ class Compiler(object):
             self.current_function.add_fixup(variable)
             self.current_function.emit_instruction(OP_LOAD)
         elif variable.type == Symbol.FUNCTION:
-            variable.function.referenced = True
+            self.current_function.referenced_funcs.append(variable)
             self.current_function.emit_instruction(OP_PUSH, 0)
             self.current_function.add_fixup(variable)
         else:
@@ -885,8 +890,8 @@ class Compiler(object):
         # information.
         self.current_function.enter_scope()
         new_function = self.compile_function_body('<anonymous function>', expr[1], expr[2:])
-        new_function.referenced = True
         self.current_function.exit_scope()
+        self.current_function.referenced_funcs.append(new_function)
 
         # Compile reference to function into enclosing function
         if new_function.free_variables:
