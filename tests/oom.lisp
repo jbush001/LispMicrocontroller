@@ -14,8 +14,7 @@
 ; limitations under the License.
 ;
 
-; Will run out of memory.  Make sure runtime prints error.  Not run automatically:
-; need to modify testbench.v to run extra cycles.
+; Will run out of memory.  Make sure runtime prints error.
 (while true
     (assign a (cons 1 a)))
 
