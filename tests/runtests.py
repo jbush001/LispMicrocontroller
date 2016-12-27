@@ -23,6 +23,7 @@ TESTS = [
 # Uncomment these one at a time to ensure this properly detects failures
 #    'match-fail.lisp',
 #    'compile-fail.lisp',
+    'cadr.lisp',
     'tail-recurse.lisp',
     'hello.lisp',
     'gc.lisp',

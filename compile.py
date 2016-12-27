@@ -24,6 +24,7 @@ format. Output file is 'program.hex'
 
 import copy
 import math
+import re
 import shlex
 import sys
 
@@ -1088,6 +1089,41 @@ def optimize(expr):
     else:
         return expr
 
+CADR_RE = re.compile('c[ad]+r')
+
+def expand_cadr(expr):
+    '''
+    Scheme supports a shorthand for sequences of car and cdr calls where the
+    intermediate letters represent each operation. Expand into proper calls
+    here (we use first and rest);
+
+    (cadadr foo)
+    (car (cdr (car (cdr foo))))
+    '''
+    if isinstance(expr, list) and len(expr) > 0:
+        name = expr[0]
+        if name == 'quote':
+            return expr  # Don't mess with quoted lists
+
+        mutated = [expand_cadr(param) for param in expr[1:]]
+        if isinstance(name, str) and CADR_RE.search(name):
+            if name[-2] == 'a':
+                mutated = ['first'] + mutated
+            else:
+                mutated = ['rest'] + mutated
+
+            for letter in reversed(name[1:-2]):
+                if letter == 'a':
+                    mutated = ['first'] + [mutated]
+                else:
+                    mutated = ['rest'] + [mutated]
+        else:
+            mutated.insert(0, name)
+
+        return mutated
+    else:
+        return expr
+
 #
 # For debugging
 #
@@ -1284,7 +1320,6 @@ class MacroProcessor(object):
         else:
             return statement
 
-
 def compile_program(files):
     parser = Parser()
 
@@ -1295,13 +1330,10 @@ def compile_program(files):
     for filename in files:
         parser.parse_file(filename)
 
-    macro = MacroProcessor()
-    expanded = macro.macro_pre_process(parser.program)
-
-    optimized = [optimize(sub) for sub in expanded]
-
-    compiler = Compiler()
-    code = compiler.compile(optimized)
+    expanded1 = expand_cadr(parser.program)
+    expanded2 = MacroProcessor().macro_pre_process(expanded1)
+    optimized = [optimize(sub) for sub in expanded2]
+    code = Compiler().compile(optimized)
 
     with open('program.hex', 'w') as outfile:
         for instr in code:
