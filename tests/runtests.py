@@ -28,6 +28,7 @@ TESTS = [
     'hello.lisp',
     'gc.lisp',
     'closure.lisp',
+    'y-combinator.lisp',
     'map-reduce.lisp',
     'sum-even-fib.lisp',
     'optimizer.lisp',
