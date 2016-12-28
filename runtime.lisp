@@ -289,7 +289,6 @@
 
 (function print (x)
     (if (list? x)
-        ;; This is a list
         (begin
             ($printchar 40)    ; Open paren
             (let ((needspace false))
@@ -303,14 +302,18 @@
             ($printchar 41)))        ; Close paren
 
     (if (atom? x)
-        ;; This is a number
+        ; This is a number
         ($printdec x))
 
     (if (function? x)
-        ;; This is a function
         (begin
             ($printstr "function")
-            ($printhex x))))
+            ($printhex x)))
+
+    (if (closure? x)
+        (begin
+            ($printstr "closure ")
+            (print (rest x)))))
 
 (function nth (list index)
     (if list

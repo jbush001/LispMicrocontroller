@@ -19,6 +19,8 @@
 
 (assign check (make_between 3 5))
 
+(print check) ; CHECK: closure (3 5)
+
 ; Run a GC to ensure the closure is properly marked
 ($gc)
 
