@@ -102,4 +102,5 @@ if len(sys.argv) > 1:
 else:
     for filename in TESTS:
         print(filename, end=' ')
+        sys.stdout.flush()
         runtest('tests/' + filename)
