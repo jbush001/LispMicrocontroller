@@ -30,6 +30,7 @@ TESTS = [
 
     # Basic Compiler/Interpreter tests
     'hello.lisp',
+    'scope.lisp',
     'math.lisp',
     'optimizer.lisp',
     'conditionals.lisp',
