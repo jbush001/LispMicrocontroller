@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright 2011-2012 Jeff Bush
+# Copyright 2011-2016 Jeff Bush
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -551,6 +551,8 @@ class Compiler(object):
                 self.compile_assign(expr)
             elif function_name == 'quote':
                 self.compile_quote(expr[1])
+            elif function_name == 'list':
+                self.compile_list(expr)
             elif function_name == 'let':
                 self.compile_let(expr, is_tail_call)
             elif function_name == 'getbp':
@@ -562,6 +564,15 @@ class Compiler(object):
                 self.compile_function_call(expr, is_tail_call)
         else:
             self.compile_function_call(expr)
+
+    def compile_list(self, expr):
+        for value in reversed(expr[1:]):
+            self.compile_expression(value)
+
+            # Emit a call to the cons library function
+            self.compile_identifier('cons')
+            self.current_function.emit_instruction(OP_CALL)
+            self.current_function.emit_instruction(OP_CLEANUP, 2)
 
     def compile_quote(self, expr):
         '''

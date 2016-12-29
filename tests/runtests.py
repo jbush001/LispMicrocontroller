@@ -27,32 +27,34 @@ TESTS = [
 # Uncomment these one at a time to ensure this properly detects failures
 #    'match-fail.lisp',
 #    'compile-fail.lisp',
-    'cadr.lisp',
-    'tail-recurse.lisp',
+
+    # Basic Compiler/Interpreter tests
     'hello.lisp',
-    'gc.lisp',
-    'closure.lisp',
-    'y-combinator.lisp',
-    'map-reduce.lisp',
-    'sum-even-fib.lisp',
+    'math.lisp',
     'optimizer.lisp',
+    'conditionals.lisp',
+    'list.lisp',
+    'closure.lisp',
+    'tail-recurse.lisp',
+    'anonfunc.lisp',
+    'forloop.lisp',
+    'breakloop.lisp',
+    'getbp_bug.lisp',
+
+    # Runtime library tests
+    'map-reduce.lisp',
+    'filter.lisp',
+    'gc.lisp',
+    'oom.lisp',
+
+    # Sample programs
+    'y-combinator.lisp',
+    'sum-even-fib.lisp',
     'zip.lisp',
     'anagram.lisp',
-    'anonfunc.lisp',
-    'breakloop.lisp',
-    'reverse.lisp',
     'prime.lisp',
-    'pair.lisp',
-    'conditionals.lisp',
-    'forloop.lisp',
     'fib.lisp',
-    'filter.lisp',
-    'getbp_bug.lisp',
-    'dict.lisp',
-    'math.lisp',
-    'nth.lisp',
-    'oom.lisp',
-    'setfirstnext.lisp'
+    'dict.lisp'
 ]
 
 
