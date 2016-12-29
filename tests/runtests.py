@@ -51,7 +51,8 @@ TESTS = [
     'dict.lisp',
     'math.lisp',
     'nth.lisp',
-    'oom.lisp'
+    'oom.lisp',
+    'setfirstnext.lisp'
 ]
 
 

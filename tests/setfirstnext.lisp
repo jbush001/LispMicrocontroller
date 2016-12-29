@@ -1,5 +1,5 @@
 ;
-; Copyright 2011-2012 Jeff Bush
+; Copyright 2016 Jeff Bush
 ;
 ; Licensed under the Apache License, Version 2.0 (the "License");
 ; you may not use this file except in compliance with the License.
@@ -14,23 +14,8 @@
 ; limitations under the License.
 ;
 
-(function sequence (first last)
-    (if (< first last)
-        (cons first (sequence (+ first 1) last)) ; then append next value
-        (cons last nil))) ; else end of list
-
-(assign source (sequence 0 10))
-
-; Filter everything
-(print (filter source (function (x) 0)))
-; CHECK: 0
-
-; Filter nothing
-(print (filter source (function (x) 1)))
-; CHECK: (0 1 2 3 4 5 6 7 8 9 10)
-
-; Show only odd numbers of a sequence
-(print (filter source (function (x) (bitwise-and x 1))))
-; CHECK: (1 3 5 7 9)
-
-
+(assign foo '(0 . 0))
+(setfirst foo 12)
+(print foo)     ; CHECK: (12)
+(setnext foo '(15 . 0))
+(print foo)    ; CHECK: (12 15)

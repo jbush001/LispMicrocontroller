@@ -69,6 +69,12 @@
 (defmacro closure? (ptr)
     `(= (bitwise-and (gettag ,ptr) 3) 3))
 
+(defmacro setfirst (ptr val)
+    `(store ,ptr ,val))
+
+(defmacro setnext (ptr next)
+    `(store (+ ,ptr 1) ,next))
+
 ; Note that $heapstart is a variable created automatically
 ; by the compiler.  Wilderness is memory that has never been allocated and
 ; that we can simply slice off from.
@@ -315,6 +321,7 @@
             ($printstr "closure ")
             (print (rest x)))))
 
+; Walk down the list and return the element at the given index
 (function nth (list index)
     (if list
         (if index
@@ -327,9 +334,12 @@
         ($$length-helper (rest list) (+ length 1))
         length))
 
+; Return number of elements in the list
 (function length (list)
     ($$length-helper list 0))
 
+; Create a new list that contains all elements if the original with
+; a new element added on.
 (function append (list element)
     (if list
         (cons (first list) (append (rest list) element))
@@ -340,6 +350,65 @@
         ($$reverse_recursive (rest forward) (cons (first forward) backward))
         backward))
 
+; Creates a new list that has the same elements in the original but in
+; reverse order.
 (function reverse (list)
     ($$reverse_recursive list nil))
 
+(function $compare-lists (l1 l2)
+    (if (equal (first l1) (first l2))
+        (if (rest l1)
+            (if (rest l2)
+                ($compare-lists (rest l1) (rest l2))
+                0) ; l2 is shorter than l1
+            (if (rest l2)
+                0   ; l1 is shorter than l2
+                1))  ; End of both lists, equal
+        0))
+
+; Check if two value are isomorphic (have the same form). For example,
+; if two lists contain the same elements.
+(function equal (a b)
+    (if (list? a)
+        (if (list? b)
+            ($compare-lists a b)
+            0)
+        (= a b)))   ; Non list type, compare directly
+
+; Call func on each item in the list. Create a new list that
+; contains only items that func returned a non-zero value for.
+(function filter (list func)
+    (if list
+        ; then
+        (if (func (first list))
+            ; Then (filter returns true, this is member of list)
+            (cons (first list) (filter (rest list) func))
+
+            ; Else (this should be excluded from list)
+            (filter (rest list) func))
+
+        nil)) ; else end of list
+
+; Map calls the given function with each list element as a parameter, then
+; creates a new list with the substituted values (sometimes called mapcar in
+; other lisp implementations).
+(function map (values func)
+    (if values
+        (cons (func (first values)) (map (rest values) func))
+        nil))
+
+(function $reduce-helper (accum values func)
+    (if values
+        ($reduce-helper (func accum (first values)) (rest values) func)
+        accum))
+
+; Given a list reduce will call a function that takes two parameters
+; repeatedly and return a single result. e.g.
+; (reduce '(1 2 3 4 5) add)
+; will return the result of (add (add (add (add 1 2) 3) 4) 5)
+(function reduce (values func)
+    (if values
+        (if (rest values)
+            ($reduce-helper (first values) (rest values) func)
+            (first values))
+        nil))

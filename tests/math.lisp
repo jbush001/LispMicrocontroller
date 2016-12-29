@@ -14,6 +14,8 @@
 ; limitations under the License.
 ;
 
+; We use variables in these expressions rather than constants so the
+; optimizer doesn't remove the operations.
 
 (assign NEG -7)
 (assign POS 23)
@@ -66,3 +68,17 @@
 
 (print (abs NEG))               ; CHECK: 7
 (print (abs POS))               ; CHECK: 23
+
+(print (equal 1 2))                     ; CHECK: 0
+(print (equal 2 2))                     ; CHECK: 1
+(print (equal 2 '(2)))                  ; CHECK: 0
+(print (equal '(2) '(2)))               ; CHECK: 1
+(print (equal '(1 2 3) '(1 2 3)))       ; CHECK: 1
+(print (equal '(1 2) '(1 2 3)))         ; CHECK: 0
+(print (equal '(1 2 3) '(1 2)))         ; CHECK: 0
+(print (equal '(1 (2 3)) '(1 (2 3))))   ; CHECK: 1
+(print (equal '((1 2) 3) '(1 (2 3))))   ; CHECK: 0
+(print (equal "foo" "bar"))             ; CHECK: 0
+(print (equal "foo" "foo"))             ; CHECK: 1
+(print (equal print print))             ; CHECK: 1
+(print (equal (function () 1) (function() 1)))  ; CHECK: 0

@@ -14,25 +14,27 @@
 ; limitations under the License.
 ;
 
-(function map (values func)
-    (if values
-        (cons (func (first values)) (map (rest values) func))
-        nil))
+(function sum (a b)
+    (+ a b))
 
-(function reduce-helper (accum values func)
-    (if values
-        (reduce-helper (func accum (first values)) (rest values) func)
-        accum))
-
-(function reduce (values func)
-    (reduce-helper 0 values func))
+(function square (a)
+    (* a a))
 
 (function sum-of-squares (values)
-    (reduce (map values (function (x) (* x x))) (function (x y) (+ x y))))
+    (reduce (map values square) sum))
 
-(print (sum-of-squares '(2)))    ; CHECK: 4
-(print (sum-of-squares '(3 5 7 9)))    ; CHECK: 164
-(print (sum-of-squares nil))    ; CHECK: 0
-(print (sum-of-squares '()))    ; CHECK: 0
+(print map '(5 7 9) square)             ; CHECK (10 49 81)
+(print map nil square)                  ; CHECK 0
 
+(print (reduce '(1) sum))               ; CHECK: 1
+(print (reduce '(1 2) sum))             ; CHECK: 3
+(print (reduce '(1 2 3) sum))           ; CHECK: 6
+(print (reduce '(1 2 3 4) sum))         ; CHECK: 10
+(print (reduce nil sum))                ; CHECK: 0
 
+(print (sum-of-squares '(2)))           ; CHECK: 4
+(print (sum-of-squares '(3 4)))         ; CHECK: 25
+(print (sum-of-squares '(5 6 7)))       ; CHECK: 110
+(print (sum-of-squares '(8 9 10 11)))   ; CHECK: 366
+(print (sum-of-squares nil))            ; CHECK: 0
+(print (sum-of-squares '()))            ; CHECK: 0
