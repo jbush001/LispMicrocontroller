@@ -51,7 +51,7 @@ TESTS = [
 ]
 
 
-def check_output(output, check_filename):
+def check_result(output, check_filename):
     result_offset = 0
     found_check_lines = False
     with open(check_filename, 'r') as infile:
@@ -86,9 +86,9 @@ def runtest(filename):
         subprocess.check_call(['python', 'compile.py', filename])
 
         # Run test
-        output = subprocess.check_output(['vvp', 'sim.vvp']).decode().strip()
-        if output:
-            if check_output(output, filename):
+        result = subprocess.check_output(['vvp', 'sim.vvp']).decode().strip()
+        if result:
+            if check_result(result, filename):
                 print('PASS')
 
     except KeyboardInterrupt:

@@ -136,15 +136,15 @@ class Function(object):
         label.defined = True
         label.offset = len(self.instructions)
 
-    def emit_branch_instruction(self, op, label):
-        self.emit_instruction(op, 0)
+    def emit_branch_instruction(self, opcode, label):
+        self.emit_instruction(opcode, 0)
         self.add_fixup(label)
 
-    def emit_instruction(self, op, param=0):
+    def emit_instruction(self, opcode, param=0):
         if param > 32767 or param < -32768:
             raise Exception('param out of range ' + str(param))
 
-        self.instructions.append((op << 16) | (param & 0xffff))
+        self.instructions.append((opcode << 16) | (param & 0xffff))
 
     def add_prologue(self):
         prologue = []
@@ -166,7 +166,7 @@ class Function(object):
 
                 prologue.append(OP_LOAD << 16)  # Read value (car)
                 prologue.append((OP_SETLOCAL << 16) |
-                    (var.index & 0xffff))  # save
+                                (var.index & 0xffff))  # save
                 prologue.append(OP_POP << 16)
 
         self.prologue = prologue
@@ -375,19 +375,20 @@ class Compiler(object):
         # emitted.
         heapstart = self.lookup_symbol('$heapstart')
         heapstart.initialized = True
+        self.current_function.emit_instruction(OP_PUSH, 0)
+        self.current_function.emit_instruction(OP_PUSH, heapstart.index)
+        self.current_function.emit_instruction(OP_STORE)
+        self.current_function.emit_instruction(OP_POP)
 
         # This is used during calls with closures. Code expects this variable
         # to be at address 1 (which it will be because it is the second global
         # variable that was created).
         closure_ptr = self.lookup_symbol('$closure')
         closure_ptr.initialized = True
-        self.current_function.emit_instruction(OP_PUSH, 0)
-        self.current_function.emit_instruction(OP_PUSH, heapstart.index)
-        self.current_function.emit_instruction(OP_STORE)
-        self.current_function.emit_instruction(OP_POP)
 
         # Do a pass to register all functions in the global scope. This is
-        # necessary to avoid creating global variables for these.
+        # necessary to avoid creating these symbols as global variables
+        # when there are forward references.
         for expr in program:
             if expr[0] == 'function':
                 self.globals[expr[1]] = Symbol(Symbol.FUNCTION)
@@ -422,19 +423,24 @@ class Compiler(object):
             function.add_prologue()
             pc += function.get_size()
 
-        # Fix up all unresolved references
+        # Fix up all references
         for function in self.function_list:
             function.apply_fixups()
 
-        # Fix up the global variable size table. This assumes the push of the
-        # size is the first instruction emitted above.
+        # Patch $heapsize now that we know the number of global variables.
+        # This assumes the push of the size is the first instruction emitted
+        # above.
         self.function_list[0].patch(0, len(self.globals))
 
-        # Generate instruction stream by flattening all generated functions
+        # Flatten all generated instructions into an array
         instructions = []
         for function in self.function_list:
             instructions += function.prologue
             instructions += function.instructions
+
+        with open('program.hex', 'w') as outfile:
+            for instr in instructions:
+                outfile.write('{:06x}\n'.format(instr))
 
         # For debugging: create a list file with the disassembly
         with open('program.lst', 'w') as listfile:
@@ -447,11 +453,10 @@ class Compiler(object):
 
             disassemble(listfile, instructions, self.function_list)
 
-        return instructions
-
     def compile_function(self, expr):
         '''
-        Compile named function definition
+        Compile named function definition. These are only supported in the
+        global scope.
         (function name (param param...) body)
         '''
         function = self.compile_function_body(expr[1], expr[2], expr[3:])
@@ -503,6 +508,7 @@ class Compiler(object):
         '''
         Look up the variable in the current environment and push its value
         onto the stack.
+        expr - string that is the name of the variable to reference
         '''
         variable = self.lookup_symbol(expr)
         if variable.type == Symbol.LOCAL_VARIABLE:
@@ -524,7 +530,7 @@ class Compiler(object):
         '''
         A combination is a list expression (op param param...)
         This may be a special form (like if) or a function call.
-        Anything that isn't an atom or a number will be compiled here.
+        Any expression that isn't an atom or a number will be compiled here.
         '''
         if isinstance(expr[0], str):
             function_name = expr[0]
@@ -638,8 +644,9 @@ class Compiler(object):
 
     def compile_boolean_expression(self, expr):
         '''
-        Compile a boolean expression that is not part of an conditional form like
-        if or while. This will push the result (1 or 0) on the stack.
+        Compile a boolean expression (and, or, not) that is not part of an
+        conditional form like if or while. This will push the result (1 or 0)
+        on the stack.
         '''
         false_label = Label()
         done_label = Label()
@@ -653,8 +660,9 @@ class Compiler(object):
     def compile_predicate(self, expr, false_label):
         '''
         Compile a boolean expression that is part of a control flow expression.
-        If the expression is false, this will jump to the label 'false_label', otherwise
-        it will fall through. This performs short circuit evaluation where possible.
+        If the expression is false, this will jump to the label 'false_label',
+        otherwise it will fall through. This performs short circuit evaluation
+        where possible.
         '''
         if isinstance(expr, list):
             if expr[0] == 'and':
@@ -819,15 +827,15 @@ class Compiler(object):
             self.current_function.emit_branch_instruction(
                 OP_GOTO, self.current_function.entry)
         else:
-            is_closure_call = True
+            may_be_closure = True
             if isinstance(expr[0], str):
                 func = self.lookup_symbol(expr[0])
                 if func.type == Symbol.FUNCTION:
-                    is_closure_call = False
+                    may_be_closure = False
 
             self.compile_expression(expr[0])
 
-            if is_closure_call:
+            if may_be_closure:
                 # Need to check if this is a closure or just a function
                 self.current_function.emit_instruction(OP_DUP)
                 self.current_function.emit_instruction(OP_GETTAG)
@@ -861,7 +869,8 @@ class Compiler(object):
 
     def compile_function_body(self, name, params, body):
         '''
-        Common code to compile body of the function definition (either anonymous or named)
+        Common code to compile body of the function definition (either
+        anonymous or named)
         ((param param...) body)
         '''
         old_function = self.current_function
@@ -883,8 +892,8 @@ class Compiler(object):
         '''
         Anonymous function
         (function (param param...) (expr))
-        Generate the code in a separate global function, then emit a push
-        of the reference to it in the current function.
+        Generate the code in a separate global function (lambda lifting),
+        then emit a push of the reference to it in the current function.
         '''
         # Do an enter_scope because we may create temporary variables to
         # represent free variables while compiling. See lookup_symbol for more
@@ -925,7 +934,9 @@ class Compiler(object):
             # Change the tag of this cons cell into a closure
             self.current_function.emit_instruction(OP_SETTAG)
         else:
-            # No free variables
+            # No free variables. Marking this as a function is an
+            # optimization that avoids extra setup during the function
+            # call.
             self.current_function.emit_instruction(OP_PUSH, TAG_FUNCTION)
             self.current_function.emit_instruction(OP_PUSH, 0)
             self.current_function.add_fixup(new_function)
@@ -935,7 +946,8 @@ class Compiler(object):
 
     def compile_sequence(self, sequence, is_tail_call=False):
         '''
-        A sequence of expressions. The result will be the last expression evaluated.
+        A list of expressions to evaluate in order. The value of this
+        expression as a whole will be the last expression evaluated.
         (sequence stmt1 stmt2 ... stmtn)
         '''
         if len(sequence) == 0:
@@ -951,7 +963,8 @@ class Compiler(object):
 
     def compile_let(self, expr, is_tail_call=False):
         '''
-        Reserve local variables and assign initial values to them.
+        Create a new scope, reserve local variables, and assign initial
+        values to them.
         (let ((variable value) (variable value) (variable value)...) expr)
         '''
         # Reserve space on stack for local variables
@@ -995,16 +1008,16 @@ OPTIMIZE_UOPS = {
 }
 
 
-def is_power_of_two(x):
-    return (x & (x - 1)) == 0
+def is_power_of_two(i):
+    return (i & (i - 1)) == 0
 
 
-def make_legal_constant(x):
-    x &= 0xffff
-    if x & 0x8000:
-        return -((~x + 1) & 0xffff)
+def make_legal_constant(i):
+    i &= 0xffff
+    if i & 0x8000:
+        return -((~i + 1) & 0xffff)
     else:
-        return x
+        return i
 
 
 def optimize(expr):
@@ -1079,8 +1092,8 @@ def optimize(expr):
             # Strength reduction for power of two multiplies and divides
             if len(optimized_params) > 1 and isinstance(
                     optimized_params[1], int) and is_power_of_two(
-                    optimized_params[1]) and optimized_params[1] > 0 and (
-                    expr[0] == '*' or expr[0] == '/'):
+                        optimized_params[1]) and optimized_params[1] > 0 and (
+                            expr[0] == '*' or expr[0] == '/'):
                 return ['lshift' if expr[0] == '*' else 'rshift',
                         optimized_params[0], int(math.log(int(optimized_params[1]), 2))]
 
@@ -1214,7 +1227,6 @@ class MacroProcessor(object):
     Evaluate macro expressions with their arguments as parameters, insert
     the result into the expression list.
     '''
-
     def __init__(self):
         self.macro_list = {}
 
@@ -1256,7 +1268,7 @@ class MacroProcessor(object):
                 return OPTIMIZE_BINOPS[function](
                     self.eval(
                         expr[1], env), self.eval(
-                        expr[2], env))
+                            expr[2], env))
             elif function in self.macro_list:
                 # Invoke a sub-macro
                 new_env = copy.copy(env)
@@ -1333,10 +1345,6 @@ def compile_program(files):
     expanded1 = expand_cadr(parser.program)
     expanded2 = MacroProcessor().macro_pre_process(expanded1)
     optimized = [optimize(sub) for sub in expanded2]
-    code = Compiler().compile(optimized)
-
-    with open('program.hex', 'w') as outfile:
-        for instr in code:
-            outfile.write('{:06x}\n'.format(instr))
+    Compiler().compile(optimized)
 
 compile_program(sys.argv[1:])
