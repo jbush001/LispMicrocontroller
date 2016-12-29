@@ -27,9 +27,61 @@
 ; If the GC did free the closure, this will clobber it
 (cons 0 0)
 
-; Now get back to testing that the closure works correctly
+; Now test that the closure works correctly
 (for x 0 10 1
     (if (check x) ($printchar 84) ($printchar 70)))
 
 ; CHECK: FFFTTTFFFF
 
+
+; Verify that, if a free variable is copied from a function outside the immediate
+; parent, it is copied across all functions.
+(function foo (a)
+    (function ()
+        (function ()
+            (function ()
+                (print a)))))
+
+((((foo 19))))  ; CHECK: 19
+
+; Update variable inside a closure
+(function make_func1 (a)
+    (function ()
+        (assign a (+ a 1))
+        (print a)))
+
+; Because we capture by value and not reference, the updated value does
+; not affect the closure
+(assign func1 (make_func1 17))
+(func1) ; CHECK: 18
+(func1) ; CHECK: 18
+(func1) ; CHECK: 18
+
+; Multiple closures share a variable. The value at the time the closure
+; is created is captured.
+(function make_funcs1 ()
+    (let ((funclist nil) (x 0))
+        (while (< x 10)
+            (assign funclist (cons (function () (print x)) funclist))
+            (assign x (+ x 1)))
+        funclist))
+
+(foreach func (make_funcs1)
+    (func))
+
+; CHECK: 9876543210
+
+; We can share a variable by creating a reference to a cons cell.
+; When each closure runs, it updates the cell.
+(function make_funcs2 ()
+    (let ((funclist nil) (sharedref (cons 27 0)))
+        (for x 0 5 1
+            (assign funclist (cons (function ()
+                (setfirst sharedref (+ (first sharedref) 1))
+                (print (first sharedref))) funclist)))
+        funclist))
+
+(foreach func (make_funcs2)
+    (func))
+
+; CHECK: 2829303132
