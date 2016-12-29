@@ -39,6 +39,7 @@
 (print (append nil '(1 2 3))) ; CHECK (1 2 3)
 (print (append '(1 2 3) nil)) ; CHECK (1 2 3)
 (print (append '(1) 2)) ; CHECK (1 2)
+(print (append '(1) '(2))) ; CHECK (1 2)
 
 
 (assign foo 12)
@@ -86,7 +87,7 @@
 (print (caadadr test1)) ; CHECK: 3
 
 ;
-; Find string
+; find-string
 ;
 (print (find-string "abcdefghij" "abc")) ; CHECK: 0
 (print (find-string "habcdefghi" "abc")) ; CHECK: 1
@@ -103,3 +104,19 @@
 (print (find-string nil "hijk")) ; CHECK: -1
 (print (find-string "abc" nil)) ; CHECK: 0
 (print (find-string nil nil)) ; CHECK: -1
+
+;
+; sub-list
+;
+(assign source '(0 1 2 3 4 5 6 7 8 9))
+
+(print (sub-list source 0 10))  ; CHECK: (0 1 2 3 4 5 6 7 8 9)
+(print (sub-list source 1 10))  ; CHECK: (1 2 3 4 5 6 7 8 9)
+(print (sub-list source 1 8))   ; CHECK: (1 2 3 4 5 6 7 8)
+(print (sub-list source 2 3))   ; CHECK: (2 3 4)
+(print (sub-list source 5 1))   ; CHECK: (5)
+(print (sub-list source 11 5))  ; CHECK: 0
+(print (sub-list nil 2 5))      ; CHECK: 0
+(print (sub-list source 0 0))   ; CHECK: 0
+
+

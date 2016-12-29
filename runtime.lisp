@@ -435,3 +435,27 @@
 
 (function find-string (haystack needle)
     ($find-string-helper 0 haystack needle))
+
+(function sub-list (source start len)
+    (let ((newhead nil) (newtail nil) (from source))
+        ; Skip elements in source list
+        (while (and from start)
+            (assign from (rest from))
+            (assign start (- start 1)))
+
+        ; Copy len remaining entries if present
+        (if from
+            (begin
+                (while (and from len)
+                    (if (not newhead)
+                        (begin
+                            (assign newhead (cons (first from) nil))
+                            (assign newtail newhead))
+                        (begin
+                            (setnext newtail (cons (first from) nil))
+                            (assign newtail (rest newtail))))
+
+                    (assign from (rest from))
+                    (assign len (- len 1)))
+                newhead)
+            nil)))
