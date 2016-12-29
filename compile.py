@@ -24,6 +24,7 @@ format. Output file is 'program.hex'
 
 import copy
 import math
+import os
 import re
 import shlex
 import sys
@@ -1336,7 +1337,7 @@ def compile_program(files):
     parser = Parser()
 
     # Read standard runtime library
-    parser.parse_file('runtime.lisp')
+    parser.parse_file(os.path.dirname(os.path.abspath(__file__)) + '/runtime.lisp')
 
     # Read source files
     for filename in files:

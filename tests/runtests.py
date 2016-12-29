@@ -16,8 +16,12 @@
 #
 
 from __future__ import print_function
+import os
 import subprocess
 import sys
+
+TEST_DIR = os.path.normpath(os.path.dirname(os.path.abspath(__file__))) + '/'
+PROJECT_ROOT = TEST_DIR + '../'
 
 TESTS = [
 # Uncomment these one at a time to ensure this properly detects failures
@@ -83,10 +87,10 @@ def check_result(output, check_filename):
 def runtest(filename):
     try:
         # Compile test
-        subprocess.check_call(['python', 'compile.py', filename])
+        subprocess.check_call(['python', PROJECT_ROOT + '/compile.py', filename])
 
         # Run test
-        result = subprocess.check_output(['vvp', 'sim.vvp']).decode().strip()
+        result = subprocess.check_output(['vvp', PROJECT_ROOT + '/sim.vvp']).decode().strip()
         if result:
             if check_result(result, filename):
                 print('PASS')
@@ -98,9 +102,9 @@ def runtest(filename):
         raise
 
 if len(sys.argv) > 1:
-    runtest('tests/' + sys.argv[1])
+    runtest(TEST_DIR + sys.argv[1])
 else:
     for filename in TESTS:
         print(filename, end=' ')
         sys.stdout.flush()
-        runtest('tests/' + filename)
+        runtest(TEST_DIR + filename)
