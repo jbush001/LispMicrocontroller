@@ -36,6 +36,11 @@
 ; Append list
 (print (append b '(4 5 6))) ; CHECK: (1 2 4 5 6)
 
+(print (append nil '(1 2 3))) ; CHECK (1 2 3)
+(print (append '(1 2 3) nil)) ; CHECK (1 2 3)
+(print (append '(1) 2)) ; CHECK (1 2)
+
+
 (assign foo 12)
 (print (list 1 2 foo))  ; CHECK: (1 2 12)
 
@@ -80,5 +85,21 @@
 (print (cadadr test1)) ; CHECK: (3 4 5)
 (print (caadadr test1)) ; CHECK: 3
 
+;
+; Find string
+;
+(print (find-string "abcdefghij" "abc")) ; CHECK: 0
+(print (find-string "habcdefghi" "abc")) ; CHECK: 1
+(print (find-string "hiabcdefgh" "abc")) ; CHECK: 2
+(print (find-string "abcdefghij" "cdg")) ; CHECK: -1
 
+; Partial match and restart
+(print (find-string "abcdcdefgh" "cde")) ; CHECK: 4
 
+; Hit end of haystack before match
+(print (find-string "abcdefghij" "hijk")) ; CHECK: -1
+
+; Edge cases, not valid input
+(print (find-string nil "hijk")) ; CHECK: -1
+(print (find-string "abc" nil)) ; CHECK: 0
+(print (find-string nil nil)) ; CHECK: -1

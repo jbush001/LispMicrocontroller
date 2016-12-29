@@ -69,6 +69,9 @@
 (defmacro closure? (ptr)
     `(= (bitwise-and (gettag ,ptr) 3) 3))
 
+(defmacro nil? (ptr)
+    `(not ,ptr))
+
 (defmacro setfirst (ptr val)
     `(store ,ptr ,val))
 
@@ -338,19 +341,18 @@
 (function length (list)
     ($$length-helper list 0))
 
-; Create a new list that is a copy of prefix and make the last 'rest'
-; pointer be tail. The element(s) in tail will *not* be copied.
-(function $append-rest (prefix tail)
-    (if prefix
-        (cons (first prefix) ($append-rest (rest prefix) tail))
-        tail))
-
 ; Create a new list that contains all elements if the original with
 ; a new element added on.
 (function append (prefix element)
-    (if (and element (list? element))
-        ($append-rest prefix element)              ; It's a list, tack it on
-        ($append-rest prefix (cons element nil)))) ; It's an atom, create cons
+    (let ((suffix (if (list? element) element (cons element nil)))
+        (newhead (cons (first prefix) nil)) (newtail newhead))
+        (foreach entry (rest prefix)
+            (begin
+                ; Append entry to end of new list
+                (setnext newtail (cons entry nil))
+                (assign newtail (rest newtail))))
+        (setnext newtail suffix)
+        newhead))
 
 (function $$reverse_recursive (forward backward)
     (if forward
@@ -415,3 +417,21 @@
             (first values))
         nil))
 
+(function $match-substring (haystack needle)
+    (if needle
+        (if (= (first haystack) (first needle))
+            (if haystack
+                ($match-substring (rest haystack) (rest needle))
+                0)  ; Character mismatch
+            0) ; End of haystack, no match
+        1)) ; Match
+
+(function $find-string-helper (offset haystack needle)
+    (if haystack
+        (if (not ($match-substring haystack needle))
+            ($find-string-helper (+ offset 1) (rest haystack) needle)
+            offset)
+        -1))
+
+(function find-string (haystack needle)
+    ($find-string-helper 0 haystack needle))
