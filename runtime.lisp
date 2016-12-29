@@ -338,12 +338,19 @@
 (function length (list)
     ($$length-helper list 0))
 
+; Create a new list that is a copy of prefix and make the last 'rest'
+; pointer be tail. The element(s) in tail will *not* be copied.
+(function $append-rest (prefix tail)
+    (if prefix
+        (cons (first prefix) ($append-rest (rest prefix) tail))
+        tail))
+
 ; Create a new list that contains all elements if the original with
 ; a new element added on.
-(function append (list element)
-    (if list
-        (cons (first list) (append (rest list) element))
-        (cons element nil)))
+(function append (prefix element)
+    (if (and element (list? element))
+        ($append-rest prefix element)              ; It's a list, tack it on
+        ($append-rest prefix (cons element nil)))) ; It's an atom, create cons
 
 (function $$reverse_recursive (forward backward)
     (if forward
@@ -379,15 +386,10 @@
 ; contains only items that func returned a non-zero value for.
 (function filter (list func)
     (if list
-        ; then
         (if (func (first list))
-            ; Then (filter returns true, this is member of list)
-            (cons (first list) (filter (rest list) func))
-
-            ; Else (this should be excluded from list)
-            (filter (rest list) func))
-
-        nil)) ; else end of list
+            (cons (first list) (filter (rest list) func)) ; add to list
+            (filter (rest list) func)) ; skip this item
+        nil)) ; end of list
 
 ; Map calls the given function with each list element as a parameter, then
 ; creates a new list with the substituted values (sometimes called mapcar in
@@ -412,3 +414,4 @@
             ($reduce-helper (first values) (rest values) func)
             (first values))
         nil))
+

@@ -29,7 +29,12 @@
 
 (assign b '(1 2))
 (print b) ; CHECK: (1 2)
+
+; Append atom
 (print (append b 3)) ; CHECK: (1 2 3)
+
+; Append list
+(print (append b '(4 5 6))) ; CHECK: (1 2 4 5 6)
 
 (assign foo 12)
 (print (list 1 2 foo))  ; CHECK: (1 2 12)
