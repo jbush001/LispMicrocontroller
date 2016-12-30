@@ -1,5 +1,5 @@
 ;
-; Copyright 2011-2012 Jeff Bush
+; Copyright 2011-2016 Jeff Bush
 ;
 ; Licensed under the Apache License, Version 2.0 (the "License");
 ; you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
 ; limitations under the License.
 ;
 
-; We use variables in these expressions rather than constants so the
+; Use variables in these expressions rather than constants so the
 ; optimizer doesn't remove the operations.
-
 (assign NEG -7)
 (assign POS 23)
 

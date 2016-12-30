@@ -1,5 +1,5 @@
 ;
-; Copyright 2011-2012 Jeff Bush
+; Copyright 2011-2016 Jeff Bush
 ;
 ; Licensed under the Apache License, Version 2.0 (the "License");
 ; you may not use this file except in compliance with the License.
@@ -22,11 +22,11 @@
 (assign source (sequence 0 10))
 
 ; Filter everything
-(print (filter source (function (x) 0)))
+(print (filter source (function (x) false)))
 ; CHECK: 0
 
 ; Filter nothing
-(print (filter source (function (x) 1)))
+(print (filter source (function (x) true)))
 ; CHECK: (0 1 2 3 4 5 6 7 8 9 10)
 
 ; Show only odd numbers of a sequence

@@ -15,7 +15,7 @@
 ;
 
 (print
-    (while (< j 10)
+    (while true
         (print j)
         (if (= j 7)
             (break 37))

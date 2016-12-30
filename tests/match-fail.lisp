@@ -21,7 +21,7 @@
 ($printchar 10)
 ($printstr "World")
 
-; Order is maintained by the CHECK strings. Even though both occur, there
+; check strings must be matched in order. Even though both occur, there
 ; isn't a Hello after world, so this should fail on the second check.
 ; CHECK: World
 ; CHECK: Hello

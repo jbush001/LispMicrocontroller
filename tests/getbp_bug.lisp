@@ -21,4 +21,3 @@
 (foo (getbp) 5) ;  CHECK: 5
 
 ; When the bug was present, it printed 0
-

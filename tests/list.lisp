@@ -1,5 +1,5 @@
 ;
-; Copyright 2011-2012 Jeff Bush
+; Copyright 2011-2016 Jeff Bush
 ;
 ; Licensed under the Apache License, Version 2.0 (the "License");
 ; you may not use this file except in compliance with the License.
@@ -26,6 +26,9 @@
 (print (nth a 4)) ; CHECK: 5
 (print (nth a 5)) ; CHECK: 6
 (print (nth a 6)) ; CHECK: 0
+
+(print (length nil))    ; CHECK: 0
+(print (nth nil))       ; CHECK: 0
 
 (assign b '(1 2))
 (print b) ; CHECK: (1 2)
@@ -118,5 +121,3 @@
 (print (sub-list source 11 5))  ; CHECK: 0
 (print (sub-list nil 2 5))      ; CHECK: 0
 (print (sub-list source 0 0))   ; CHECK: 0
-
-

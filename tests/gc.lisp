@@ -1,5 +1,5 @@
 ;
-; Copyright 2011-2012 Jeff Bush
+; Copyright 2011-2016 Jeff Bush
 ;
 ; Licensed under the Apache License, Version 2.0 (the "License");
 ; you may not use this file except in compliance with the License.
@@ -43,6 +43,3 @@
 (print b) ; CHECK: (5 6 7 8)
 (print e) ; CHECK: (17 18 19 20 21 22 23 24)
 (print f) ; CHECK: (25 26 27 28)
-
-
-

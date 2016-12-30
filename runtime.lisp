@@ -19,11 +19,11 @@
 ;
 
 (defmacro foreach (var list expr)
-    `(let ((,var 0)(nodePtr ,list))
-        (while nodePtr
-            (assign ,var (first nodePtr))
+    `(let ((,var nil)(nodeptr ,list))
+        (while nodeptr
+            (assign ,var (first nodeptr))
             ,expr
-            (assign nodePtr (rest nodePtr)))))
+            (assign nodeptr (rest nodeptr)))))
 
 (defmacro for (var start end step expr)
     `(if (< ,step 0)
@@ -154,7 +154,6 @@
 (function cons (_first _rest)
     (let ((ptr nil))
         (if $freelist
-
             ; There are nodes on freelist, grab one.
             (begin
                 (assign ptr $freelist)
@@ -364,16 +363,16 @@
 (function reverse (list)
     ($$reverse_recursive list nil))
 
-(function $compare-lists (l1 l2)
-    (if (equal (first l1) (first l2))
-        (if (rest l1)
-            (if (rest l2)
-                ($compare-lists (rest l1) (rest l2))
-                0) ; l2 is shorter than l1
-            (if (rest l2)
-                0   ; l1 is shorter than l2
-                1))  ; End of both lists, equal
-        0))
+(function $compare-lists (list1 list2)
+    (if (equal (first list1) (first list2))
+        (if (rest list1)
+            (if (rest list2)
+                ($compare-lists (rest list1) (rest list2))
+                false) ; l2 is shorter than l1
+            (if (rest list2)
+                false   ; l1 is shorter than l2
+                true))  ; End of both lists, equal
+        false))
 
 ; Check if two value are isomorphic (have the same form). For example,
 ; if two lists contain the same elements.
@@ -381,7 +380,7 @@
     (if (list? a)
         (if (list? b)
             ($compare-lists a b)
-            0)
+            false)
         (= a b)))   ; Non list type, compare directly
 
 ; Call func on each item in the list. Create a new list that
@@ -422,9 +421,9 @@
         (if (= (first haystack) (first needle))
             (if haystack
                 ($match-substring (rest haystack) (rest needle))
-                0)  ; Character mismatch
-            0) ; End of haystack, no match
-        1)) ; Match
+                false)  ; Character mismatch
+            false) ; End of haystack, no match
+        true)) ; Match
 
 (function $find-string-helper (offset haystack needle)
     (if haystack

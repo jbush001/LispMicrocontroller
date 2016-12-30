@@ -1,5 +1,5 @@
 ;
-; Copyright 2011-2012 Jeff Bush
+; Copyright 2011-2016 Jeff Bush
 ;
 ; Licensed under the Apache License, Version 2.0 (the "License");
 ; you may not use this file except in compliance with the License.
@@ -14,27 +14,23 @@
 ; limitations under the License.
 ;
 
-; A dict consists of ((name . value) (name . value) (name . value))
+; A dictionary consists of ((name . value) (name . value) (name . value))
 
-; Find an item in a dict.  Return nil if it is not present.
-
+; Find an item in a dictionary.  Return nil if it is not present.
 (function dict-lookup (dict name)
     (if dict
         (if (= name (first (first dict))) ; then check if key matches
             (second (first dict))    ; then match, return value
-            (dict-lookup (rest dict) name) ; else lookup in remaining elements
-        )
-
+            (dict-lookup (rest dict) name)) ; else lookup in remaining elements
         nil)) ; else not found
 
-; Enter an item into a dict
+; Create a new dictionary list with the name value pair added. If the key name
+; is already in the list, replace it.
 (function dict-set (dict name value)
     (if dict
         (if (= name (first (first dict))) ; then check if key matches
             (cons (cons name value) (rest dict)) ; then key exists, replace
-            (cons (first dict) (dict-set (rest dict) name value))    ; else search rest of list
-        )
-
+            (cons (first dict) (dict-set (rest dict) name value)))    ; else search rest of list
         (cons (cons name value) nil))) ; else no match, add new entry
 
 ; Add some entries
