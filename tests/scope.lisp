@@ -14,31 +14,47 @@
 ; limitations under the License.
 ;
 
-(assign foo 12)
-(print foo) ; CHECK: 12
+(assign foo 13)
+(print foo) ; CHECK: 13
+
+(function bar () ($printstr "bar"))
 
 ; Shadow global with parameter
-((function (foo)
-    (print foo)) 15) ; CHECK: 15
+((function (foo bar)
+    (print foo) ; CHECK: 17
+    (print bar) ; CHECK: 19
+    (assign foo 23)
+    (assign bar 29)) 17 19)
 
-(print foo) ; CHECK: 12
+(print foo) ; CHECK: 13
+(bar)   ; CHECK: bar
 
 ; Shadow global with local variables
 ((function ()
-    (let ((foo 17))
-        (print foo)         ; CHECK: 17
-        (let ((foo 19))
-            (print foo))    ; CHECK: 19
+    (let ((foo 31) (bar 37))
+        (print foo)         ; CHECK: 31
+        (print bar)         ; CHECK: 37
+        (assign foo 41)
+        (assign bar 43)
+        (let ((foo 47) (bar 53))
+            (print foo)     ; CHECK: 47
+            (print bar)     ; CHECK: 53
+            (assign foo 59)
+            (assign var 61))
 
-        (print foo))        ; CHECK: 17
-    (print foo)))           ; CHECK: 12
+        (print foo)        ; CHECK: 41
+        (print bar))       ; CHECK: 43
+    (print foo)))          ; CHECK: 13
 
-(print foo) ; CHECK: 12
+(print foo) ; CHECK: 13
+(bar)   ; CHECK: bar
 
 ; Shadow with parameter enclosing closure
-((function (foo)
+((function (foo bar)
     ((function()
-        (print foo)))) 23)  ; CHECK: 23
+        (print foo)             ; CHECK: 59
+        (print bar)))) 59 61)   ; CHECK: 61
 
-(print foo) ; CHECK: 12
+(print foo) ; CHECK: 13
+(bar)   ; CHECK: bar
 
