@@ -65,6 +65,10 @@ OP_SETLOCAL = 30
 OP_CLEANUP = 31
 
 
+class CompileError(Exception):
+    pass
+
+
 class Symbol(object):
     LOCAL_VARIABLE = 1
     GLOBAL_VARIABLE = 2
@@ -143,7 +147,7 @@ class Function(object):
 
     def emit_instruction(self, opcode, param=0):
         if param > 32767 or param < -32768:
-            raise Exception('param out of range ' + str(param))
+            raise CompileError('param out of range ' + str(param))
 
         self.instructions.append((opcode << 16) | (param & 0xffff))
 
@@ -212,7 +216,7 @@ class Function(object):
                 elif target.type == Symbol.FUNCTION:
                     self.patch(pc, target.function.base_address)
             else:
-                raise Exception(
+                raise CompileError(
                     'internal error: unknown fixup type ' + target.__name__)
 
     def mark_callees(self):
@@ -260,7 +264,7 @@ class Parser(object):
         while True:
             lookahead = self.lexer.get_token()
             if lookahead == '':
-                raise Exception('missing )')
+                raise CompileError('missing )')
             elif lookahead == ')':
                 break
 
@@ -284,8 +288,7 @@ class Parser(object):
         elif token.isdigit() or (token[0] == '-' and len(token) > 1):
             return int(token)
         elif token == ')':
-            raise Exception('unmatched ), ' + self.filename +
-                            ':' + str(self.lexer.lineno))
+            raise CompileError('unmatched )')
         else:
             return token
 
@@ -415,7 +418,7 @@ class Compiler(object):
         # Check for globals that are referenced but not used
         for name, sym in self.globals.items():
             if not sym.initialized:
-                raise Exception('unknown variable {}'.format(name))
+                raise CompileError('unknown variable {}'.format(name))
 
         # Generate prologues and determine function addresses
         pc = 0
@@ -466,8 +469,8 @@ class Compiler(object):
         assert expr[1] in self.globals  # Added by first pass
         sym = self.globals[expr[1]]
         if sym.initialized:
-            raise Exception('Global variable ' +
-                            expr[1] + ' redefined as function')
+            raise CompileError('Global variable {} redefined as function'
+                               .format(expr[1]))
 
         sym.initialized = True
         sym.function = function
@@ -524,8 +527,9 @@ class Compiler(object):
             self.current_function.emit_instruction(OP_PUSH, 0)
             self.current_function.add_fixup(variable)
         else:
-            raise Exception(
-                'internal error: symbol does not have a valid type', '')
+            raise CompileError(
+                'internal error: symbol {} does not have a valid type'
+                .format(expr))
 
     def compile_combination(self, expr, is_tail_call=False):
         '''
@@ -648,11 +652,10 @@ class Compiler(object):
             self.current_function.emit_instruction(OP_STORE)
             variable.initialized = True
         elif variable.type == Symbol.FUNCTION:
-            raise Exception('Error: cannot assign function ' + expr[1])
+            raise CompileError('cannot assign function {}'.format(expr))
         else:
-            raise Exception(
-                'Internal error: what kind of variable is ' +
-                expr[1] + '?', '')
+            raise CompileError(
+                'Internal error: what kind of variable is {}?'.format(expr[1]))
 
     def compile_boolean_expression(self, expr):
         '''
@@ -679,7 +682,7 @@ class Compiler(object):
         if isinstance(expr, list):
             if expr[0] == 'and':
                 if len(expr) < 2:
-                    raise Exception('wrong number of arguments for and')
+                    raise CompileError('two few arguments for and')
 
                 # Short circuit if any condition is false
                 for cond in expr[1:]:
@@ -688,7 +691,7 @@ class Compiler(object):
                 return
             elif expr[0] == 'or':
                 if len(expr) < 2:
-                    raise Exception('wrong number of arguments for or')
+                    raise CompileError('two few arguments for or')
 
                 true_target = Label()
                 for cond in expr[1:-1]:
@@ -704,7 +707,7 @@ class Compiler(object):
                 return
             elif expr[0] == 'not':
                 if len(expr) != 2:
-                    raise Exception('wrong number of arguments for not')
+                    raise CompileError('two few arguments for not')
 
                 skip_to = Label()
                 self.compile_predicate(expr[1], skip_to)
@@ -801,7 +804,7 @@ class Compiler(object):
         opcode, nargs = self.PRIMITIVES[expr[0]]
 
         if len(expr) - 1 != nargs:
-            raise Exception('wrong number of arguments for', expr[0])
+            raise CompileError('wrong number of arguments for {}'.format(expr[0]))
 
         # Synthesize lt and lte operators by switching order and using the
         # opposite operators
@@ -823,7 +826,7 @@ class Compiler(object):
     def compile_function_call(self, expr, is_tail_call=False):
         '''Call a function'''
         if isinstance(expr[0], int):
-            raise Exception('Cannot use integer as function')
+            raise CompileError('Cannot use integer as function')
 
         # Push arguments
         for param_expr in reversed(expr[1:]):
@@ -1296,8 +1299,9 @@ class MacroProcessor(object):
                 function = env[expr[0]]
                 if function is None or not isinstance(function, list) or \
                         function[0] != 'function':
-                    raise Exception(
-                        'bad function call during macro expansion', '')
+                    raise CompileError(
+                        'bad function call {} during macro expansion'
+                        .format(expr[0]))
                 for name, value in zip(function[0], expr[1:]):
                     env[name] = self.eval(value, env)
 
@@ -1359,4 +1363,8 @@ def compile_program(files):
     optimized = [optimize(sub) for sub in expanded2]
     Compiler().compile(optimized)
 
-compile_program(sys.argv[1:])
+try:
+    compile_program(sys.argv[1:])
+except CompileError as ex:
+    print('Compile error: ' + str(ex))
+    sys.exit(1)
