@@ -72,7 +72,7 @@ module lisp_core
     reg[3:0] state;
     reg[18:0] top_of_stack;
     reg[15:0] stack_pointer;
-    reg[15:0] base_pointer;
+    reg[15:0] frame_pointer;
     reg[15:0] instruction_pointer;
 
     //
@@ -107,7 +107,7 @@ module lisp_core
     //
     localparam OP0_TOP_OF_STACK = 0;
     localparam OP0_STACK_POINTER = 1;
-    localparam OP0_BASE_POINTER = 2;
+    localparam OP0_FRAME_POINTER = 2;
 
     reg[1:0] alu_op0_select = OP0_TOP_OF_STACK;
     reg[15:0] alu_op0;
@@ -117,7 +117,7 @@ module lisp_core
         case (alu_op0_select)
             OP0_TOP_OF_STACK:   alu_op0 = top_of_stack[15:0];
             OP0_STACK_POINTER:  alu_op0 = stack_pointer;
-            OP0_BASE_POINTER:   alu_op0 = base_pointer;
+            OP0_FRAME_POINTER:  alu_op0 = frame_pointer;
             default:            alu_op0 = {16{1'bx}};
         endcase
     end
@@ -175,7 +175,7 @@ module lisp_core
     localparam TOS_CURRENT = 0;
     localparam TOS_TAG = 1;
     localparam TOS_RETURN_ADDR = 2;
-    localparam TOS_BASE_POINTER = 3;
+    localparam TOS_FRAME_POINTER = 3;
     localparam TOS_PARAM = 4;
     localparam TOS_SETTAG = 5;
     localparam TOS_ALU_RESULT = 6;
@@ -190,7 +190,7 @@ module lisp_core
             TOS_CURRENT:        top_of_stack_next = top_of_stack;
             TOS_TAG:            top_of_stack_next = top_of_stack[18:16];
             TOS_RETURN_ADDR:    top_of_stack_next = { 3'd0, instruction_pointer + 16'd1 };
-            TOS_BASE_POINTER:   top_of_stack_next = { 3'd0, base_pointer };
+            TOS_FRAME_POINTER:  top_of_stack_next = { 3'd0, frame_pointer };
             TOS_PARAM:          top_of_stack_next = { 3'd0, param };
             TOS_SETTAG:         top_of_stack_next = { data_mem_read_value[2:0], top_of_stack[15:0] };
             TOS_ALU_RESULT:     top_of_stack_next = { top_of_stack[18:16], alu_result[15:0] };
@@ -205,7 +205,7 @@ module lisp_core
     localparam MA_STACK_POINTER = 0;
     localparam MA_TOP_OF_STACK = 1;
     localparam MA_ALU = 2;
-    localparam MA_BASE_POINTER = 3;
+    localparam MA_FRAME_POINTER = 3;
     localparam MA_STACK_POINTER_MINUS_ONE = 4;
 
     reg[2:0] ma_select = MA_STACK_POINTER;
@@ -216,7 +216,7 @@ module lisp_core
             MA_STACK_POINTER:           data_mem_address = stack_pointer;
             MA_TOP_OF_STACK:            data_mem_address = top_of_stack[15:0];
             MA_ALU:                     data_mem_address = alu_result;
-            MA_BASE_POINTER:            data_mem_address = base_pointer;
+            MA_FRAME_POINTER:           data_mem_address = frame_pointer;
             MA_STACK_POINTER_MINUS_ONE: data_mem_address = stack_pointer - 16'd1;
             default:                    data_mem_address = {16{1'bx}};
         endcase
@@ -225,16 +225,16 @@ module lisp_core
     //
     // Mem write value mux
     //
-    localparam MW_BASE_POINTER = 0;
+    localparam MW_FRAME_POINTER = 0;
     localparam MW_TOP_OF_STACK = 1;
     localparam MW_MEM_READ_RESULT = 2;
 
-    reg[1:0] mw_select = MW_BASE_POINTER;
+    reg[1:0] mw_select = MW_FRAME_POINTER;
 
     always @*
     begin
         case (mw_select)
-            MW_BASE_POINTER:    data_mem_write_value = { 3'd0, base_pointer };
+            MW_FRAME_POINTER:   data_mem_write_value = { 3'd0, frame_pointer };
             MW_TOP_OF_STACK:    data_mem_write_value = top_of_stack;
             MW_MEM_READ_RESULT: data_mem_write_value = data_mem_read_value;
             default:            data_mem_write_value = {19{1'bx}};
@@ -242,22 +242,22 @@ module lisp_core
     end
 
     //
-    // Base pointer mux
+    // Frame pointer mux
     //
-    localparam BP_CURRENT = 0;
-    localparam BP_ALU = 1;
-    localparam BP_MEM = 2;
+    localparam FP_CURRENT = 0;
+    localparam FP_ALU = 1;
+    localparam FP_MEM = 2;
 
-    reg[15:0] base_pointer_next;
-    reg[1:0] bp_select = BP_CURRENT;
+    reg[15:0] frame_pointer_next;
+    reg[1:0] bp_select = FP_CURRENT;
 
     always @*
     begin
         case (bp_select)
-            BP_CURRENT:     base_pointer_next = base_pointer;
-            BP_ALU:         base_pointer_next = alu_result;
-            BP_MEM:         base_pointer_next = data_mem_read_value[15:0];
-            default:        base_pointer_next = {16{1'bx}};
+            FP_CURRENT:     frame_pointer_next = frame_pointer;
+            FP_ALU:         frame_pointer_next = alu_result;
+            FP_MEM:         frame_pointer_next = data_mem_read_value[15:0];
+            default:        frame_pointer_next = {16{1'bx}};
         endcase
     end
 
@@ -296,10 +296,10 @@ module lisp_core
         state_next = state;
         data_mem_write_enable = 0;
         ma_select = MA_STACK_POINTER;
-        mw_select = MW_BASE_POINTER;
+        mw_select = MW_FRAME_POINTER;
         stack_pointer_select = SP_CURRENT;
         tos_select = TOS_CURRENT;
-        bp_select = BP_CURRENT;
+        bp_select = FP_CURRENT;
         alu_op0_select = OP0_TOP_OF_STACK;
         alu_op1_select = OP1_MEM_READ;
         alu_op = opcode;
@@ -314,7 +314,7 @@ module lisp_core
                         // the next instruction pointer logic will
                         // use the top of stack as the call-to address, replacing
                         // it.
-                        // Need to push the old base pointer on the stack
+                        // Need to push the old frame pointer on the stack
                         // and stash the return value in TOS
                         ip_select = IP_STACK_TARGET;
                         stack_pointer_select = SP_DECREMENT;
@@ -323,8 +323,8 @@ module lisp_core
                         alu_op1_select = OP1_ONE;
                         alu_op = OP_SUB;
                         data_mem_write_enable = 1;
-                        mw_select = MW_BASE_POINTER;
-                        bp_select = BP_ALU;
+                        mw_select = MW_FRAME_POINTER;
+                        bp_select = FP_ALU;
                         tos_select = TOS_RETURN_ADDR;
                         state_next = STATE_DECODE;
                     end
@@ -334,7 +334,7 @@ module lisp_core
                         // A function must push its return value into TOS,
                         // so we know PC is saved in memory.  First fetch that.
                         ma_select = MA_ALU;
-                        alu_op0_select = OP0_BASE_POINTER;
+                        alu_op0_select = OP0_FRAME_POINTER;
                         alu_op1_select = OP1_ONE;
                         alu_op = OP_SUB;
                         state_next = STATE_RETURN2;
@@ -365,7 +365,7 @@ module lisp_core
                         alu_op = OP_SUB;
                         data_mem_write_enable = 1;
                         mw_select = MW_TOP_OF_STACK;
-                        tos_select = TOS_BASE_POINTER;
+                        tos_select = TOS_FRAME_POINTER;
                         ip_select = IP_NEXT;
                         state_next = STATE_DECODE;
                     end
@@ -506,7 +506,7 @@ module lisp_core
                     begin
                         // Write TOS value to appropriate local slot, leave on stack.
                         ma_select = MA_ALU;
-                        alu_op0_select = OP0_BASE_POINTER;
+                        alu_op0_select = OP0_FRAME_POINTER;
                         alu_op1_select = OP1_PARAM;
                         alu_op = OP_ADD;
                         data_mem_write_enable = 1;
@@ -580,7 +580,7 @@ module lisp_core
             begin
                 // Issue memory read for local value
                 ma_select = MA_ALU;
-                alu_op0_select = OP0_BASE_POINTER;
+                alu_op0_select = OP0_FRAME_POINTER;
                 alu_op1_select = OP1_PARAM;
                 alu_op = OP_ADD;
                 state_next = STATE_PUSH_MEM_RESULT;
@@ -605,12 +605,12 @@ module lisp_core
 
             STATE_RETURN2:
             begin
-                // Got the instruction pointer, now fetch old base pointer
+                // Got the instruction pointer, now fetch old frame pointer
                 ip_select = IP_MEM_READ_RESULT;
-                ma_select = MA_BASE_POINTER;
+                ma_select = MA_FRAME_POINTER;
                 stack_pointer_select = SP_ALU;
                 alu_op = OP_ADD;
-                alu_op0_select = OP0_BASE_POINTER;
+                alu_op0_select = OP0_FRAME_POINTER;
                 alu_op1_select = OP1_ONE;
                 state_next = STATE_RETURN3;
             end
@@ -619,7 +619,7 @@ module lisp_core
             begin
                 // Note: proper next PC has already been fetched, so don't
                 // increment here.
-                bp_select = BP_MEM;
+                bp_select = FP_MEM;
                 state_next = STATE_DECODE;
             end
         endcase
@@ -632,7 +632,7 @@ module lisp_core
             state <= STATE_DECODE;
             top_of_stack <= 0;
             stack_pointer <= DATA_MEM_SIZE - 16'd8;
-            base_pointer <= DATA_MEM_SIZE - 16'd4;
+            frame_pointer <= DATA_MEM_SIZE - 16'd4;
             instruction_pointer <= 16'hffff;
         end
         else
@@ -641,7 +641,7 @@ module lisp_core
             state <= state_next;
             top_of_stack <= top_of_stack_next;
             stack_pointer <= stack_pointer_next;
-            base_pointer <= base_pointer_next;
+            frame_pointer <= frame_pointer_next;
         end
     end
 endmodule
