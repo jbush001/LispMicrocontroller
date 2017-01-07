@@ -223,7 +223,7 @@ class Function(object):
         '''
         Recursively mark all functions referenced by this one so they won't
         be removed by dead code stripping. The reference list contains
-        either functions (for anoymous functions or declared functions) or
+        either functions (for anonymous functions or declared functions) or
         symbols (for forward references)
         '''
         self.referenced = True
@@ -744,7 +744,7 @@ class Compiler(object):
         '''
         Loop construct
         (while condition body)
-        That body is implitly a (begin... and can use a sequence
+        That body is implicitly a (begin... and can use a sequence
         If the loop terminates normally (the condition is false), the
         result is zero. If (break val) is called, 'val' will be the result.
         '''
@@ -928,7 +928,7 @@ class Compiler(object):
             self.current_function.emit_instruction(OP_PUSH, TAG_CLOSURE)
 
             # Copy all of the closure variables into a list
-            self.current_function.emit_instruction(OP_PUSH, 0)  # Delimeter
+            self.current_function.emit_instruction(OP_PUSH, 0)  # Delimiter
             for var in reversed(new_function.free_variables):
                 self.current_function.emit_instruction(OP_GETLOCAL,
                                                        var.closure_source.index)
