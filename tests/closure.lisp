@@ -34,8 +34,9 @@
 ; CHECK: FFFTTTFFFF
 
 
-; Verify that, if a free variable is copied from a function outside the immediate
-; parent, it is copied across all functions.
+; Verify that, if a free variable is copied from a function outside the
+; immediate parent, it is copied across all function (create shadow
+; closures in intermediate functions).
 (function foo (a)
     (function ()
         (function ()
@@ -45,20 +46,36 @@
 ((((foo 19))))  ; CHECK: 19
 
 ; Update variable inside a closure
+; Because we capture by value and not reference, the updated value does
+; not affect the closure.
 (function make_func1 (a)
     (function ()
         (assign a (+ a 1))
         (print a)))
 
-; Because we capture by value and not reference, the updated value does
-; not affect the closure
 (assign func1 (make_func1 17))
 (func1) ; CHECK: 18
 (func1) ; CHECK: 18
 (func1) ; CHECK: 18
 
-; Multiple closures share a variable. The value at the time the closure
-; is created is captured.
+; Update outer variable after creating closure. Ensure closure has old value.
+(function make_func2 ()
+    (let ((a 37) (b (function () (print a))))
+        (assign a 2)
+        b))
+
+((make_func2)) ; CHECK: 37
+
+; Update variable inside closure. Check that outer variable isn't affected
+(function test_update_inside ()
+    (let ((a 47))
+        ((function () (assign a 51)))
+        (print a)))
+
+(test_update_inside)  ; CHECK 47
+
+; Multiple closures share a variable.
+; Calling the function only updates local copy
 (function make_funcs1 ()
     (let ((funclist nil) (x 0))
         (while (< x 10)
