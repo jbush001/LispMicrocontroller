@@ -14,6 +14,7 @@
 ; limitations under the License.
 ;
 
+; Conditional break
 (print
     (while true
         (print j)
@@ -31,3 +32,24 @@
 ; CHECK: 6
 ; CHECK: 7
 ; CHECK: 37
+
+; Break inner loop of nested loop. Ensure break stack works properly.
+(for i 3 4 1
+    (print
+        (for j 1 5 1
+            (break i))))
+
+; CHECK: 3
+; CHECK: 4
+
+; Break outer loop of nested loop.
+(print (while true
+    (for j 17 19 1
+        (print j))
+
+    (break 99)))
+
+; CHECK: 17
+; CHECK: 18
+; CHECK: 19
+; CHECK: 99

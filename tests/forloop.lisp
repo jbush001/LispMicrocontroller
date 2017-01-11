@@ -14,7 +14,42 @@
 ; limitations under the License.
 ;
 
-(for i 0 31 1
+; Parameter are constants
+(for i 3 9 1
     (print i))
 
-; CHECK: 0123456789101112131415161718192021222324252627282930
+; CHECK: 3456789
+
+; Negative loop index
+(for i 7 0 -1
+    (print i))
+
+; CHECK: 76543210
+
+; Different step size
+(for i 1 9 2
+    (print i))
+
+; CHECK: 13579
+
+; Parameters are variables
+(assign start 1)
+(assign end 13)
+(assign step 2)
+(for j start end step
+    (print j))
+
+; CHECK: 135791113
+
+; Parameters are expressions
+(for j (+ start 7) (+ end 3) (+ step 1)
+    (print j))
+
+; CHECK: 81114
+
+; Nested loop
+(for i 65 78 1
+    (for j 0 4 1
+        ($printchar (+ i j))))
+
+; CHECK: ABCDEBCDEFCDEFGDEFGH

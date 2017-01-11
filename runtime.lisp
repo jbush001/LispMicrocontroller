@@ -29,13 +29,13 @@
     `(if (< ,step 0)
         ; Decrementing
         (let ((,var ,start) (__endval ,end))
-            (while (> ,var __endval)
+            (while (>= ,var __endval)
                 ,expr
                 (assign ,var (+ ,var ,step))))
 
         ; Incrementing
         (let ((,var ,start)(__endval ,end))
-            (while (< ,var __endval)
+            (while (<= ,var __endval)
                 ,expr
                 (assign ,var (+ ,var ,step))))))
 
@@ -44,10 +44,6 @@
 
 (defmacro read-register (index)
     `(load (- ,index 4096)))
-
-; In testbench.v, when register 4095 is written, the simulator will exit
-(function halt ()
-    (write-register 4095 0))
 
 ; For debugging, uncomment the printchar lines to log GC actions
 (defmacro gclog (prefix address)
@@ -78,11 +74,17 @@
 (defmacro setnext (ptr next)
     `(store (+ ,ptr 1) ,next))
 
+; In testbench.v, when register 4095 is written, the simulator will exit
+(function halt ()
+    (write-register 4095 0))
+
 ; Note that $heapstart is a variable created automatically
 ; by the compiler.  Wilderness is memory that has never been allocated and
 ; that we can simply slice off from.
 (assign $wilderness-start $heapstart)
-(assign $stacktop (getbp))    ; This is called from top level main, so BP will be top of stack
+
+; This is called from top level main, so BP will be top of stack
+(assign $stacktop (getbp))
 (assign $max-heap (- $stacktop 1024))
 (assign $freelist nil)
 
@@ -121,7 +123,7 @@
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
     ; Clear GC flags
-    (for ptr $heapstart $wilderness-start 2
+    (for ptr $heapstart (- $wilderness-start 1) 2
         (let ((val (load ptr)) (tag (gettag val)))
             (store ptr (settag val (bitwise-and tag 3)))))
 
@@ -133,7 +135,7 @@
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
     (assign $freelist nil)    ; First clear the freelist so we don't double-add
-    (for ptr $heapstart $wilderness-start 2
+    (for ptr $heapstart (- $wilderness-start 1) 2
         (if (not (bitwise-and (gettag (load ptr)) 4))
             (begin
                 ; This is not used, stick it back in the free list.
@@ -289,7 +291,7 @@
         ($printchar 48)))
 
 (function $printhex (num)
-    (for idx 0 16 4
+    (for idx 0 15 4
         (let ((digit (bitwise-and (rshift num (- 12 idx)) 15)))
             (if (< digit 10)
                 ($printchar (+ digit 48))
