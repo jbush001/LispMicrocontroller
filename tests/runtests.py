@@ -41,6 +41,7 @@ TESTS = [
     'forloop.lisp',
     'breakloop.lisp',
     'getbp_bug.lisp',
+    'sequence.lisp',
 
     # Runtime library tests
     'map-reduce.lisp',

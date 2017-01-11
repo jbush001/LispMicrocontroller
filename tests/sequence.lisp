@@ -1,5 +1,5 @@
 ;
-; Copyright 2011-2012 Jeff Bush
+; Copyright 2017 Jeff Bush
 ;
 ; Licensed under the Apache License, Version 2.0 (the "License");
 ; you may not use this file except in compliance with the License.
@@ -14,25 +14,11 @@
 ; limitations under the License.
 ;
 
-;
-; Recursive function call with conditional
-;
+; The value of a sequence will be equal to the last expression
+(print
+    (begin
+        (+ 1 2)
+        (+ 3 4)
+        (+ 5 6)))
 
-(function fib (n)
-    (if (< n 2)
-        n
-        (+ (fib (- n 1)) (fib (- n 2)))))
-
-(for i 0 10 1
-    (print (fib i)))
-
-; CHECK: 0
-; CHECK: 1
-; CHECK: 1
-; CHECK: 2
-; CHECK: 3
-; CHECK: 5
-; CHECK: 8
-; CHECK: 13
-; CHECK: 21
-; CHECK: 34
+; CHECK: 11
