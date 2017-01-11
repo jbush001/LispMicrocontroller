@@ -24,23 +24,31 @@
     (print foo) ; CHECK: 17
     (print bar) ; CHECK: 19
     (assign foo 23)
-    (assign bar 29)) 17 19)
+    (assign bar 29)
+    (print foo) ; CHECK: 23
+    (print bar)) ; CHECK: 29
+    17 19)
 
 (print foo) ; CHECK: 13
 (bar)   ; CHECK: bar
 
 ; Shadow global with local variables
+; Shadow local with inner scope (let) of locals
 ((function ()
     (let ((foo 31) (bar 37))
         (print foo)         ; CHECK: 31
         (print bar)         ; CHECK: 37
         (assign foo 41)
         (assign bar 43)
+        (print foo)         ; CHECK: 41
+        (print bar)         ; CHECK: 43
         (let ((foo 47) (bar 53))
             (print foo)     ; CHECK: 47
             (print bar)     ; CHECK: 53
             (assign foo 59)
-            (assign var 61))
+            (assign bar 61)
+            (print foo)      ; CHECK: 59
+            (print bar))     ; CHECK: 61
 
         (print foo)        ; CHECK: 41
         (print bar))       ; CHECK: 43
