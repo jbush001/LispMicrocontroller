@@ -107,9 +107,8 @@
 
 ; Mark a range of contiguous addresses.
 (function $mark-range (start end)
-    ($mark-recursive (load start))
-    (if (< start end)
-        ($mark-range (+ start 1) end)))
+    (for addr start end 1
+        ($mark-recursive (load addr))))
 
 ;
 ; Garbage collect, using mark-sweep algorithm
