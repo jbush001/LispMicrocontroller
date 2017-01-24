@@ -250,7 +250,7 @@ class Parser(object):
             self.lexer = shlex.shlex(stream)
             self.lexer.commenters = ';'
             self.lexer.quotes = '"'
-            self.lexer.wordchars += '?+<>!@#$%^&*;:.=-_'
+            self.lexer.wordchars += '?+<>!@#$%^&*;:.=-_\\'
 
             while True:
                 expr = self.parse_expr()
@@ -289,6 +289,13 @@ class Parser(object):
             return int(token)
         elif token == ')':
             raise CompileError('unmatched )')
+        elif token[:2] == '#\\': # character code
+            if token[2:] == 'newline':
+                return ord('\n')
+            elif token[2:] == 'space':
+                return ord(' ')
+            else:
+                return ord(token[2])
         else:
             return token
 

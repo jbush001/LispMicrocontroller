@@ -50,7 +50,7 @@
     `(begin
 ;        ($printchar ,prefix)
 ;        ($printhex ,address)
-;        ($printchar 10)
+;        ($printchar #\newline)
     ))
 
 (defmacro atom? (ptr)
@@ -97,7 +97,7 @@
                 (if (not (rshift tag 2))
                     (begin
                         ; An unmarked cons cell, mark it and continue
-                        (gclog 77 ptr)    ; M
+                        (gclog #\M ptr)
                         (store ptr (settag firstword (bitwise-or tag 4)))
 
                         ; Check if we need to mark the first pointer
@@ -115,7 +115,7 @@
 ;
 
 (function $gc ()
-    (gclog 71 $wilderness-start)
+    (gclog #\G $wilderness-start)
 
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ; Mark phase
@@ -140,13 +140,13 @@
                 ; This is not used, stick it back in the free list.
                 (store (+ 1 ptr) $freelist)
                 (assign $freelist ptr)
-                (gclog 70 ptr)))))     ; 'F'
+                (gclog #\F ptr)))))
 
 (function $oom ()
-    ($printchar 79)
-    ($printchar 79)
-    ($printchar 77)
-    ($printchar 10)
+    ($printchar #\O)
+    ($printchar #\O)
+    ($printchar #\M)
+    ($printchar #\newline)
     (halt))
 
 ;
@@ -180,7 +180,7 @@
                             ; Else: GC gave us nothing, give up.
                             ($oom))))))
 
-        (gclog 65 ptr)     ; 'A' Debug: print cell that has been allocated
+        (gclog #\A ptr)     ; debug: print cell that has been allocated
         (store ptr _first)
         (store (+ ptr 1) _rest)
         (settag ptr 1)))    ; Mark this as a cons cell and return
@@ -274,7 +274,7 @@
         (begin
             ; Negative number
             (assign num (- 0 num))
-            ($printchar 45)))    ; minus sign
+            ($printchar #\-)))
 
     (if num
         ; Not zero
@@ -284,17 +284,17 @@
                 (assign num (/ num 10)))
 
             (foreach ch str
-                ($printchar (+ 48 ch))))
+                ($printchar (+ #\0 ch))))
 
         ; Is zero
-        ($printchar 48)))
+        ($printchar #\0)))
 
 (function $printhex (num)
     (for idx 0 15 4
         (let ((digit (bitwise-and (rshift num (- 12 idx)) 15)))
             (if (< digit 10)
-                ($printchar (+ digit 48))
-                ($printchar (+ digit 55))))))    ; - 10 + 'A'
+                ($printchar (+ digit #\0))
+                ($printchar (+ digit (- #\A 10)))))))    ; - 10 + 'A'
 
 (function print (x)
     (if (list? x)
@@ -304,7 +304,7 @@
                 (foreach element x
                     (begin
                         (if needspace
-                            ($printchar 32)
+                            ($printchar #\space)
                             (assign needspace true))
                         (print element))))
 
