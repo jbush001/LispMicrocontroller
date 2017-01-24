@@ -24,11 +24,10 @@
         ; then select next letter
         (for x 0 (length suffix) 1
             (anagram (append prefix (nth suffix x)) (removenth suffix x)))
-
         ; else print the final value
         (begin
             ($printstr prefix)
-            ($printchar 10))))
+            ($printchar #\newline))))
 
 (anagram () "lisp")
 

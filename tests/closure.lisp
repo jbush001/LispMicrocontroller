@@ -29,7 +29,7 @@
 
 ; Now test that the closure works correctly
 (for x 0 10 1
-    (if (check x) ($printchar 84) ($printchar 70)))
+    (if (check x) ($printchar #\T) ($printchar #\F)))
 
 ; CHECK: FFFTTTFFFF
 
