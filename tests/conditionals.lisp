@@ -108,4 +108,9 @@
 (or yes (print 1))
 (or no (print 34))    ; CHECK: 34
 
-
+; unless and when macros (which just wrap ifs)
+(unless no ($printchar #\A))
+(unless yes ($printchar #\B))
+(when no ($printchar #\C))
+(when yes ($printchar #\D))
+; CHECK: AD

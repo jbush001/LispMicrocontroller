@@ -14,9 +14,7 @@
 ; limitations under the License.
 ;
 
-;
 ; Library of standard macros and runtime functions
-;
 
 (defmacro foreach (var list expr)
     `(let ((,var nil)(nodeptr ,list))
@@ -38,6 +36,14 @@
             (while (<= ,var __endval)
                 ,expr
                 (assign ,var (+ ,var ,step))))))
+
+(defmacro when (val pred)
+    `(if ,val
+        ,pred))
+
+(defmacro unless (val pred)
+    `(if (not ,val)
+        ,pred))
 
 (defmacro write-register (index value)
     `(store (- ,index 4096) ,value))
@@ -91,10 +97,10 @@
 ; Mark a pointer, following links if it is a pair
 (function $mark-recursive (ptr)
     ; Check if this is a cons/closure and is not null
-    (if (and ptr (or (list? ptr) (closure? ptr)))
+    (when (and ptr (or (list? ptr) (closure? ptr)))
         (begin
             (let ((firstword (load ptr)) (tag (gettag firstword)))
-                (if (not (rshift tag 2))
+                (when (not (rshift tag 2))
                     (begin
                         ; An unmarked cons cell, mark it and continue
                         (gclog #\M ptr)
@@ -102,7 +108,6 @@
 
                         ; Check if we need to mark the first pointer
                         ($mark-recursive (first ptr)))))
-
             ($mark-recursive (rest ptr)))))
 
 ; Mark a range of contiguous addresses.
@@ -110,32 +115,23 @@
     (for addr start end 1
         ($mark-recursive (load addr))))
 
-;
 ; Garbage collect, using mark-sweep algorithm
-;
-
 (function $gc ()
     (gclog #\G $wilderness-start)
 
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ; Mark phase
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    ;;; Mark phase
 
     ; Clear GC flags
     (for ptr $heapstart (- $wilderness-start 1) 2
         (let ((val (load ptr)) (tag (gettag val)))
             (store ptr (settag val (bitwise-and tag 3)))))
-
     ($mark-range 0 $heapstart)      ; Mark global variables
     ($mark-range (getbp) $stacktop) ; Mark stack
 
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ; Sweep phase
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
+    ;;; Sweep phase
     (assign $freelist nil)    ; First clear the freelist so we don't double-add
     (for ptr $heapstart (- $wilderness-start 1) 2
-        (if (not (bitwise-and (gettag (load ptr)) 4))
+        (unless (bitwise-and (gettag (load ptr)) 4)
             (begin
                 ; This is not used, stick it back in the free list.
                 (store (+ 1 ptr) $freelist)
@@ -143,15 +139,15 @@
                 (gclog #\F ptr)))))
 
 (function $oom ()
+    ; Can't use a string here, since that requires allocations
+    ; and would cause infinite recursion.
     ($printchar #\O)
     ($printchar #\O)
     ($printchar #\M)
     ($printchar #\newline)
     (halt))
 
-;
 ; Allocate a new cell and return a pointer to it
-;
 (function cons (_first _rest)
     (let ((ptr nil))
         (if $freelist
@@ -159,7 +155,6 @@
             (begin
                 (assign ptr $freelist)
                 (assign $freelist (rest ptr)))
-
             ; Nothing on freelist, try to expand frontier
             (begin
                 (if (< $wilderness-start $max-heap)
@@ -167,7 +162,6 @@
                     (begin
                         (assign ptr $wilderness-start)
                         (assign $wilderness-start (+ $wilderness-start 2)))
-
                     ; No more space available, need to garbage collect
                     (begin
                         ($gc)
@@ -179,7 +173,6 @@
 
                             ; Else: GC gave us nothing, give up.
                             ($oom))))))
-
         (gclog #\A ptr)     ; debug: print cell that has been allocated
         (store ptr _first)
         (store (+ ptr 1) _rest)
@@ -193,12 +186,10 @@
 (function $umul (multiplicand multiplier)
     (let ((product 0))
         (while multiplier
-            (if (bitwise-and multiplier 1)
+            (when (bitwise-and multiplier 1)
                 (assign product (+ product multiplicand)))
-
             (assign multiplier (rshift multiplier 1))
             (assign multiplicand (lshift multiplicand 1)))
-
         product))
 
 (function * (multiplicand multiplier)
@@ -207,10 +198,8 @@
             uprod            ; same sign
             (- 0 uprod))))    ; different signs
 
-;
 ; Unsigned divide.  If getrem is 1, this will return the remainder.  Otherwise
 ; it will return the quotient
-;
 (function $udiv (divisor dividend getrem)
     (if (< divisor dividend)
         ; If the divisor is less than the divident, division result will
@@ -218,7 +207,6 @@
         (if getrem
             divisor
             0)
-
         ; Need to do division
         (let ((quotient 0) (dnext dividend) (numbits 0))
             ; Align remainder and divisor
@@ -226,18 +214,15 @@
                 (assign dividend dnext)
                 (assign numbits (+ numbits 1))
                 (assign dnext (lshift dnext 1)))
-
             ; Divide
             (while numbits
                 (assign quotient (lshift quotient 1))
-                (if (>= divisor dividend)
+                (when (>= divisor dividend)
                     (begin
                         (assign divisor (- divisor dividend))
                         (assign quotient (bitwise-or quotient 1))))
-
                 (assign dividend (rshift dividend 1))
                 (assign numbits (- numbits 1)))
-
             (if getrem
                 divisor
                 quotient))))
@@ -245,7 +230,7 @@
 (function / (divisor dividend)
     (let ((uquotient ($udiv (abs divisor) (abs dividend) 0)))
         (if (= (< divisor 0) (< dividend 0))
-            uquotient            ; same sign
+            uquotient             ; same sign
             (- 0 uquotient))))    ; different signs
 
 (function mod (divisor dividend)
@@ -270,22 +255,19 @@
 
 ; Print a number in decimal format
 (function $printdec (num)
-    (if (< num 0)
+    (when (< num 0)
         (begin
             ; Negative number
             (assign num (- 0 num))
             ($printchar #\-)))
-
     (if num
         ; Not zero
         (let ((str nil))
             (while num
                 (assign str (cons (mod num 10) str))
                 (assign num (/ num 10)))
-
             (foreach ch str
                 ($printchar (+ #\0 ch))))
-
         ; Is zero
         ($printchar #\0)))
 
@@ -297,9 +279,9 @@
                 ($printchar (+ digit (- #\A 10)))))))    ; - 10 + 'A'
 
 (function print (x)
-    (if (list? x)
+    (when (list? x)
         (begin
-            ($printchar 40)    ; Open paren
+            ($printchar 40)         ; Open paren
             (let ((needspace false))
                 (foreach element x
                     (begin
@@ -307,19 +289,15 @@
                             ($printchar #\space)
                             (assign needspace true))
                         (print element))))
-
             ($printchar 41)))        ; Close paren
-
-    (if (atom? x)
+    (when (atom? x)
         ; This is a number
         ($printdec x))
-
-    (if (function? x)
+    (when (function? x)
         (begin
             ($printstr "function")
             ($printhex x)))
-
-    (if (closure? x)
+    (when (closure? x)
         (begin
             ($printstr "closure ")
             (print (rest x)))))
@@ -442,7 +420,6 @@
         (while (and from start)
             (assign from (rest from))
             (assign start (- start 1)))
-
         ; Copy len remaining entries if present
         (if from
             (begin
