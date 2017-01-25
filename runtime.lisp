@@ -322,15 +322,19 @@
 ; Create a new list that contains all elements if the original with
 ; a new element added on.
 (function append (prefix element)
-    (let ((suffix (if (list? element) element (cons element nil)))
-        (newhead (cons (first prefix) nil)) (newtail newhead))
-        (foreach entry (rest prefix)
-            (begin
-                ; Append entry to end of new list
-                (setnext newtail (cons entry nil))
-                (assign newtail (rest newtail))))
-        (setnext newtail suffix)
-        newhead))
+    (if prefix
+        ; Append to existing list
+        (let ((suffix (if (list? element) element (cons element nil)))
+            (newhead (cons (first prefix) nil)) (newtail newhead))
+            (foreach entry (rest prefix)
+                (begin
+                    ; Append entry to end of new list
+                    (setnext newtail (cons entry nil))
+                    (assign newtail (rest newtail))))
+            (setnext newtail suffix)
+            newhead)
+        ; prefix is nil, create list with one element
+        (cons element nil)))
 
 (function $$reverse_recursive (forward backward)
     (if forward

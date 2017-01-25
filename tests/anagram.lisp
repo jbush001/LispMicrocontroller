@@ -22,37 +22,14 @@
 (function anagram (prefix suffix)
     (if suffix
         ; then select next letter
-        (for x 0 (length suffix) 1
+        (for x 0 (- (length suffix) 1) 1
             (anagram (append prefix (nth suffix x)) (removenth suffix x)))
         ; else print the final value
-        (begin
-            ($printstr prefix)
-            ($printchar #\newline))))
+        ($printstr prefix)))
 
-(anagram () "lisp")
+($printchar #\X)
+(anagram nil "lisp")
+($printchar #\Y)
 
-; CHECK: lisp
-; CHECK: lips
-; CHECK: lsip
-; CHECK: lspi
-; CHECK: lpis
-; CHECK: lpsi
-; CHECK: ilsp
-; CHECK: ilps
-; CHECK: islp
-; CHECK: ispl
-; CHECK: ipls
-; CHECK: ipsl
-; CHECK: slip
-; CHECK: slpi
-; CHECK: silp
-; CHECK: sipl
-; CHECK: spli
-; CHECK: spil
-; CHECK: plis
-; CHECK: plsi
-; CHECK: pils
-; CHECK: pisl
-; CHECK: psli
-; CHECK: psil
+; CHECK: XlisplipslsiplspilpislpsiilspilpsislpispliplsipslslipslpisilpsiplsplispilplisplsipilspislpslipsilY
 

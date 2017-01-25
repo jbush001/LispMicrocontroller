@@ -30,26 +30,28 @@
 (print (length nil))    ; CHECK: 0
 (print (nth nil))       ; CHECK: 0
 
-(assign b '(1 2))
-(print b) ; CHECK: (1 2)
+(assign b '(7 8))
+(print b) ; CHECK: (7 8)
 
 ; Append atom
-(print (append b 3)) ; CHECK: (1 2 3)
+(print (append b 9)) ; CHECK: (7 8 9)
 
 ; Append list
-(print (append b '(4 5 6))) ; CHECK: (1 2 4 5 6)
+(print (append b '(10 11 12))) ; CHECK: (7 8 10 11 12)
 
-(print (append nil '(1 2 3))) ; CHECK (1 2 3)
-(print (append '(1 2 3) nil)) ; CHECK (1 2 3)
-(print (append '(1) 2)) ; CHECK (1 2)
-(print (append '(1) '(2))) ; CHECK (1 2)
+; Append to nil list.
+(print (append nil '(13 14 15))) ; CHECK: (13 14 15)
+
+(print (append '(16 17 18) nil)) ; CHECK (16 17 18)
+(print (append '(19) 20)) ; CHECK (19 20)
+(print (append '(21) '(22))) ; CHECK (21 22)
 
 
-(assign foo 12)
-(print (list 1 2 foo))  ; CHECK: (1 2 12)
+(assign foo 24)
+(print (list 25 26 foo))  ; CHECK: (25 26 24)
 
-(print (reverse '(1 2 3 4 5)))
-; CHECK: (5 4 3 2 1)
+(print (reverse '(27 28 29 30 31)))
+; CHECK: (31 30 29 28 27)
 
 ;
 ; Test dot notation for creating cons cells directly
@@ -68,26 +70,26 @@
 ; setfirst/setnext
 ;
 (assign foo '(0 . 0))
-(setfirst foo 12)
-(print foo)     ; CHECK: (12)
-(setnext foo '(15 . 0))
-(print foo)    ; CHECK: (12 15)
+(setfirst foo 61)
+(print foo)     ; CHECK: (61)
+(setnext foo '(65 . 0))
+(print foo)    ; CHECK: (61 65)
 
 ;
 ; Test c[ad]+r operations
 ;
-(assign test1 '(1 (2 (3 4 5) 6) 7))
-(assign test2 '(8 . 9))
+(assign test1 '(70 (71 (72 73 74) 75) 76))
+(assign test2 '(77 . 78))
 
-(print (car test2)) ; CHECK: 8
-(print (cdr test2)) ; CHECK: 9
+(print (car test2)) ; CHECK: 77
+(print (cdr test2)) ; CHECK: 78
 
-(print (car test1)) ; CHECK: 1
-(print (cdr test1)) ; CHECK: ((2 (3 4 5) 6) 7)
-(print (cadr test1)) ; CHECK: (2 (3 4 5) 6)
-(print (caadr test1)) ; CHECK: 2
-(print (cadadr test1)) ; CHECK: (3 4 5)
-(print (caadadr test1)) ; CHECK: 3
+(print (car test1)) ; CHECK: 70
+(print (cdr test1)) ; CHECK: ((71 (72 73 74) 75) 76)
+(print (cadr test1)) ; CHECK: (71 (72 73 74) 75)
+(print (caadr test1)) ; CHECK: 71
+(print (cadadr test1)) ; CHECK: (72 73 74)
+(print (caadadr test1)) ; CHECK: 72
 
 ;
 ; find-string
@@ -111,13 +113,13 @@
 ;
 ; sub-list
 ;
-(assign source '(0 1 2 3 4 5 6 7 8 9))
+(assign source '(90 91 92 93 94 95 96 97 98 99))
 
-(print (sub-list source 0 10))  ; CHECK: (0 1 2 3 4 5 6 7 8 9)
-(print (sub-list source 1 10))  ; CHECK: (1 2 3 4 5 6 7 8 9)
-(print (sub-list source 1 8))   ; CHECK: (1 2 3 4 5 6 7 8)
-(print (sub-list source 2 3))   ; CHECK: (2 3 4)
-(print (sub-list source 5 1))   ; CHECK: (5)
+(print (sub-list source 0 10))  ; CHECK: (90 91 92 93 94 95 96 97 98 99)
+(print (sub-list source 1 10))  ; CHECK: (91 92 93 94 95 96 97 98 99)
+(print (sub-list source 1 8))   ; CHECK: (91 92 93 94 95 96 97 98)
+(print (sub-list source 2 3))   ; CHECK: (92 93 94)
+(print (sub-list source 5 1))   ; CHECK: (95)
 (print (sub-list source 11 5))  ; CHECK: 0
 (print (sub-list nil 2 5))      ; CHECK: 0
 (print (sub-list source 0 0))   ; CHECK: 0
