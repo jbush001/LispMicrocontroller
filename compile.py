@@ -1365,10 +1365,17 @@ def compile_program(files):
     for filename in files:
         parser.parse_file(filename)
 
-    expanded1 = expand_cadr(parser.program)
-    expanded2 = MacroProcessor().macro_pre_process(expanded1)
-    optimized = [optimize(sub) for sub in expanded2]
-    Compiler().compile(optimized)
+    passes = [
+        expand_cadr,
+        lambda program: MacroProcessor().macro_pre_process(program),
+        lambda program: [optimize(sub) for sub in program]
+    ]
+
+    program = parser.program
+    for passfn in passes:
+        program = passfn(program)
+
+    Compiler().compile(program)
 
 try:
     compile_program(sys.argv[1:])
