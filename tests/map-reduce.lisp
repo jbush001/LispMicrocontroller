@@ -23,8 +23,8 @@
 (function sum-of-squares (values)
     (reduce (map values square) sum))
 
-(print map '(5 7 9) square)             ; CHECK (10 49 81)
-(print map nil square)                  ; CHECK 0
+(print (map '(5 7 9) square))           ; CHECK: (25 49 81)
+(print (map nil square))                ; CHECK: 0
 
 (print (reduce '(1) sum))               ; CHECK: 1
 (print (reduce '(1 2) sum))             ; CHECK: 3
