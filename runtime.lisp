@@ -138,6 +138,7 @@
                 (assign $freelist ptr)
                 (gclog #\F ptr)))))
 
+; Called when we run out of memory
 (function $oom ()
     ; Can't use a string here, since that requires allocations
     ; and would cause infinite recursion.

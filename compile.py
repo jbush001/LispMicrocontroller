@@ -422,7 +422,7 @@ class Compiler(object):
         self.function_list = [
             function for function in self.function_list if function.referenced]
 
-        # Check for globals that are referenced but not used
+        # Check for globals that are referenced but not assigned
         for name, sym in self.globals.items():
             if not sym.initialized:
                 raise CompileError('unknown variable {}'.format(name))
@@ -486,8 +486,8 @@ class Compiler(object):
         '''
         The mother compile function, from which all useful things are compiled.
         Compiles an arbitrary lisp expression. Each expression consumes
-        all parameters, which will be pushed onto the stack from right to left,
-        and leave a result value on the stack. All expressions have values in LISP.
+        all parameters--which are pushed onto the stack from right to left--
+        and leaves a result value on the stack. All expressions have values in LISP.
 
         Determining if something is a tail call is straightforward in
         S-Expression form. The outermost function call is a tail call.
@@ -1049,7 +1049,7 @@ def optimize(expr):
     '''
     if isinstance(expr, list) and len(expr) > 0:
         if expr[0] == 'quote':
-            return expr  # Don't optimize things in quotes
+            return expr  # Don't optimize quoted elements
         else:
             # Fold arithmetic expressions if possible
             optimized_params = [optimize(subexpr) for subexpr in expr[1:]]
@@ -1132,8 +1132,7 @@ def expand_cadr(expr):
     intermediate letters represent each operation. Expand into proper calls
     here (we use first and rest);
 
-    (cadadr foo)
-    (car (cdr (car (cdr foo))))
+    (cadadr foo) => (car (cdr (car (cdr foo))))
     '''
     if isinstance(expr, list) and len(expr) > 0:
         name = expr[0]
