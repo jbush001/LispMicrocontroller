@@ -14,7 +14,6 @@ jobs:
     steps:
     - name: Install iverilog
       run: sudo apt-get install -y iverilog
-    - name: Where am I
-      run: pwd && ls -l
+    - uses: actions/checkout@v1
     - name: Run Tests
       run: make test
