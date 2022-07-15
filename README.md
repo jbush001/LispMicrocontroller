@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/jbush001/LispMicrocontroller.svg?branch=master)](https://travis-ci.org/jbush001/LispMicrocontroller)
+[![CI](https://github.com/jbush001/LispMicrocontroller/workflows/CI/badge.svg)](https://github.com/jbush001/LispMicrocontroller/actions?query=workflow%3ACI)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/8f4aff19a2d242f892acc10b98950f46)](https://www.codacy.com/app/jbush001/LispMicrocontroller?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=jbush001/LispMicrocontroller&amp;utm_campaign=Badge_Grade)
 
 This is a simple microcontroller that runs a compiled LISP dialect.  Details of operation are in the [wiki](https://github.com/jbush001/LispMicrocontroller/wiki).

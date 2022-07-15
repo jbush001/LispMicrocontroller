@@ -1,8 +1,0 @@
-language: c
-sudo: false
-addons:
-  apt:
-    packages:
-      - iverilog
-script:
-- make test
