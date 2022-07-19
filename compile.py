@@ -15,12 +15,14 @@
 # limitations under the License.
 #
 
-'''
-Read LISP source files and compile to machine code in hex
-format. Output file is 'program.hex'
+"""Read LISP source files and compile to binary machine code.
 
  ./compile.py <source file 1> [<source file 2>] ...
-'''
+
+Output file is 'program.hex', which contains the hexadecimal encoded
+instruction memory, starting at address 0. Each entry in the hex file
+is a 16 bit value value, separated with a newline.
+"""
 
 import copy
 import math
@@ -29,11 +31,14 @@ import re
 import shlex
 import sys
 
+# 2 bits associated with each data memory location, stored in hardware
+# to indicate its type.
 TAG_INTEGER = 0  # Make this zero because types default to this when pushed
 TAG_CONS = 1
 TAG_FUNCTION = 2
 TAG_CLOSURE = 3
 
+# Upper 5 bits in each instruction that indicates the operation.
 OP_NOP = 0
 OP_CALL = 1
 OP_RETURN = 2
@@ -70,6 +75,7 @@ class CompileError(Exception):
 
 
 class Symbol(object):
+    """What an identifier refers to."""
     LOCAL_VARIABLE = 1
     GLOBAL_VARIABLE = 2
     FUNCTION = 3
@@ -83,10 +89,7 @@ class Symbol(object):
 
 
 class Label(object):
-    '''
-    A label represents a branch destination.
-    Labels are only visible inside the functions they are defined in.
-    '''
+    """Placeholder for a branch destination."""
 
     def __init__(self):
         self.defined = False
@@ -94,6 +97,13 @@ class Label(object):
 
 
 class Function(object):
+    """This is a builder pattern that is used while generating code for a function.
+
+    The compiler can call into this to append instructions to a function.
+    Because of anonymous inner functions, there can be several functions being
+    built at once. This contains both the raw instructions themselves, as well as
+    symbol information and fixups.
+    """
 
     def __init__(self, name):
         self.name = name
@@ -111,12 +121,27 @@ class Function(object):
         self.emit_label(self.entry)
 
     def enter_scope(self):
+        """Start a new region of code where local variables are live."""
         self.environment.append({})
 
     def exit_scope(self):
+        """Any local variables defined in the previous scope are no longer live."""
         self.environment.pop()
 
     def lookup_local_variable(self, name):
+        """Attempt to find a local variable visible at the current code location.
+
+        This will start with the current scope, then walk outward to enclosing
+        scopes. This means variables with the same name in inner scopes can
+        shadow outer ones. This will also found closure variables outside
+        of a function, which will be handled specially later.
+
+        Args:
+            name (str): Human readable identifier
+
+        Returns:
+            Symbol corresponding to identifier or None
+        """
         for scope in reversed(self.environment):
             if name in scope:
                 return scope[name]
@@ -124,6 +149,17 @@ class Function(object):
         return None
 
     def reserve_local_variable(self, name):
+        """Allocate space for a local variable.
+
+        We also record the identifier in the inner-most scope.
+
+        Args:
+            name (str): Human readable identifier
+
+        Returns:
+            Symbol object corresponding to location.
+        """
+
         sym = Symbol(Symbol.LOCAL_VARIABLE)
         self.environment[-1][name] = sym
         # Skip return address and base pointer
@@ -132,26 +168,65 @@ class Function(object):
         return sym
 
     def set_param(self, name, index):
+        """Record information about a paramter to this function.
+
+        Args:
+            name (str): Human readable identifier used to access
+              the contents from within the function.
+            index (int): Offset in the stack frame used to find
+              the value of this parameter, passed from caller.
+        """
         sym = Symbol(Symbol.LOCAL_VARIABLE)
         self.environment[-1][name] = sym
         sym.index = index + 1
 
     def emit_label(self, label):
+        """Set the instruction address of a label.
+
+        The address of this label will be set to the *next* instruction to be
+        emitted. During later fixups, all instructions that reference this
+        label will be adjusted to point here.
+        The label will already have been created, and may already have been
+        used as a forward branch target.
+
+        Args:
+            label (Label): the label to assign to this location.
+        """
         assert not label.defined
         label.defined = True
         label.offset = len(self.instructions)
 
     def emit_branch_instruction(self, opcode, label):
+        """Append a branch instruction to the end of the function.
+
+        Args:
+            opcode (int): opcode of the branch instruction (e.g.
+               conditional vs. unconditional)
+            label (Label): destination of the branch.
+        """
         self.emit_instruction(opcode, 0)
         self.add_fixup(label)
 
     def emit_instruction(self, opcode, param=0):
+        """Append an instruction to the end of this function.
+
+        Args:
+            opcode (int): Upper 5 bits of instruction that indicate the
+              operation.
+            param: Lower 16 bits of instruction.
+        """
         if param > 32767 or param < -32768:
             raise CompileError('param out of range ' + str(param))
 
         self.instructions.append((opcode << 16) | (param & 0xffff))
 
     def add_prologue(self):
+        """Emit code that is executed at the top of the function.
+
+        This code is invoked immediately after a function is called, before
+        any of the user defined code. It includes basic local variable setup
+        and some bookkeeping for closures.
+        """
         prologue = []
         if self.num_local_variables > 0:
             prologue.append((OP_RESERVE << 16) | self.num_local_variables)
@@ -177,32 +252,43 @@ class Function(object):
         self.prologue = prologue
 
     def get_size(self):
+        """Return the current number of instructions in this function."""
         return len(self.prologue) + len(self.instructions)
 
     def add_fixup(self, target):
-        '''
-        This remembers that the last emitted instruction should be
-        patched later to point to the passed object, which can be
-        a Label, Function, or Symbol
-        '''
+        """Record instruction reference to memory location for later patching.
+
+        This remembers that the last emitted instruction should have its
+        data field adjusted later to point to 'target'. This can't always
+        be done immediately because it may be a forward reference.
+
+        Args:
+            target (Label|Function|Symbol): memory location reference.
+        """
         self.fixups.append((len(self.instructions) - 1, target))
 
     def patch(self, offset, value):
-        '''
-        Change the immediate field of the instruction to the passed
-        value, leaving its opcode unmodified.
-        offset - index of the instruction, starting after the prologue
-        value - new value for immediate field
-        '''
+        """Update instruction to point to a memory location.
+
+        Change the immediate field of the instruction, leaving its opcode
+        unmodified.
+
+        Args:
+            offset (int): index of the instruction, starting after the prologue
+            value (int): new value for immediate field
+        """
         self.instructions[offset] &= ~0xffff
         self.instructions[offset] |= (value & 0xffff)
 
     def apply_fixups(self):
-        '''
-        Walk through all fixups for this function and patch instructions
-        to point to the proper targets (which this expects should all be
-        known at this point).
-        '''
+        """Update all memory references in instructions in this function.
+
+        Walk through all previously recorded calls to add_fixup and adjust
+        the instructions to point to the proper targets. These *should*
+        all be known at this point, as the labels will have been emitted,
+        but, if not, this will raise an exception (which would indicate a bug
+        in this code).
+        """
         base_address = self.base_address + len(self.prologue)
         for pc, target in self.fixups:
             if isinstance(target, Label):
@@ -220,12 +306,12 @@ class Function(object):
                     'internal error: unknown fixup type ' + target.__name__)
 
     def mark_callees(self):
-        '''
-        Recursively mark all functions referenced by this one so they won't
-        be removed by dead code stripping. The reference list contains
-        either functions (for anonymous functions or declared functions) or
-        symbols (for forward references)
-        '''
+        """Recursively mark all functions called indirectly or directly by this one.
+
+        This ensures they won't be removed by dead code stripping. The
+        reference list contains either functions (for anonymous functions
+         or declared functions) or symbols (for forward references)
+        """
         self.referenced = True
         for ref in self.referenced_funcs:
             if isinstance(ref, Symbol):
@@ -237,7 +323,7 @@ class Function(object):
                 function.mark_callees()
 
 class Parser(object):
-    '''Converts text LISP source into a nested set of python lists'''
+    """Convert text LISP source into a nested set of python lists."""
 
     def __init__(self):
         self.lexer = None
@@ -310,11 +396,19 @@ class Compiler(object):
         self.break_stack = []
 
     def lookup_symbol(self, name):
-        '''
-        Lookup a symbol, starting in the current scope and working outward
-        to enclosing scopes. If the symbol doesn't exist, create it in the
-        global scope.
-        '''
+        """Given an identifier, find its type and where it's stored.
+
+        Start lookup in the current scope and works outward to enclosing
+        scopes. If the symbol doesn't exist, create it in the global scope.
+        If it is defined outside the current function closure, there is a
+        bunch of extra accounting to do.
+
+        Args:
+            name (string): human readable symbol text
+
+        Returns:
+            Symbol object.
+        """
         # Check for local variable
         sym = self.current_function.lookup_local_variable(name)
         if sym:
@@ -373,10 +467,11 @@ class Compiler(object):
         return sym
 
     def compile(self, program):
-        '''
-        Top level compile function. All code not in function blocks will be
-        emitted into an implicitly created dummy function 'main'
-        '''
+        """Convert the entire program into machine code.
+
+        All code not in function blocks will be emitted into an implicitly
+        created dummy function 'main'
+        """
         self.current_function = Function('main')
         self.function_list.append(self.current_function)
 
@@ -465,11 +560,14 @@ class Compiler(object):
             disassemble(listfile, instructions, self.function_list)
 
     def compile_function(self, expr):
-        '''
-        Compile named function definition. These are only supported in the
-        global scope.
+        """Compile named function definition.
+
+        These are only supported in the global scope.
         (function name (param param...) body)
-        '''
+
+        Args:
+            expr (List): List containing the S-expr
+        """
         function = self.compile_function_body(expr[1], expr[2], expr[3:])
         self.function_list.append(function)
 
@@ -483,8 +581,8 @@ class Compiler(object):
         sym.function = function
 
     def compile_expression(self, expr, is_tail_call=False):
-        '''
-        The mother compile function, from which all useful things are compiled.
+        """The mother code generation function.
+
         Compiles an arbitrary lisp expression. Each expression consumes
         all parameters--which are pushed onto the stack from right to left--
         and leaves a result value on the stack. All expressions have values in LISP.
@@ -493,7 +591,12 @@ class Compiler(object):
         S-Expression form. The outermost function call is a tail call.
         This may be wrapped in control flow form. If a sequence is outermost,
         the last function call will be a tail call.
-        '''
+
+        Args:
+            expr (List): List containing the S-expr
+            is_tail_call (bool): True if there are no other expressions evaluated
+              after this one before returning from the function.
+        """
         if isinstance(expr, list):
             if len(expr) == 0:
                 # Empty expression
@@ -516,11 +619,11 @@ class Compiler(object):
         self.current_function.emit_instruction(OP_PUSH, expr)
 
     def compile_identifier(self, expr):
-        '''
-        Look up the variable in the current environment and push its value
-        onto the stack.
-        expr - string that is the name of the variable to reference
-        '''
+        """Look up variable and emit code to push its value onto the stack.
+
+        Args:
+            expr (str): Human readable of the variable to reference
+        """
         variable = self.lookup_symbol(expr)
         if variable.type == Symbol.LOCAL_VARIABLE:
             self.current_function.emit_instruction(OP_GETLOCAL,
@@ -539,11 +642,15 @@ class Compiler(object):
                 .format(expr))
 
     def compile_combination(self, expr, is_tail_call=False):
-        '''
-        A combination is a list expression (op param param...)
+        """Compile a list expression (op param param...).
+
         This may be a special form (like if) or a function call.
         Any expression that isn't an atom or a number will be compiled here.
-        '''
+        Args:
+            expr (List): List containing the S-expr
+            is_tail_call (bool): True if there are no other expressions evaluated
+              after this one before returning from the function.
+        """
         if isinstance(expr[0], str):
             function_name = expr[0]
             if function_name in self.PRIMITIVES:
@@ -577,6 +684,11 @@ class Compiler(object):
             self.compile_function_call(expr)
 
     def compile_list(self, expr):
+        """Emit code to construct a literal list
+
+        Args:
+            expr (List): list of expression values
+        """
         for value in reversed(expr[1:]):
             self.compile_expression(value)
 
@@ -586,9 +698,11 @@ class Compiler(object):
             self.current_function.emit_instruction(OP_CLEANUP, 2)
 
     def compile_quote(self, expr):
-        '''
-         Quoted expressions compile to a series of cons calls.
-        '''
+        """Convert quoted expression to a series of cons calls.
+
+        Args:
+            expr (List|int|str): literal value to be quoted.
+        """
         if isinstance(expr, list):
             if len(expr) == 3 and expr[1] == '.':
                 # This is a pair, which has special syntax: ( expr . expr )
@@ -626,10 +740,13 @@ class Compiler(object):
         self.current_function.emit_instruction(OP_CLEANUP, 2)
 
     def compile_string(self, string):
-        '''
-        String literals compile to a cons call for each character, since
-        there is not a native string type.
-        '''
+        """Convert string literal to a cons call for each character
+
+        There isn't not a native string type.
+
+        Args:
+            string (str): literal to be encoded.
+        """
         if len(string) == 1:
             self.compile_integer_literal(0)
         else:
@@ -643,11 +760,14 @@ class Compiler(object):
         self.current_function.emit_instruction(OP_CLEANUP, 2)
 
     def compile_assign(self, expr):
-        '''
-        Set a variable (assign variable value)
+        """Emit code to write to a variable (assign variable value).
+
         This will leave the value of the expression on the stack, since all
         expressions do that.
-        '''
+
+        Args:
+            expr (List): List containing the S-expr
+        """
         variable = self.lookup_symbol(expr[1])
         if variable.type == Symbol.LOCAL_VARIABLE:
             self.compile_expression(expr[2])
@@ -665,11 +785,15 @@ class Compiler(object):
                 'Internal error: what kind of variable is {}?'.format(expr[1]))
 
     def compile_boolean_expression(self, expr):
-        '''
-        Compile a boolean expression (and, or, not) that is not part of an
-        conditional form like if or while. This will push the result (1 or 0)
-        on the stack.
-        '''
+        """Compile boolean expression (and, or, not) that stores value on stack.
+
+        This is not used for conditional form like if or while. This will push
+        the result (1 or 0) on the stack.
+
+        Args:
+            expr (List): List containing the S-expr
+
+        """
         false_label = Label()
         done_label = Label()
         self.compile_predicate(expr, false_label)
@@ -680,12 +804,16 @@ class Compiler(object):
         self.current_function.emit_label(done_label)
 
     def compile_predicate(self, expr, false_label):
-        '''
-        Compile a boolean expression that is part of a control flow expression.
+        """Compile boolean expression that is part of a control flow expression.
+
         If the expression is false, this will jump to the label 'false_label',
         otherwise it will fall through. This performs short circuit evaluation
         where possible.
-        '''
+
+        Args:
+            expr (List): List containing the S-expr
+            false_label (Label): Where to jump to if express is false.
+        """
         if isinstance(expr, list):
             if expr[0] == 'and':
                 if len(expr) < 2:
@@ -727,10 +855,15 @@ class Compiler(object):
         self.current_function.emit_branch_instruction(OP_BFALSE, false_label)
 
     def compile_if(self, expr, is_tail_call=False):
-        '''
-        Conditional execution
+        """Compile conditional branch.
+
         (if expr true [false])
-        '''
+
+        Args:
+            expr (List): List containing the S-expr
+            is_tail_call (bool): True if there are no other expressions evaluated
+              after this one before returning from the function.
+        """
         false_label = Label()
         done_label = Label()
 
@@ -748,13 +881,17 @@ class Compiler(object):
         self.current_function.emit_label(done_label)
 
     def compile_while(self, expr):
-        '''
-        Loop construct
-        (while condition body)
+        """Compile loop.
+
         That body is implicitly a (begin... and can use a sequence
         If the loop terminates normally (the condition is false), the
         result is zero. If (break val) is called, 'val' will be the result.
-        '''
+
+        (while condition body)
+
+        Args:
+            expr (List): List containing the S-expr
+        """
         top_of_loop = Label()
         bottom_of_loop = Label()
         break_loop = Label()
@@ -770,10 +907,13 @@ class Compiler(object):
         self.current_function.emit_label(break_loop)
 
     def compile_break(self, expr):
-        '''
-        break out of the current loop
+        """Emit instruction to jump past the end of the current loop body.
+
         (break [value])
-        '''
+
+        Args:
+            expr (List): List containing the S-expr
+        """
         label = self.break_stack[-1]
         if len(expr) > 1:
             self.compile_expression(expr[1])    # Push value on stack
@@ -831,7 +971,13 @@ class Compiler(object):
             self.current_function.emit_instruction(opcode)
 
     def compile_function_call(self, expr, is_tail_call=False):
-        '''Call a function'''
+        """Emit code to call a function.
+
+        Args:
+            expr (List): List containing the S-expr
+            is_tail_call (bool): True if there are no other expressions evaluated
+              after this one before returning from the function.
+        """
         if isinstance(expr[0], int):
             raise CompileError('Cannot use integer as function')
 
@@ -890,11 +1036,19 @@ class Compiler(object):
                         OP_CLEANUP, len(expr) - 1)
 
     def compile_function_body(self, name, params, body):
-        '''
-        Common code to compile body of the function definition (either
-        anonymous or named)
+        """Common code to compile body function definition.
+
+        This can be either anonymous or named.
         ((param param...) body)
-        '''
+
+        Args:
+            name (str): Human readable identifier of function.
+            params (List): A list of all parameter identifiers.
+            body (List): S-Expression of the code to execute in the function.
+
+        Returns:
+            new Function object.
+        """
         old_function = self.current_function
         new_function = Function(name)
         new_function.enclosing_function = old_function
@@ -911,12 +1065,16 @@ class Compiler(object):
         return new_function
 
     def compile_anonymous_function(self, expr):
-        '''
-        Anonymous function
-        (function (param param...) (expr))
+        """Compile unnamed function.
+
         Generate the code in a separate global function (lambda lifting),
         then emit a push of the reference to it in the current function.
-        '''
+
+        (function (param param...) (expr))
+
+        Args:
+            expr (List): List containing the S-expr
+        """
         # Do an enter_scope because we may create temporary variables to
         # represent free variables while compiling. See lookup_symbol for more
         # information.
@@ -967,11 +1125,18 @@ class Compiler(object):
         self.function_list.append(new_function)
 
     def compile_sequence(self, sequence, is_tail_call=False):
-        '''
-        A list of expressions to evaluate in order. The value of this
-        expression as a whole will be the last expression evaluated.
+        """A list of expressions to evaluate in order.
+
+        The value of this expression as a whole will be the last
+        expression evaluated.
+
         (sequence stmt1 stmt2 ... stmtn)
-        '''
+
+        Args:
+            expr (List): List containing the S-expr
+            is_tail_call (bool): True if there are no other expressions evaluated
+              after this one before returning from the function.
+        """
         if len(sequence) == 0:
             self.current_function.emit_instruction(
                 OP_PUSH, 0)  # Need to have at least one value
@@ -984,11 +1149,17 @@ class Compiler(object):
             self.compile_expression(sequence[-1], is_tail_call)
 
     def compile_let(self, expr, is_tail_call=False):
-        '''
-        Create a new scope, reserve local variables, and assign initial
-        values to them.
+        """ Create a new scope and allocate local variables
+
+        This also emits code to assign initial values.
+
         (let ((variable value) (variable value) (variable value)...) expr)
-        '''
+
+        Args:
+            expr (List): List containing the S-expr
+            is_tail_call (bool): True if there are no other expressions evaluated
+              after this one before returning from the function.
+        """
         # Reserve space on stack for local variables
         self.current_function.enter_scope()
 
@@ -1043,10 +1214,17 @@ def make_legal_constant(i):
 
 
 def optimize(expr):
-    '''
-    Optimize the S-Expression program, performing transforms like constant
-    folding, constant conditional folding, and strength reduction.
-    '''
+    """Optimize the program in S-Expression list format.
+
+    Perform transforms like constant folding, constant conditional folding,
+    and strength reduction to improve performance and reduce size.
+
+    Args:
+        expr (List): List containing the S-expr
+
+    Returns:
+        The optimized S-Expr.
+    """
     if isinstance(expr, list) and len(expr) > 0:
         if expr[0] == 'quote':
             return expr  # Don't optimize quoted elements
@@ -1127,13 +1305,20 @@ def optimize(expr):
 CADR_RE = re.compile('c[ad]+r')
 
 def expand_cadr(expr):
-    '''
-    Scheme supports a shorthand for sequences of car and cdr calls where the
-    intermediate letters represent each operation. Expand into proper calls
+    """Expand shortand for car and cdr calls.
+
+    Scheme encodes sequences of car and cdr calls where the intermediate
+    letters represent each operation. Expand into proper calls
     here (we use first and rest);
 
     (cadadr foo) => (car (cdr (car (cdr foo))))
-    '''
+
+    Args:
+        expr (List): List containing the S-expr
+
+    Returns:
+        A new S-Expr.
+    """
     if isinstance(expr, list) and len(expr) > 0:
         name = expr[0]
         if name == 'quote':
@@ -1197,6 +1382,16 @@ DISASM_TABLE = {
 
 
 def disassemble(outfile, instructions, functions):
+    """Given binary instructions, convert back readable assembly format.
+
+    This is useful for debugging.
+
+    Args:
+        outfile (File): file handle to write to
+        instructions (List<int>): a list of integers representing instruction values
+        functions (List): list of instruction start addresses, used to make the
+           output more readable.
+    """
     next_function_start = functions[0].base_address
     func_index = 0
 
@@ -1243,11 +1438,12 @@ def pretty_print_sexpr(listfile, expr, indent=0):
 
 
 class MacroProcessor(object):
-    '''
-    The macro processor is a small lisp interpreter
+    """Expand macros at compile time.
+
+    The macro processor is a small lisp interpreter.
     Evaluate macro expressions with their arguments as parameters, insert
     the result into the expression list.
-    '''
+    """
     def __init__(self):
         self.macro_list = {}
 
@@ -1355,6 +1551,14 @@ class MacroProcessor(object):
             return statement
 
 def compile_program(files):
+    """Top level compiler.
+
+    This loads the runtime library (written in LISP), then walks through the
+    given files and assembles them all into a single program.
+
+    Args:
+        files (List<str>): List of filenames to read and compile.
+    """
     parser = Parser()
 
     # Read standard runtime library

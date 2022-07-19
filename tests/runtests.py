@@ -86,6 +86,8 @@ def check_result(output, check_filename):
         print('simulation did not halt normally')
         return False
 
+    print('PASS')
+
     return True
 
 
@@ -97,9 +99,9 @@ def runtest(filename):
         # Run test
         result = subprocess.check_output(['vvp', PROJECT_ROOT + '/sim.vvp']).decode().strip()
         if result:
-            if check_result(result, filename):
-                print('PASS')
-
+            check_result(result, filename)
+        else:
+            print('FAIL: no output')
     except KeyboardInterrupt:
         raise
     except:
