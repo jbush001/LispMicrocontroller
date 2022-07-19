@@ -27,7 +27,7 @@ sim.vvp: $(VERILOG_SRCS)
 	iverilog -o $@ $(IVFLAGS) $(VERILOG_SRCS)
 
 test: sim.vvp FORCE
-	python tests/runtests.py
+	python3 tests/runtests.py
 
 clean:
 	rm sim.vvp

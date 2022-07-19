@@ -14,8 +14,12 @@
 ; limitations under the License.
 ;
 
-; When changing the test harness, add this explicitly to the list of
-; tests to ensure it fails
+; When changing the test harness, call this to ensure it catches the error
+;
+; $ python3 runtests.py match-fail.lisp
+; FAIL: line 27 expected string Hello was not found
+; searching here:HALTED
+
 
 ($printstr "Hello")
 ($printchar 10)

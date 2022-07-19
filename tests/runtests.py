@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright 2011-2016 Jeff Bush
 #
@@ -15,19 +15,14 @@
 # limitations under the License.
 #
 
-from __future__ import print_function
 import os
 import subprocess
 import sys
 
-TEST_DIR = os.path.normpath(os.path.dirname(os.path.abspath(__file__))) + '/'
-PROJECT_ROOT = TEST_DIR + '../'
+TEST_DIR = os.path.normpath(os.path.dirname(os.path.abspath(__file__)))
+PROJECT_ROOT = os.path.join(TEST_DIR, '..')
 
-TESTS = [
-# Uncomment these one at a time to ensure this properly detects failures
-#    'match-fail.lisp',
-#    'compile-fail.lisp',
-
+POSITIVE_TESTS = [
     # Basic Compiler/Interpreter tests
     'hello.lisp',
     'scope.lisp',
@@ -58,7 +53,6 @@ TESTS = [
     'fib.lisp',
     'dict.lisp'
 ]
-
 
 def check_result(output, check_filename):
     result_offset = 0
@@ -94,10 +88,10 @@ def check_result(output, check_filename):
 def runtest(filename):
     try:
         # Compile test
-        subprocess.check_call(['python', PROJECT_ROOT + '/compile.py', filename])
+        subprocess.check_call(['python3', os.path.join(PROJECT_ROOT, 'compile.py'), filename])
 
         # Run test
-        result = subprocess.check_output(['vvp', PROJECT_ROOT + '/sim.vvp']).decode().strip()
+        result = subprocess.check_output(['vvp', os.path.join(PROJECT_ROOT, 'sim.vvp')]).decode().strip()
         if result:
             check_result(result, filename)
         else:
@@ -108,10 +102,26 @@ def runtest(filename):
         print('FAIL: exception thrown')
         raise
 
+
+def run_compile_error_test(filename, errorstr):
+    result = subprocess.run(['python3', os.path.join(PROJECT_ROOT, 'compile.py'), filename],
+        capture_output=True)
+    if result.returncode != 1:
+        print('FAIL: bad return call')
+
+    if errorstr not in str(result.stdout, 'utf-8'):
+        print('FAIL: error message not found')
+
+    print('PASS')
+
+
 if len(sys.argv) > 1:
-    runtest(TEST_DIR + sys.argv[1])
+    runtest(os.path.join(TEST_DIR, sys.argv[1]))
 else:
-    for filename in TESTS:
+    for filename in POSITIVE_TESTS:
         print(filename, end=' ')
         sys.stdout.flush()
-        runtest(TEST_DIR + filename)
+        runtest(os.path.join(TEST_DIR, filename))
+
+    print('compile-fail.lisp', end=' ')
+    run_compile_error_test(os.path.join(TEST_DIR, 'compile-fail.lisp'), 'Compile error: missing )')
